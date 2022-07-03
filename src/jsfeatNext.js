@@ -1,0 +1,139 @@
+class jsfeatNext {
+    constructor() {
+        this._data_type_size = new Int32Array([-1, 1, 4, -1, 4, -1, -1, -1, 8, -1, -1, -1, -1, -1, -1, -1, 8]);
+    }
+
+    // CONSTANTS
+    static EPSILON = 0.0000001192092896;
+    static FLT_MIN = 1E-37;
+    U8_t = 0x0100;
+    S32_t = 0x0200;
+    F32_t = 0x0400;
+    S64_t = 0x0800;
+    F64_t = 0x1000;
+    C1_t = 0x01;
+    C2_t = 0x02;
+    C3_t = 0x03;
+    C4_t = 0x04;
+
+    // color conversion
+    COLOR_RGBA2GRAY = 0;
+    COLOR_RGB2GRAY = 1;
+    COLOR_BGRA2GRAY = 2;
+    COLOR_BGR2GRAY = 3;
+
+    // box blur option
+    BOX_BLUR_NOSCALE = 0x01;
+    // svd options
+    SVD_U_T = 0x01;
+    SVD_V_T = 0x02;
+
+    get_data_type(type) {
+        return (type & 0xFF00);
+    }
+
+    get_channel(type) {
+        return (type & 0xFF);
+    }
+
+    get_data_type_size(type) {
+        return this._data_type_size[(type & 0xFF00) >> 8];
+    }
+}
+
+jsfeatNext.data_t = class data_t extends jsfeatNext {
+    constructor(size_in_bytes, buffer) {
+        super()
+        // we need align size to multiple of 8
+        this.size = ((size_in_bytes + 7) | 0) & -8;
+        if (typeof buffer === "undefined") {
+            this.buffer = new ArrayBuffer(this.size);
+        } else {
+            this.buffer = buffer;
+            this.size = buffer.length;
+        }
+        this.u8 = new Uint8Array(this.buffer);
+        this.i32 = new Int32Array(this.buffer);
+        this.f32 = new Float32Array(this.buffer);
+        this.f64 = new Float64Array(this.buffer);
+    }
+    //return data_t;
+}
+
+jsfeatNext.matrix_t = class matrix_t extends jsfeatNext {
+    constructor(c, r, data_type, data_buffer) {
+        super()
+        this.type = this.get_data_type(data_type) | 0;
+        this.channel = this.get_channel(data_type) | 0;
+        this.cols = c | 0;
+        this.rows = r | 0;
+        if (typeof data_buffer === "undefined") {
+            this.allocate();
+        } else {
+            this.buffer = data_buffer;
+            // data user asked for
+            this.data = this.type & U8_t ? this.buffer.u8 : (this.type & S32_t ? this.buffer.i32 : (this.type & F32_t ? this.buffer.f32 : this.buffer.f64));
+        }
+    }
+    allocate() {
+        // clear references
+        delete this.data;
+        delete this.buffer;
+        //
+        this.buffer = new jsfeatNext.data_t((this.cols * this.get_data_type_size(this.type) * this.channel) * this.rows);
+        this.data = this.type & jsfeatNext.U8_t ? this.buffer.u8 : (this.type & jsfeatNext.S32_t ? this.buffer.i32 : (this.type & jsfeatNext.F32_t ? this.buffer.f32 : this.buffer.f64));
+    }
+}
+
+jsfeatNext.pyramid_t = class pyramid_t extends jsfeatNext {
+    constructor(levels) {
+        super();
+        this.levels = levels | 0;
+        this.data = new Array(levels);
+        //jsfeatNext.imgproc.pyrdown is not yet implemented... 
+        this.pyrdown = jsfeatNext.imgproc.pyrdown;
+    }
+
+    allocate(start_w, start_h, data_type) {
+        var i = this.levels;
+        while (--i >= 0) {
+            this.data[i] = new jsfeatNext.matrix_t(start_w >> i, start_h >> i, data_type);
+        }
+    }
+
+    build(input, skip_first_level) {
+        if (typeof skip_first_level === "undefined") { skip_first_level = true; }
+        // just copy data to first level
+        var i = 2, a = input, b = this.data[0];
+        if (!skip_first_level) {
+            var j = input.cols * input.rows;
+            while (--j >= 0) {
+                b.data[j] = input.data[j];
+            }
+        }
+        b = this.data[1];
+        this.pyrdown(a, b);
+        for (; i < this.levels; ++i) {
+            a = b;
+            b = this.data[i];
+            this.pyrdown(a, b);
+        }
+    }
+}
+
+jsfeatNext.keypoint_t = class keypoint_t extends jsfeatNext {
+    constructor(x, y, score, level, angle) {
+        super();
+        if (typeof x === "undefined") { x = 0; }
+        if (typeof y === "undefined") { y = 0; }
+        if (typeof score === "undefined") { score = 0; }
+        if (typeof level === "undefined") { level = 0; }
+        if (typeof angle === "undefined") { angle = -1.0; }
+
+        this.x = x;
+        this.y = y;
+        this.score = score;
+        this.level = level;
+        this.angle = angle;
+    }
+}
