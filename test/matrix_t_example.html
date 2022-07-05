@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Testing jsfeatNext</title>
+</head>
+
+<body>
+    <script type="module" src="../src/jsfeatNext.js"></script>
+    <script type="module">
+        import jsfeat from '../src/jsfeatNext.js'
+
+        console.log(jsfeat.EPSILON);
+        console.log(jsfeat.FLT_MIN);
+        console.log(jsfeat);
+        var count = 12;
+        var columns = 320, rows = 240, data_type = jsfeat.U8_t | jsfeat.C1_t;
+        console.log(data_type);
+        var matrix = new jsfeat.matrix_t(columns, rows, data_type);
+
+        //var mat = new jsfeat.matrix_t(count, 1, jsfeat.U8_t | jsfeat.C1_t);
+        console.log(matrix);
+        var keypoint = new jsfeat.keypoint_t();
+        console.log(keypoint);
+        var cache = new jsfeat.cache();
+        cache.allocate(10, 2);
+        console.log(cache);
+        var bf = cache.get_buffer((2) << 2);
+        console.log(bf);      
+    </script>
+
+</body>
+
+</html>
