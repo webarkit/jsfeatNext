@@ -27,10 +27,10 @@ export default class jsfeatNext {
     static COLOR_BGR2GRAY = 3;
 
     // box blur option
-    BOX_BLUR_NOSCALE = 0x01;
+    static BOX_BLUR_NOSCALE = 0x01;
     // svd options
-    SVD_U_T = 0x01;
-    SVD_V_T = 0x02;
+    static SVD_U_T = 0x01;
+    static SVD_V_T = 0x02;
 
     get_data_type(type) {
         return (type & 0xFF00);
