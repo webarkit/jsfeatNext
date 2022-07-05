@@ -1,0 +1,22 @@
+#video {
+    position: absolute;
+    top: 0;
+    left: 0;
+
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover;
+}
+
+#canvas {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 100;
+
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover;
+}
