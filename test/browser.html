@@ -9,18 +9,23 @@
 </head>
 
 <body>
-    <script src="../src/jsfeatNext.js"></script>
-    <script>
-        var jsfeat = new jsfeatNext()
-        console.log(jsfeat)
-        console.log(jsfeatNext.EPSILON);
-        console.log(jsfeatNext.FLT_MIN);
+    <script type="module" src="../src/jsfeatNext.js"></script>
+    <script type="module">
+        import jsfeat from '../src/jsfeatNext.js'
+
+        console.log(jsfeat.EPSILON);
+        console.log(jsfeat.FLT_MIN);
         var count = 12;
-        var mat = new jsfeatNext.matrix_t(count, 1, jsfeat.U8_t | jsfeat.C1_t);
+        var mat = new jsfeat.matrix_t(count, 1, jsfeat.U8_t | jsfeat.C1_t);
         console.log(mat);
-        var keypoint = new jsfeatNext.keypoint_t();
+        var keypoint = new jsfeat.keypoint_t();
         console.log(keypoint);
-        </script>
+        var cache = new jsfeat.cache();
+        cache.allocate(10, 2);
+        console.log(cache);
+        var bf = cache.get_buffer((2) << 2);
+        console.log(bf);      
+    </script>
 
 </body>
 

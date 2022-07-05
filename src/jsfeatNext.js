@@ -1,4 +1,7 @@
-class jsfeatNext {
+import _pool_node_t from './node_utils/_pool_node_t.js'
+import data_t from './node_utils/data_t.js'
+
+export default class jsfeatNext {
     constructor() {
         this._data_type_size = new Int32Array([-1, 1, 4, -1, 4, -1, -1, -1, 8, -1, -1, -1, -1, -1, -1, -1, 8]);
     }
@@ -41,24 +44,7 @@ class jsfeatNext {
     }
 }
 
-jsfeatNext.data_t = class data_t extends jsfeatNext {
-    constructor(size_in_bytes, buffer) {
-        super()
-        // we need align size to multiple of 8
-        this.size = ((size_in_bytes + 7) | 0) & -8;
-        if (typeof buffer === "undefined") {
-            this.buffer = new ArrayBuffer(this.size);
-        } else {
-            this.buffer = buffer;
-            this.size = buffer.length;
-        }
-        this.u8 = new Uint8Array(this.buffer);
-        this.i32 = new Int32Array(this.buffer);
-        this.f32 = new Float32Array(this.buffer);
-        this.f64 = new Float64Array(this.buffer);
-    }
-    //return data_t;
-}
+jsfeatNext.data_t = data_t
 
 jsfeatNext.matrix_t = class matrix_t extends jsfeatNext {
     constructor(c, r, data_type, data_buffer) {
@@ -135,5 +121,39 @@ jsfeatNext.keypoint_t = class keypoint_t extends jsfeatNext {
         this.score = score;
         this.level = level;
         this.angle = angle;
+    }
+}
+
+jsfeatNext.cache = class cache extends jsfeatNext {
+    constructor() {
+        super()
+        this._pool_head;
+        this._pool_tail;
+        this._pool_size = 0;
+    }
+    allocate(capacity, data_size) {
+        this._pool_head = this._pool_tail = new _pool_node_t(data_size);
+        for (var i = 0; i < capacity; ++i) {
+            var node = new _pool_node_t(data_size);
+            this._pool_tail = this._pool_tail.next = node;
+
+            this._pool_size++;
+        }
+    }
+    get_buffer(size_in_bytes) {
+        // assume we have enough free nodes
+        var node = this._pool_head;
+        this._pool_head = this._pool_head.next;
+        this._pool_size--;
+
+        if(size_in_bytes > node.size) {
+            node.resize(size_in_bytes);
+        }
+
+        return node;
+    }
+    put_buffer(node) {
+        this._pool_tail = this._pool_tail.next = node;
+        this._pool_size++;
     }
 }
