@@ -5,6 +5,8 @@ import imgproc from './imgproc/imgproc.js'
 export default class jsfeatNext {
     constructor() {
         this._data_type_size = new Int32Array([-1, 1, 4, -1, 4, -1, -1, -1, 8, -1, -1, -1, -1, -1, -1, -1, 8]);
+        this.version = "0.1.0";
+        console.log("jsfeatNext version: ", this.version);
     }
 
     // CONSTANTS
