@@ -49,12 +49,12 @@
                     video.play();
 
                     console.log('video', video, video.videoWidth, video.videoHeight);
+
                     var canvasWidth = video.videoWidth;
                     var canvasHeight = video.videoHeight;
                     canvas.width = canvasWidth;
                     canvas.height = canvasHeight;
                     process();
-
                 });
             });
             function process() {
@@ -62,11 +62,9 @@
                 ctx.drawImage(video, 0, 0, width, height);
                 var image_data = ctx.getImageData(0, 0, width, height);
                 var img_u8 = new jsfeat.matrix_t(width, height, jsfeat.U8_t | jsfeat.C1_t);
-                console.log(img_u8);
                 var imgproc = new jsfeat.imgproc()
                 var code = jsfeat.COLOR_RGBA2GRAY;
                 imgproc.grayscale(image_data.data, width, height, img_u8, code);
-                console.log(image_data);
                 var data_u32 = new Uint32Array(image_data.data.buffer);
                 var alpha = (0xff << 24);
                 var i = img_u8.cols * img_u8.rows, pix = 0;
@@ -74,7 +72,6 @@
                     pix = img_u8.data[i];
                     data_u32[i] = alpha | (pix << 16) | (pix << 8) | pix;
                 }
-                //console.log(image_data);
                 ctx.putImageData(image_data, 0, 0);
                 requestAnimationFrame(process);
             }
