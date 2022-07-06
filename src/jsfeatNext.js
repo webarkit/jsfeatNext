@@ -1,6 +1,7 @@
 import _pool_node_t from './node_utils/_pool_node_t.js'
 import data_t from './node_utils/data_t.js'
 import imgproc from './imgproc/imgproc.js'
+import matmath from './matmath/matmath.js'
 
 export default class jsfeatNext {
     constructor() {
@@ -33,6 +34,16 @@ export default class jsfeatNext {
     // svd options
     static SVD_U_T = 0x01;
     static SVD_V_T = 0x02;
+
+    // popular formats
+    static U8C1_t = this.U8_t | this.C1_t;
+    static U8C3_t = this.U8_t | this.C3_t;
+    static U8C4_t = this.U8_t | this.C4_t;
+
+    static F32C1_t = this.F32_t | this.C1_t;
+    static F32C2_t = this.F32_t | this.C2_t;
+    static S32C1_t = this.S32_t | this.C1_t;
+    static S32C2_t = this.S32_t | this.C2_t;
 
     get_data_type(type) {
         return (type & 0xFF00);
@@ -190,3 +201,5 @@ jsfeatNext.cache = class cache extends jsfeatNext {
 }
 
 jsfeatNext.imgproc = imgproc;
+
+jsfeatNext.matmath = matmath;
