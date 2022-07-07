@@ -1,7 +1,9 @@
 import _pool_node_t from './node_utils/_pool_node_t.js'
+import cache from './cache/cache.js'
 import data_t from './node_utils/data_t.js'
 import imgproc from './imgproc/imgproc.js'
 import matmath from './matmath/matmath.js'
+import linalg from './linalg/linalg.js'
 
 export default class jsfeatNext {
     constructor() {
@@ -72,7 +74,7 @@ jsfeatNext.matrix_t = class matrix_t extends jsfeatNext {
         } else {
             this.buffer = data_buffer;
             // data user asked for
-            this.data = this.type & U8_t ? this.buffer.u8 : (this.type & S32_t ? this.buffer.i32 : (this.type & F32_t ? this.buffer.f32 : this.buffer.f64));
+            this.data = this.type & jsfeatNext.U8_t ? this.buffer.u8 : (this.type & jsfeatNext.S32_t ? this.buffer.i32 : (this.type & jsfeatNext.F32_t ? this.buffer.f32 : this.buffer.f64));
         }
     }
     allocate() {
@@ -166,40 +168,10 @@ jsfeatNext.keypoint_t = class keypoint_t extends jsfeatNext {
     }
 }
 
-jsfeatNext.cache = class cache extends jsfeatNext {
-    constructor() {
-        super()
-        this._pool_head;
-        this._pool_tail;
-        this._pool_size = 0;
-    }
-    allocate(capacity, data_size) {
-        this._pool_head = this._pool_tail = new _pool_node_t(data_size);
-        for (var i = 0; i < capacity; ++i) {
-            var node = new _pool_node_t(data_size);
-            this._pool_tail = this._pool_tail.next = node;
-
-            this._pool_size++;
-        }
-    }
-    get_buffer(size_in_bytes) {
-        // assume we have enough free nodes
-        var node = this._pool_head;
-        this._pool_head = this._pool_head.next;
-        this._pool_size--;
-
-        if (size_in_bytes > node.size) {
-            node.resize(size_in_bytes);
-        }
-
-        return node;
-    }
-    put_buffer(node) {
-        this._pool_tail = this._pool_tail.next = node;
-        this._pool_size++;
-    }
-}
+jsfeatNext.cache = cache;
 
 jsfeatNext.imgproc = imgproc;
 
 jsfeatNext.matmath = matmath;
+
+jsfeatNext.linalg = linalg;
