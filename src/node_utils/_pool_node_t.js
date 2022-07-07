@@ -1,8 +1,8 @@
-import jsfeatNext from '../jsfeatNext.js'
+import data_t from './data_t.js'
 export default class _pool_node_t {
     constructor(size_in_bytes) {
         this.next = null;
-        this.data = new jsfeatNext.data_t(size_in_bytes);
+        this.data = new data_t(size_in_bytes);
         this.size = this.data.size;
         this.buffer = this.data.buffer;
         this.u8 = this.data.u8;
@@ -12,7 +12,7 @@ export default class _pool_node_t {
     }
     resize() {
         delete this.data;
-        this.data = new jsfeatNext.data_t(size_in_bytes);
+        this.data = new data_t(size_in_bytes);
         this.size = this.data.size;
         this.buffer = this.data.buffer;
         this.u8 = this.data.u8;

@@ -4,6 +4,7 @@ import cache from './cache/cache.js'
 import data_t from './node_utils/data_t.js'
 import imgproc from './imgproc/imgproc.js'
 import matmath from './matmath/matmath.js'
+import matrix_t from './matrix_t/matrix_t.js'
 import linalg from './linalg/linalg.js'
 import { JSFEAT_CONSTANTS } from './constants/constants.js'
 
@@ -65,58 +66,7 @@ export default class jsfeatNext {
 
 jsfeatNext.data_t = data_t
 
-jsfeatNext.matrix_t = class matrix_t extends jsfeatNext {
-    constructor(c, r, data_type, data_buffer) {
-        super()
-        this.type = this.get_data_type(data_type) | 0;
-        this.channel = this.get_channel(data_type) | 0;
-        this.cols = c | 0;
-        this.rows = r | 0;
-        if (typeof data_buffer === "undefined") {
-            this.allocate();
-        } else {
-            this.buffer = data_buffer;
-            // data user asked for
-            this.data = this.type & jsfeatNext.U8_t ? this.buffer.u8 : (this.type & jsfeatNext.S32_t ? this.buffer.i32 : (this.type & jsfeatNext.F32_t ? this.buffer.f32 : this.buffer.f64));
-        }
-    }
-    allocate() {
-        // clear references
-        delete this.data;
-        delete this.buffer;
-        //
-        this.buffer = new jsfeatNext.data_t((this.cols * this.get_data_type_size(this.type) * this.channel) * this.rows);
-        this.data = this.type & jsfeatNext.U8_t ? this.buffer.u8 : (this.type & jsfeatNext.S32_t ? this.buffer.i32 : (this.type & jsfeatNext.F32_t ? this.buffer.f32 : this.buffer.f64));
-    }
-    copy_to(other) {
-        var od = other.data, td = this.data;
-        var i = 0, n = (this.cols * this.rows * this.channel) | 0;
-        for (; i < n - 4; i += 4) {
-            od[i] = td[i];
-            od[i + 1] = td[i + 1];
-            od[i + 2] = td[i + 2];
-            od[i + 3] = td[i + 3];
-        }
-        for (; i < n; ++i) {
-            od[i] = td[i];
-        }
-    }
-    resize(c, r, ch) {
-        if (typeof ch === "undefined") { ch = this.channel; }
-        // relocate buffer only if new size doesnt fit
-        var new_size = (c * this.get_data_type_size(this.type) * ch) * r;
-        if (new_size > this.buffer.size) {
-            this.cols = c;
-            this.rows = r;
-            this.channel = ch;
-            this.allocate();
-        } else {
-            this.cols = c;
-            this.rows = r;
-            this.channel = ch;
-        }
-    }
-}
+jsfeatNext.matrix_t = matrix_t;
 
 jsfeatNext.pyramid_t = class pyramid_t extends jsfeatNext {
     constructor(levels) {
