@@ -1,18 +1,18 @@
 import { _resample, _resample_u8 } from './resample.js'
-import jsfeatNext from '../jsfeatNext.js'
+import { JSFEAT_CONSTANTS } from '../constants/constants.js'
 export default class imgproc {
     constructor(){}
     grayscale(src, w, h, dst, code)  {
         // this is default image data representation in browser
-        if (typeof code === "undefined") { code = jsfeatNext.COLOR_RGBA2GRAY; }
+        if (typeof code === "undefined") { code = JSFEAT_CONSTANTS.COLOR_RGBA2GRAY; }
         var x=0, y=0, i=0, j=0, ir=0,jr=0;
         var coeff_r = 4899, coeff_g = 9617, coeff_b = 1868, cn = 4;
 
-        if(code == jsfeatNext.COLOR_BGRA2GRAY || code == jsfeatNext.COLOR_BGR2GRAY) {
+        if(code == JSFEAT_CONSTANTS.COLOR_BGRA2GRAY || code == JSFEAT_CONSTANTS.COLOR_BGR2GRAY) {
             coeff_r = 1868;
             coeff_b = 4899;
         }
-        if(code == jsfeatNext.COLOR_RGB2GRAY || code == jsfeatNext.COLOR_BGR2GRAY) {
+        if(code == JSFEAT_CONSTANTS.COLOR_RGB2GRAY || code == JSFEAT_CONSTANTS.COLOR_BGR2GRAY) {
             cn = 3;
         }
         var cn2 = cn<<1, cn3 = (cn*3)|0;
