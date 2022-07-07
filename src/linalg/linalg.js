@@ -1,4 +1,5 @@
 import jsfeatNext from '../jsfeatNext.js'
+import { JSFEAT_CONSTANTS } from '../constants/constants.js'
 import cache from '../cache/cache.js';
 import { swap, hypot } from './linalg-base.js'
 import matmath from '../matmath/matmath.js'
@@ -11,7 +12,7 @@ export default class linalg {
     }
 
     JacobiImpl(A, astep, W, V, vstep, n) {
-        var eps = jsfeatNext.EPSILON;
+        var eps = JSFEAT_CONSTANTS.EPSILON;
         var i=0,j=0,k=0,m=0,l=0,idx=0,_in=0,_in2=0;
         var iters=0,max_iter=n*n*30;
         var mv=0.0,val=0.0,p=0.0,y=0.0,t=0.0,s=0.0,c=0.0,a0=0.0,b0=0.0;
@@ -164,8 +165,8 @@ export default class linalg {
     }
 
     JacobiSVDImpl(At, astep, _W, Vt, vstep, m, n, n1) {
-        var eps = jsfeatNext.EPSILON * 2.0;
-        var minval = jsfeatNext.FLT_MIN;
+        var eps = JSFEAT_CONSTANTS.EPSILON * 2.0;
+        var minval = JSFEAT_CONSTANTS.FLT_MIN;
         var i=0,j=0,k=0,iter=0,max_iter=Math.max(m, 30);
         var Ai=0,Aj=0,Vi=0,Vj=0,changed=0;
         var c=0.0, s=0.0, t=0.0;
@@ -301,7 +302,7 @@ export default class linalg {
         }
         
         if(!Vt) {
-            jsfeatNext.cache.put_buffer(W_buff);
+            this.cache.put_buffer(W_buff);
             return;
         }
     
@@ -353,7 +354,7 @@ export default class linalg {
     
         this.cache.put_buffer(W_buff);
     }
-    
+
     lu_solve(A, B) {
         var i = 0, j = 0, k = 0, p = 1, astep = A.cols;
         var ad = A.data, bd = B.data;
@@ -367,7 +368,7 @@ export default class linalg {
                 }
             }
 
-            if (Math.abs(ad[k * astep + i]) < jsfeatNext.EPSILON) {
+            if (Math.abs(ad[k * astep + i]) < JSFEAT_CONSTANTS.EPSILON) {
                 return 0; // FAILED
             }
 
@@ -474,7 +475,7 @@ export default class linalg {
     svd_decompose(A, W, U, V, options) {
         if (typeof options === "undefined") { options = 0; };
         var at = 0, i = 0, j = 0, _m = A.rows, _n = A.cols, m = _m, n = _n;
-        var dt = A.type | jsfeatNext.C1_t; // we only work with single channel
+        var dt = A.type | JSFEAT_CONSTANTS.C1_t; // we only work with single channel
 
         if (m < n) {
             at = 1;
@@ -515,7 +516,7 @@ export default class linalg {
         }
 
         if (at == 0) {
-            if (U && (options & jsfeatNext.SVD_U_T)) {
+            if (U && (options & JSFEAT_CONSTANTS.SVD_U_T)) {
                 i = m * m;
                 while (--i >= 0) {
                     U.data[i] = a_mt.data[i];
@@ -524,7 +525,7 @@ export default class linalg {
                 this.matmath.transpose(U, a_mt);
             }
 
-            if (V && (options & jsfeatNext.SVD_V_T)) {
+            if (V && (options & JSFEAT_CONSTANTS.SVD_V_T)) {
                 i = n * n;
                 while (--i >= 0) {
                     V.data[i] = v_mt.data[i];
@@ -533,7 +534,7 @@ export default class linalg {
                 this.matmath.transpose(V, v_mt);
             }
         } else {
-            if (U && (options & jsfeatNext.SVD_U_T)) {
+            if (U && (options & JSFEAT_CONSTANTS.SVD_U_T)) {
                 i = n * n;
                 while (--i >= 0) {
                     U.data[i] = v_mt.data[i];
@@ -542,7 +543,7 @@ export default class linalg {
                 this.matmath.transpose(U, v_mt);
             }
 
-            if (V && (options & jsfeatNext.SVD_V_T)) {
+            if (V && (options & JSFEAT_CONSTANTS.SVD_V_T)) {
                 i = m * m;
                 while (--i >= 0) {
                     V.data[i] = a_mt.data[i];
@@ -563,7 +564,7 @@ export default class linalg {
         var pu = 0, pv = 0;
         var nrows = A.rows, ncols = A.cols;
         var sum = 0.0, xsum = 0.0, tol = 0.0;
-        var dt = A.type | jsfeatNext.C1_t;
+        var dt = A.type | JSFEAT_CONSTANTS.C1_t;
 
         var u_buff = this.cache.get_buffer((nrows * nrows) << 3);
         var w_buff = this.cache.get_buffer(ncols << 3);
@@ -577,7 +578,7 @@ export default class linalg {
 
         this.svd_decompose(A, w_mt, u_mt, v_mt, 0);
 
-        tol = jsfeatNext.EPSILON * wd[0] * ncols;
+        tol = JSFEAT_CONSTANTS.EPSILON * wd[0] * ncols;
 
         for (; i < ncols; i++, pv += ncols) {
             xsum = 0.0;
@@ -602,7 +603,7 @@ export default class linalg {
         var pu = 0, pv = 0, pa = 0;
         var nrows = A.rows, ncols = A.cols;
         var sum = 0.0, tol = 0.0;
-        var dt = A.type | jsfeatNext.C1_t;
+        var dt = A.type | JSFEAT_CONSTANTS.C1_t;
         
         //var u_buff = cache1.get_buffer((nrows * nrows) << 3);
         var u_buff = this.cache.get_buffer((nrows * nrows) << 3);
@@ -616,7 +617,7 @@ export default class linalg {
 
         this.svd_decompose(A, w_mt, u_mt, v_mt, 0);
 
-        tol = jsfeatNext.EPSILON * wd[0] * ncols;
+        tol = JSFEAT_CONSTANTS.EPSILON * wd[0] * ncols;
 
         for (; i < ncols; i++, pv += ncols) {
             for (j = 0, pu = 0; j < nrows; j++, pa++) {
@@ -634,7 +635,7 @@ export default class linalg {
 
     eigenVV(A, vects, vals) {
         var n = A.cols, i = n * n;
-        var dt = A.type | jsfeatNext.C1_t;
+        var dt = A.type | JSFEAT_CONSTANTS.C1_t;
 
         var a_buff = this.cache.get_buffer((n * n) << 3);
         var w_buff = this.cache.get_buffer(n << 3);

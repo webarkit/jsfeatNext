@@ -1,13 +1,16 @@
-import jsfeatNext from '../jsfeatNext.js'
+import { JSFEAT_CONSTANTS } from '../constants/constants.js'
+import cache from '../cache/cache.js';
 export default class math {
     constructor() {
+        this.cache = new cache();
+        this.cache.allocate(30, 640*4);
         this.qsort_stack = new Int32Array(48*2); 
     }
 
     get_gaussian_kernel(size, sigma, kernel, data_type) {
         var i=0,x=0.0,t=0.0,sigma_x=0.0,scale_2x=0.0;
         var sum = 0.0;
-        var kern_node = jsfeatNext.cache.get_buffer(size<<2);
+        var kern_node = this.cache.get_buffer(size<<2);
         var _kernel = kern_node.f32;//new Float32Array(size);
 
         if((size&1) == 1 && size <= 7 && sigma <= 0) {
@@ -45,7 +48,7 @@ export default class math {
             }
         }
 
-        if(data_type & jsfeatNext.U8_t) {
+        if(data_type & JSFEAT_CONSTANTS.U8_t) {
             // int based kernel
             sum = 256.0/sum;
             for (i = 0; i < size; ++i) {
@@ -59,7 +62,7 @@ export default class math {
             }
         }
 
-        jsfeatNext.cache.put_buffer(kern_node);
+        this.cache.put_buffer(kern_node);
     }
 
     // model is 3x3 matrix_t
