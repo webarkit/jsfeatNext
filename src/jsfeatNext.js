@@ -2,6 +2,7 @@ import _pool_node_t from './node_utils/_pool_node_t.js'
 import data_type from './data_type/data_type.js'
 import cache from './cache/cache.js'
 import data_t from './node_utils/data_t.js'
+import keypoint_t from './keypoint_t/keypoint_t.js'
 import imgproc from './imgproc/imgproc.js'
 import matmath from './matmath/matmath.js'
 import matrix_t from './matrix_t/matrix_t.js'
@@ -104,22 +105,7 @@ jsfeatNext.pyramid_t = class pyramid_t extends jsfeatNext {
     }
 }
 
-jsfeatNext.keypoint_t = class keypoint_t extends jsfeatNext {
-    constructor(x, y, score, level, angle) {
-        super();
-        if (typeof x === "undefined") { x = 0; }
-        if (typeof y === "undefined") { y = 0; }
-        if (typeof score === "undefined") { score = 0; }
-        if (typeof level === "undefined") { level = 0; }
-        if (typeof angle === "undefined") { angle = -1.0; }
-
-        this.x = x;
-        this.y = y;
-        this.score = score;
-        this.level = level;
-        this.angle = angle;
-    }
-}
+jsfeatNext.keypoint_t = keypoint_t;
 
 jsfeatNext.cache = cache;
 
