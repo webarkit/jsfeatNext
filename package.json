@@ -8,7 +8,6 @@
     "test": "npm run test",
     "types": "tsc",
     "dev": "webpack --mode development --progress --watch",
-    "docs": "typedoc",
     "build": "webpack --mode production"
   },
   "repository": {
