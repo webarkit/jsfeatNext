@@ -13,7 +13,7 @@ import { JSFEAT_CONSTANTS } from './constants/constants.js'
 export default class jsfeatNext {
     constructor() {
         this.dt = new data_type();
-        this.version = "0.1.0";
+        this.version = "0.2.0";
         console.log("jsfeatNext version: ", this.version);
     }
 
