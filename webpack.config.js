@@ -9,7 +9,7 @@ module.exports = (env, argv) => {
   const module = {
     rules: [
       {
-        test: /\.tsx?$/,
+        test: /\.js?$/,
         exclude: /node_modules/,
         use: [
           {
@@ -21,9 +21,6 @@ module.exports = (env, argv) => {
                 ["@babel/transform-runtime"],
               ],
             },
-          },
-          {
-            loader: "ts-loader",
           },
         ],
       }
