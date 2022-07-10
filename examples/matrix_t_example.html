@@ -9,10 +9,9 @@
 </head>
 
 <body>
-    <script type="module" src="../src/jsfeatNext.js"></script>
-    <script type="module">
-        import jsfeat from '../src/jsfeatNext.js'
-
+    <script src="../dist/jsfeatNext.js"></script>
+    <script>
+        var jsfeat = jsfeatNext.jsfeatNext
         var columns = 320, rows = 240, data_type = jsfeat.U8_t | jsfeat.C1_t;
         console.log("data_type is:", data_type);
         console.assert(data_type === 257, "Wrong data_type");

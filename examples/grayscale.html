@@ -12,10 +12,9 @@
 <body>
     <video id="video" autoplay loop muted playsinline></video>
     <canvas id="canvas"></canvas>
-    <script type="module" src="../src/jsfeatNext.js"></script>
-    <script type="module">
-        import jsfeat from '../src/jsfeatNext.js'
-
+    <script src="../dist/jsfeatNext.js"></script>
+    <script>
+        var jsfeat = jsfeatNext.jsfeatNext
         var canvas = document.getElementById('canvas');
         var ctx = canvas.getContext('2d');
 
