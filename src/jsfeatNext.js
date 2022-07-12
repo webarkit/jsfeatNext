@@ -9,13 +9,15 @@ import matrix_t from './matrix_t/matrix_t.js'
 import pyramid_t from './pyramid_t/pyramid_t.js'
 import linalg from './linalg/linalg.js'
 import { JSFEAT_CONSTANTS } from './constants/constants.js'
+import pkg from '../package.json'
 
 export default class jsfeatNext {
     constructor() {
         this.dt = new data_type();
-        this.version = "0.3.0";
-        console.log("jsfeatNext version: ", this.version);
     }
+
+    // VERSION
+    static VERSION = pkg.version;
 
     // CONSTANTS
     static EPSILON = JSFEAT_CONSTANTS.EPSILON;
