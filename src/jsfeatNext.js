@@ -8,6 +8,7 @@ import matmath from './matmath/matmath.js'
 import matrix_t from './matrix_t/matrix_t.js'
 import pyramid_t from './pyramid_t/pyramid_t.js'
 import linalg from './linalg/linalg.js'
+import orb from './orb/orb.js'
 import { JSFEAT_CONSTANTS } from './constants/constants.js'
 import pkg from '../package.json'
 
@@ -83,3 +84,5 @@ jsfeatNext.imgproc = imgproc;
 jsfeatNext.matmath = matmath;
 
 jsfeatNext.linalg = linalg;
+
+jsfeatNext.orb = orb;

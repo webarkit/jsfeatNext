@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <script src="../dist/jsfeatNext.js"></script>
+    <script>
+        var jsfeat = jsfeatNext.jsfeatNext;
+        var orb = new jsfeat.orb()
+        console.log(orb);
+        var screen_corners = [];
+        var num_corners = 20;
+        var img_u8_smooth = new jsfeat.matrix_t(640, 480, jsfeat.U8_t | jsfeat.C1_t);
+        var screen_descriptors = new jsfeat.matrix_t(32, 500, jsfeat.U8_t | jsfeat.C1_t);
+        var i = 640 * 480;
+        while (--i >= 0) {
+            screen_corners[i] = new jsfeat.keypoint_t(0, 0, 0, 0, -1);
+        }
+        orb.describe(img_u8_smooth, screen_corners, num_corners, screen_descriptors);
+    </script>
+
+</body>
+
+</html>
