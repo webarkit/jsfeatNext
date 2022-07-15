@@ -1,6 +1,6 @@
-import jsfeatNext from '../jsfeatNext.js'
+//import jsfeatNext from '../jsfeatNext.js'
 
-export function _resample_u8 (src, dst, nw, nh) {
+export function _resample_u8 (src, dst, cache, nw, nh) {
     var xofs_count = 0;
     var ch = src.channel, w = src.cols, h = src.rows;
     var src_d = src.data, dst_d = dst.data;
@@ -9,9 +9,9 @@ export function _resample_u8 (src, dst, nw, nh) {
     var dx = 0, dy = 0, sx = 0, sy = 0, sx1 = 0, sx2 = 0, i = 0, k = 0, fsx1 = 0.0, fsx2 = 0.0;
     var a = 0, b = 0, dxn = 0, alpha = 0, beta = 0, beta1 = 0;
 
-    var buf_node = jsfeatNext.cache.get_buffer((nw * ch) << 2);
-    var sum_node = jsfeatNext.cache.get_buffer((nw * ch) << 2);
-    var xofs_node = jsfeatNext.cache.get_buffer((w * 2 * 3) << 2);
+    var buf_node = cache.get_buffer((nw * ch) << 2);
+    var sum_node = cache.get_buffer((nw * ch) << 2);
+    var xofs_node = cache.get_buffer((w * 2 * 3) << 2);
 
     var buf = buf_node.i32;
     var sum = sum_node.i32;
@@ -82,12 +82,12 @@ export function _resample_u8 (src, dst, nw, nh) {
         }
     }
 
-    jsfeatNext.cache.put_buffer(sum_node);
-    jsfeatNext.cache.put_buffer(buf_node);
-    jsfeatNext.cache.put_buffer(xofs_node);
+    cache.put_buffer(sum_node);
+    cache.put_buffer(buf_node);
+    cache.put_buffer(xofs_node);
 }
 
-export function _resample (src, dst, nw, nh) {
+export function _resample (src, dst, cache, nw, nh) {
     var xofs_count = 0;
     var ch = src.channel, w = src.cols, h = src.rows;
     var src_d = src.data, dst_d = dst.data;
@@ -96,9 +96,9 @@ export function _resample (src, dst, nw, nh) {
     var dx = 0, dy = 0, sx = 0, sy = 0, sx1 = 0, sx2 = 0, i = 0, k = 0, fsx1 = 0.0, fsx2 = 0.0;
     var a = 0, b = 0, dxn = 0, alpha = 0.0, beta = 0.0, beta1 = 0.0;
 
-    var buf_node = jsfeatNext.cache.get_buffer((nw * ch) << 2);
-    var sum_node = jsfeatNext.cache.get_buffer((nw * ch) << 2);
-    var xofs_node = jsfeatNext.cache.get_buffer((w * 2 * 3) << 2);
+    var buf_node = cache.get_buffer((nw * ch) << 2);
+    var sum_node = cache.get_buffer((nw * ch) << 2);
+    var xofs_node = cache.get_buffer((w * 2 * 3) << 2);
 
     var buf = buf_node.f32;
     var sum = sum_node.f32;
@@ -168,7 +168,7 @@ export function _resample (src, dst, nw, nh) {
             }
         }
     }
-    jsfeatNext.cache.put_buffer(sum_node);
-    jsfeatNext.cache.put_buffer(buf_node);
-    jsfeatNext.cache.put_buffer(xofs_node);
+    cache.put_buffer(sum_node);
+    cache.put_buffer(buf_node);
+    cache.put_buffer(xofs_node);
 }

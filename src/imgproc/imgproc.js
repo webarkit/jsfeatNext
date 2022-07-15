@@ -1,7 +1,14 @@
 import { _resample, _resample_u8 } from './resample.js'
+import { _convol, _convol_u8 } from './convol.js'
+import cache from '../cache/cache.js';
+import math from '../math/math.js';
 import { JSFEAT_CONSTANTS } from '../constants/constants.js'
+
 export default class imgproc {
-    constructor() { }
+    constructor() {
+        this.cache = new cache();
+        this.cache.allocate(30, 640 * 4);
+    }
     grayscale(src, w, h, dst, code) {
         // this is default image data representation in browser
         if (typeof code === "undefined") { code = JSFEAT_CONSTANTS.COLOR_RGBA2GRAY; }
@@ -31,6 +38,298 @@ export default class imgproc {
                 dst_u8[jr] = (src[ir] * coeff_r + src[ir + 1] * coeff_g + src[ir + 2] * coeff_b + 8192) >> 14;
             }
         }
+    }
+    // derived from CCV library
+    resample(src, dst, nw, nh) {
+        var h = src.rows, w = src.cols;
+        if (h > nh && w > nw) {
+            dst.resize(nw, nh, src.channel);
+            // using the fast alternative (fix point scale, 0x100 to avoid overflow)
+            if (src.type & JSFEAT_CONSTANTS.U8_t && dst.type & JSFEAT_CONSTANTS.U8_t && h * w / (nh * nw) < 0x100) {
+                _resample_u8(src, dst, this.cache, nw, nh);
+            } else {
+                _resample(src, dst, this.cache, nw, nh);
+            }
+        }
+    }
+    box_blur_gray(src, dst, radius, options) {
+        if (typeof options === "undefined") { options = 0; }
+        var w = src.cols, h = src.rows, h2 = h << 1, w2 = w << 1;
+        var i = 0, x = 0, y = 0, end = 0;
+        var windowSize = ((radius << 1) + 1) | 0;
+        var radiusPlusOne = (radius + 1) | 0, radiusPlus2 = (radiusPlusOne + 1) | 0;
+        var scale = options & JSFEAT_CONSTANTS.BOX_BLUR_NOSCALE ? 1 : (1.0 / (windowSize * windowSize));
+
+        var tmp_buff = this.cache.get_buffer((w * h) << 2);
+
+        var sum = 0, dstIndex = 0, srcIndex = 0, nextPixelIndex = 0, previousPixelIndex = 0;
+        var data_i32 = tmp_buff.i32; // to prevent overflow
+        var data_u8 = src.data;
+        var hold = 0;
+
+        dst.resize(w, h, src.channel);
+
+        // first pass
+        // no need to scale 
+        //data_u8 = src.data;
+        //data_i32 = tmp;
+        for (y = 0; y < h; ++y) {
+            dstIndex = y;
+            sum = radiusPlusOne * data_u8[srcIndex];
+
+            for (i = (srcIndex + 1) | 0, end = (srcIndex + radius) | 0; i <= end; ++i) {
+                sum += data_u8[i];
+            }
+
+            nextPixelIndex = (srcIndex + radiusPlusOne) | 0;
+            previousPixelIndex = srcIndex;
+            hold = data_u8[previousPixelIndex];
+            for (x = 0; x < radius; ++x, dstIndex += h) {
+                data_i32[dstIndex] = sum;
+                sum += data_u8[nextPixelIndex] - hold;
+                nextPixelIndex++;
+            }
+            for (; x < w - radiusPlus2; x += 2, dstIndex += h2) {
+                data_i32[dstIndex] = sum;
+                sum += data_u8[nextPixelIndex] - data_u8[previousPixelIndex];
+
+                data_i32[dstIndex + h] = sum;
+                sum += data_u8[nextPixelIndex + 1] - data_u8[previousPixelIndex + 1];
+
+                nextPixelIndex += 2;
+                previousPixelIndex += 2;
+            }
+            for (; x < w - radiusPlusOne; ++x, dstIndex += h) {
+                data_i32[dstIndex] = sum;
+                sum += data_u8[nextPixelIndex] - data_u8[previousPixelIndex];
+
+                nextPixelIndex++;
+                previousPixelIndex++;
+            }
+
+            hold = data_u8[nextPixelIndex - 1];
+            for (; x < w; ++x, dstIndex += h) {
+                data_i32[dstIndex] = sum;
+
+                sum += hold - data_u8[previousPixelIndex];
+                previousPixelIndex++;
+            }
+
+            srcIndex += w;
+        }
+        //
+        // second pass
+        srcIndex = 0;
+        //data_i32 = tmp; // this is a transpose
+        data_u8 = dst.data;
+
+        // dont scale result
+        if (scale == 1) {
+            for (y = 0; y < w; ++y) {
+                dstIndex = y;
+                sum = radiusPlusOne * data_i32[srcIndex];
+
+                for (i = (srcIndex + 1) | 0, end = (srcIndex + radius) | 0; i <= end; ++i) {
+                    sum += data_i32[i];
+                }
+
+                nextPixelIndex = srcIndex + radiusPlusOne;
+                previousPixelIndex = srcIndex;
+                hold = data_i32[previousPixelIndex];
+
+                for (x = 0; x < radius; ++x, dstIndex += w) {
+                    data_u8[dstIndex] = sum;
+                    sum += data_i32[nextPixelIndex] - hold;
+                    nextPixelIndex++;
+                }
+                for (; x < h - radiusPlus2; x += 2, dstIndex += w2) {
+                    data_u8[dstIndex] = sum;
+                    sum += data_i32[nextPixelIndex] - data_i32[previousPixelIndex];
+
+                    data_u8[dstIndex + w] = sum;
+                    sum += data_i32[nextPixelIndex + 1] - data_i32[previousPixelIndex + 1];
+
+                    nextPixelIndex += 2;
+                    previousPixelIndex += 2;
+                }
+                for (; x < h - radiusPlusOne; ++x, dstIndex += w) {
+                    data_u8[dstIndex] = sum;
+
+                    sum += data_i32[nextPixelIndex] - data_i32[previousPixelIndex];
+                    nextPixelIndex++;
+                    previousPixelIndex++;
+                }
+                hold = data_i32[nextPixelIndex - 1];
+                for (; x < h; ++x, dstIndex += w) {
+                    data_u8[dstIndex] = sum;
+
+                    sum += hold - data_i32[previousPixelIndex];
+                    previousPixelIndex++;
+                }
+
+                srcIndex += h;
+            }
+        } else {
+            for (y = 0; y < w; ++y) {
+                dstIndex = y;
+                sum = radiusPlusOne * data_i32[srcIndex];
+
+                for (i = (srcIndex + 1) | 0, end = (srcIndex + radius) | 0; i <= end; ++i) {
+                    sum += data_i32[i];
+                }
+
+                nextPixelIndex = srcIndex + radiusPlusOne;
+                previousPixelIndex = srcIndex;
+                hold = data_i32[previousPixelIndex];
+
+                for (x = 0; x < radius; ++x, dstIndex += w) {
+                    data_u8[dstIndex] = sum * scale;
+                    sum += data_i32[nextPixelIndex] - hold;
+                    nextPixelIndex++;
+                }
+                for (; x < h - radiusPlus2; x += 2, dstIndex += w2) {
+                    data_u8[dstIndex] = sum * scale;
+                    sum += data_i32[nextPixelIndex] - data_i32[previousPixelIndex];
+
+                    data_u8[dstIndex + w] = sum * scale;
+                    sum += data_i32[nextPixelIndex + 1] - data_i32[previousPixelIndex + 1];
+
+                    nextPixelIndex += 2;
+                    previousPixelIndex += 2;
+                }
+                for (; x < h - radiusPlusOne; ++x, dstIndex += w) {
+                    data_u8[dstIndex] = sum * scale;
+
+                    sum += data_i32[nextPixelIndex] - data_i32[previousPixelIndex];
+                    nextPixelIndex++;
+                    previousPixelIndex++;
+                }
+                hold = data_i32[nextPixelIndex - 1];
+                for (; x < h; ++x, dstIndex += w) {
+                    data_u8[dstIndex] = sum * scale;
+
+                    sum += hold - data_i32[previousPixelIndex];
+                    previousPixelIndex++;
+                }
+
+                srcIndex += h;
+            }
+        }
+
+        this.cache.put_buffer(tmp_buff);
+    }
+
+    gaussian_blur(src, dst, kernel_size, sigma) {
+        var jsfeatmath = new math();
+        if (typeof sigma === "undefined") { sigma = 0.0; }
+        if (typeof kernel_size === "undefined") { kernel_size = 0; }
+        kernel_size = kernel_size == 0 ? (Math.max(1, (4.0 * sigma + 1.0 - 1e-8)) * 2 + 1) | 0 : kernel_size;
+        var half_kernel = kernel_size >> 1;
+        var w = src.cols, h = src.rows;
+        var data_type = src.type, is_u8 = data_type & JSFEAT_CONSTANTS.U8_t;
+
+        dst.resize(w, h, src.channel);
+
+        var src_d = src.data, dst_d = dst.data;
+        var buf, filter, buf_sz = (kernel_size + Math.max(h, w)) | 0;
+
+        var buf_node = this.cache.get_buffer(buf_sz << 2);
+        var filt_node = this.cache.get_buffer(kernel_size << 2);
+
+        if (is_u8) {
+            buf = buf_node.i32;
+            filter = filt_node.i32;
+        } else if (data_type & JSFEAT_CONSTANTS.S32_t) {
+            buf = buf_node.i32;
+            filter = filt_node.f32;
+        } else {
+            buf = buf_node.f32;
+            filter = filt_node.f32;
+        }
+
+        jsfeatmath.get_gaussian_kernel(kernel_size, sigma, filter, data_type);
+
+        if (is_u8) {
+            _convol_u8(buf, src_d, dst_d, w, h, filter, kernel_size, half_kernel);
+        } else {
+            _convol(buf, src_d, dst_d, w, h, filter, kernel_size, half_kernel);
+        }
+
+        this.cache.put_buffer(buf_node);
+        this.cache.put_buffer(filt_node);
+    }
+    hough_transform(img, rho_res, theta_res, threshold) {
+        var image = img.data;
+
+        var width = img.cols;
+        var height = img.rows;
+        var step = width;
+
+        var min_theta = 0.0;
+        var max_theta = Math.PI;
+
+        var numangle = Math.round((max_theta - min_theta) / theta_res);
+        var numrho = Math.round(((width + height) * 2 + 1) / rho_res);
+        var irho = 1.0 / rho_res;
+
+        var accum = new Int32Array((numangle + 2) * (numrho + 2)); //typed arrays are initialized to 0
+        var tabSin = new Float32Array(numangle);
+        var tabCos = new Float32Array(numangle);
+
+        var n = 0;
+        var ang = min_theta;
+        for (; n < numangle; n++) {
+            tabSin[n] = Math.sin(ang) * irho;
+            tabCos[n] = Math.cos(ang) * irho;
+            ang += theta_res
+        }
+
+        // stage 1. fill accumulator
+        for (var i = 0; i < height; i++) {
+            for (var j = 0; j < width; j++) {
+                if (image[i * step + j] != 0) {
+                    //console.log(r, (n+1) * (numrho+2) + r+1, tabCos[n], tabSin[n]);
+                    for (var n = 0; n < numangle; n++) {
+                        var r = Math.round(j * tabCos[n] + i * tabSin[n]);
+                        r += (numrho - 1) / 2;
+                        accum[(n + 1) * (numrho + 2) + r + 1] += 1;
+                    }
+                }
+            }
+        }
+
+        // stage 2. find local maximums
+        //TODO: Consider making a vector class that uses typed arrays
+        var _sort_buf = new Array();
+        for (var r = 0; r < numrho; r++) {
+            for (var n = 0; n < numangle; n++) {
+                var base = (n + 1) * (numrho + 2) + r + 1;
+                if (accum[base] > threshold &&
+                    accum[base] > accum[base - 1] && accum[base] >= accum[base + 1] &&
+                    accum[base] > accum[base - numrho - 2] && accum[base] >= accum[base + numrho + 2]) {
+                    _sort_buf.push(base);
+                }
+            }
+        }
+
+        // stage 3. sort the detected lines by accumulator value
+        _sort_buf.sort(function (l1, l2) {
+            return accum[l1] > accum[l2] || (accum[l1] == accum[l2] && l1 < l2);
+        });
+
+        // stage 4. store the first min(total,linesMax) lines to the output buffer
+        var linesMax = Math.min(numangle * numrho, _sort_buf.length);
+        var scale = 1.0 / (numrho + 2);
+        var lines = new Array();
+        for (var i = 0; i < linesMax; i++) {
+            var idx = _sort_buf[i];
+            var n = Math.floor(idx * scale) - 1;
+            var r = idx - (n + 1) * (numrho + 2) - 1;
+            var lrho = (r - (numrho - 1) * 0.5) * rho_res;
+            var langle = n * theta_res;
+            lines.push([lrho, langle]);
+        }
+        return lines;
     }
     pyrdown(src, dst, sx, sy) {
         // this is needed for bbf

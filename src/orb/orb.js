@@ -1,7 +1,7 @@
 import matrix_t from '../matrix_t/matrix_t.js'
 import bit_pattern_31 from './bit_pattern_31.js'
 import { JSFEAT_CONSTANTS } from '../constants/constants.js'
-import rectify_patch from './rectify_patch.js'
+import {rectify_patch} from './rectify_patch.js'
 
 export default class orb {
     constructor() {
@@ -38,7 +38,7 @@ export default class orb {
             py = corners[i].y;
             angle = corners[i].angle;
 
-            rectify_patch(src, patch_img, angle, px, py, 32);
+            rectify_patch(src, this.patch_img, angle, px, py, 32, this.H);
 
             // describe the patch
             patt = 0;

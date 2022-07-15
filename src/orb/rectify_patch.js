@@ -1,6 +1,6 @@
 import imgproc from '../imgproc/imgproc.js'
 
-export function rectify_patch(src, dst, angle, px, py, psize) {
+export function rectify_patch(src, dst, angle, px, py, psize, H) {
     var cosine = Math.cos(angle);
     var sine   = Math.sin(angle);
     var imgprc = new imgproc();

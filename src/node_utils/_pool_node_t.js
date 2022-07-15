@@ -10,7 +10,7 @@ export default class _pool_node_t {
         this.f32 = this.data.f32;
         this.f64 = this.data.f64;
     }
-    resize() {
+    resize(size_in_bytes) {
         delete this.data;
         this.data = new data_t(size_in_bytes);
         this.size = this.data.size;
