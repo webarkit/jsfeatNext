@@ -4,11 +4,17 @@ import cache from './cache/cache.js'
 import data_t from './node_utils/data_t.js'
 import keypoint_t from './keypoint_t/keypoint_t.js'
 import imgproc from './imgproc/imgproc.js'
+import math from './math/math.js'
 import matmath from './matmath/matmath.js'
 import matrix_t from './matrix_t/matrix_t.js'
 import pyramid_t from './pyramid_t/pyramid_t.js'
 import linalg from './linalg/linalg.js'
 import orb from './orb/orb.js'
+import yape from './yape/yape.js'
+import yape06 from './yape06/yape06.js'
+import motion_estimator from './motion_estimator/motion_estimator.js'
+import {homography2d} from './motion_estimator/motion_model.js'
+import ransac_params_t from './motion_estimator/ransac_params_t.js'
 import { JSFEAT_CONSTANTS } from './constants/constants.js'
 import pkg from '../package.json'
 
@@ -81,8 +87,20 @@ jsfeatNext.cache = cache;
 
 jsfeatNext.imgproc = imgproc;
 
+jsfeatNext.math = math;
+
 jsfeatNext.matmath = matmath;
 
 jsfeatNext.linalg = linalg;
 
 jsfeatNext.orb = orb;
+
+jsfeatNext.yape = yape;
+
+jsfeatNext.yape06 = yape06;
+
+jsfeatNext.motion_estimator = motion_estimator;
+
+jsfeatNext.ransac_params_t = ransac_params_t;
+
+jsfeatNext.homography2d = homography2d;
