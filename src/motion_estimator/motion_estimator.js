@@ -3,7 +3,6 @@ import cache from '../cache/cache.js'
 import math from '../math/math.js'
 import { JSFEAT_CONSTANTS } from '../constants/constants.js'
 
-
 export default class motion_estimator {
     constructor() {
         this.cache = new cache();
@@ -121,7 +120,7 @@ export default class motion_estimator {
 
             // TODO handle multimodel output
 
-            numinliers = find_inliers(kernel, M, from, to, count, params.thresh, err, curr_mask.data);
+            numinliers = this.find_inliers(kernel, M, from, to, count, params.thresh, err, curr_mask.data);
 
             if (numinliers > Math.max(inliers_max, model_points - 1)) {
                 M.copy_to(model);
@@ -225,7 +224,7 @@ export default class motion_estimator {
             sigma = 2.5 * 1.4826 * (1 + 5.0 / (count - model_points)) * Math.sqrt(min_median);
             sigma = Math.max(sigma, 0.001);
 
-            numinliers = find_inliers(kernel, model, from, to, count, sigma, err, curr_mask.data);
+            numinliers = this.find_inliers(kernel, model, from, to, count, sigma, err, curr_mask.data);
             if (mask) curr_mask.copy_to(mask);
 
             result = numinliers >= model_points;

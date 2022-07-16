@@ -1,7 +1,7 @@
 import matrix_t from '../matrix_t/matrix_t.js'
 import bit_pattern_31 from './bit_pattern_31.js'
 import { JSFEAT_CONSTANTS } from '../constants/constants.js'
-import {rectify_patch} from './rectify_patch.js'
+import { rectify_patch } from './rectify_patch.js'
 
 export default class orb {
     constructor() {
