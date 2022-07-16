@@ -1,4 +1,5 @@
 import imgproc from '../imgproc/imgproc.js';
+import matrix_t from '../matrix_t/matrix_t.js'
 
 export default class pyramid_t {
     cconstructor(levels) {
@@ -11,7 +12,7 @@ export default class pyramid_t {
     allocate(start_w, start_h, data_type) {
         var i = this.levels;
         while (--i >= 0) {
-            this.data[i] = new jsfeatNext.matrix_t(start_w >> i, start_h >> i, data_type);
+            this.data[i] = new matrix_t(start_w >> i, start_h >> i, data_type);
         }
     }
 
