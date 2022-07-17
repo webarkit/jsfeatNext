@@ -2,11 +2,11 @@ import imgproc from '../imgproc/imgproc.js';
 import matrix_t from '../matrix_t/matrix_t.js'
 
 export default class pyramid_t {
-    cconstructor(levels) {
+    constructor(levels) {
         this.levels = levels | 0;
         this.data = new Array(levels);
-        //jsfeatNext.imgproc.pyrdown is not yet implemented... 
-        this.pyrdown = new imgproc.pyrdown;
+        var _imgproc = new imgproc(); 
+        this.pyrdown = _imgproc.pyrdown;
     }
 
     allocate(start_w, start_h, data_type) {
