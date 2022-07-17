@@ -15,6 +15,7 @@ import yape06 from './yape06/yape06.js'
 import motion_estimator from './motion_estimator/motion_estimator.js'
 import {homography2d} from './motion_estimator/motion_model.js'
 import ransac_params_t from './motion_estimator/ransac_params_t.js'
+import optical_flow_lk from './optical_flow_lk/optical_flow_lk.js'
 import { JSFEAT_CONSTANTS } from './constants/constants.js'
 import pkg from '../package.json'
 
@@ -104,3 +105,5 @@ jsfeatNext.motion_estimator = motion_estimator;
 jsfeatNext.ransac_params_t = ransac_params_t;
 
 jsfeatNext.homography2d = homography2d;
+
+jsfeatNext.optical_flow_lk = optical_flow_lk;
