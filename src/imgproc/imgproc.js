@@ -362,6 +362,142 @@ export default class imgproc {
             dptr += w2;
         }
     }
+    // dst: [gx,gy,...]
+    scharr_derivatives(src, dst) {
+        var w = src.cols, h = src.rows;
+        var dstep = w << 1, x = 0, y = 0, x1 = 0, a, b, c, d, e, f;
+        var srow0 = 0, srow1 = 0, srow2 = 0, drow = 0;
+        var trow0, trow1;
+
+        dst.resize(w, h, 2); // 2 channel output gx, gy
+
+        var img = src.data, gxgy = dst.data;
+
+        var buf0_node = this.cache.get_buffer((w + 2) << 2);
+        var buf1_node = this.cache.get_buffer((w + 2) << 2);
+
+        if (src.type & JSFEAT_CONSTANTS.U8_t || src.type & JSFEAT_CONSTANTS.S32_t) {
+            trow0 = buf0_node.i32;
+            trow1 = buf1_node.i32;
+        } else {
+            trow0 = buf0_node.f32;
+            trow1 = buf1_node.f32;
+        }
+
+        for (; y < h; ++y, srow1 += w) {
+            srow0 = ((y > 0 ? y - 1 : 1) * w) | 0;
+            srow2 = ((y < h - 1 ? y + 1 : h - 2) * w) | 0;
+            drow = (y * dstep) | 0;
+            // do vertical convolution
+            for (x = 0, x1 = 1; x <= w - 2; x += 2, x1 += 2) {
+                a = img[srow0 + x], b = img[srow2 + x];
+                trow0[x1] = ((a + b) * 3 + (img[srow1 + x]) * 10);
+                trow1[x1] = (b - a);
+                //
+                a = img[srow0 + x + 1], b = img[srow2 + x + 1];
+                trow0[x1 + 1] = ((a + b) * 3 + (img[srow1 + x + 1]) * 10);
+                trow1[x1 + 1] = (b - a);
+            }
+            for (; x < w; ++x, ++x1) {
+                a = img[srow0 + x], b = img[srow2 + x];
+                trow0[x1] = ((a + b) * 3 + (img[srow1 + x]) * 10);
+                trow1[x1] = (b - a);
+            }
+            // make border
+            x = (w + 1) | 0;
+            trow0[0] = trow0[1]; trow0[x] = trow0[w];
+            trow1[0] = trow1[1]; trow1[x] = trow1[w];
+            // do horizontal convolution, interleave the results and store them
+            for (x = 0; x <= w - 4; x += 4) {
+                a = trow1[x + 2], b = trow1[x + 1], c = trow1[x + 3], d = trow1[x + 4],
+                    e = trow0[x + 2], f = trow0[x + 3];
+                gxgy[drow++] = (e - trow0[x]);
+                gxgy[drow++] = ((a + trow1[x]) * 3 + b * 10);
+                gxgy[drow++] = (f - trow0[x + 1]);
+                gxgy[drow++] = ((c + b) * 3 + a * 10);
+
+                gxgy[drow++] = ((trow0[x + 4] - e));
+                gxgy[drow++] = (((d + a) * 3 + c * 10));
+                gxgy[drow++] = ((trow0[x + 5] - f));
+                gxgy[drow++] = (((trow1[x + 5] + c) * 3 + d * 10));
+            }
+            for (; x < w; ++x) {
+                gxgy[drow++] = ((trow0[x + 2] - trow0[x]));
+                gxgy[drow++] = (((trow1[x + 2] + trow1[x]) * 3 + trow1[x + 1] * 10));
+            }
+        }
+        this.cache.put_buffer(buf0_node);
+        this.cache.put_buffer(buf1_node);
+    }
+
+    // compute gradient using Sobel kernel [1 2 1] * [-1 0 1]^T
+    // dst: [gx,gy,...]
+    sobel_derivatives(src, dst) {
+        var w = src.cols, h = src.rows;
+        var dstep = w << 1, x = 0, y = 0, x1 = 0, a, b, c, d, e, f;
+        var srow0 = 0, srow1 = 0, srow2 = 0, drow = 0;
+        var trow0, trow1;
+
+        dst.resize(w, h, 2); // 2 channel output gx, gy
+
+        var img = src.data, gxgy = dst.data;
+
+        var buf0_node = this.cache.get_buffer((w + 2) << 2);
+        var buf1_node = this.cache.get_buffer((w + 2) << 2);
+
+        if (src.type & JSFEAT_CONSTANTS.U8_t || src.type & JSFEAT_CONSTANTS.S32_t) {
+            trow0 = buf0_node.i32;
+            trow1 = buf1_node.i32;
+        } else {
+            trow0 = buf0_node.f32;
+            trow1 = buf1_node.f32;
+        }
+
+        for (; y < h; ++y, srow1 += w) {
+            srow0 = ((y > 0 ? y - 1 : 1) * w) | 0;
+            srow2 = ((y < h - 1 ? y + 1 : h - 2) * w) | 0;
+            drow = (y * dstep) | 0;
+            // do vertical convolution
+            for (x = 0, x1 = 1; x <= w - 2; x += 2, x1 += 2) {
+                a = img[srow0 + x], b = img[srow2 + x];
+                trow0[x1] = ((a + b) + (img[srow1 + x] * 2));
+                trow1[x1] = (b - a);
+                //
+                a = img[srow0 + x + 1], b = img[srow2 + x + 1];
+                trow0[x1 + 1] = ((a + b) + (img[srow1 + x + 1] * 2));
+                trow1[x1 + 1] = (b - a);
+            }
+            for (; x < w; ++x, ++x1) {
+                a = img[srow0 + x], b = img[srow2 + x];
+                trow0[x1] = ((a + b) + (img[srow1 + x] * 2));
+                trow1[x1] = (b - a);
+            }
+            // make border
+            x = (w + 1) | 0;
+            trow0[0] = trow0[1]; trow0[x] = trow0[w];
+            trow1[0] = trow1[1]; trow1[x] = trow1[w];
+            // do horizontal convolution, interleave the results and store them
+            for (x = 0; x <= w - 4; x += 4) {
+                a = trow1[x + 2], b = trow1[x + 1], c = trow1[x + 3], d = trow1[x + 4],
+                    e = trow0[x + 2], f = trow0[x + 3];
+                gxgy[drow++] = (e - trow0[x]);
+                gxgy[drow++] = (a + trow1[x] + b * 2);
+                gxgy[drow++] = (f - trow0[x + 1]);
+                gxgy[drow++] = (c + b + a * 2);
+
+                gxgy[drow++] = (trow0[x + 4] - e);
+                gxgy[drow++] = (d + a + c * 2);
+                gxgy[drow++] = (trow0[x + 5] - f);
+                gxgy[drow++] = (trow1[x + 5] + c + d * 2);
+            }
+            for (; x < w; ++x) {
+                gxgy[drow++] = (trow0[x + 2] - trow0[x]);
+                gxgy[drow++] = (trow1[x + 2] + trow1[x] + trow1[x + 1] * 2);
+            }
+        }
+        this.cache.put_buffer(buf0_node);
+        this.cache.put_buffer(buf1_node);
+    }
     // transform is 3x3 or 2x3 matrix_t only first 6 values referenced
     warp_affine(src, dst, transform, fill_value) {
         if (typeof fill_value === "undefined") { fill_value = 0; }
