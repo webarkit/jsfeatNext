@@ -499,6 +499,138 @@ export default class imgproc {
         this.cache.put_buffer(buf0_node);
         this.cache.put_buffer(buf1_node);
     }
+    // please note: 
+    // dst_(type) size should be cols = src.cols+1, rows = src.rows+1
+    compute_integral_image(src, dst_sum, dst_sqsum, dst_tilted) {
+        var w0 = src.cols | 0, h0 = src.rows | 0, src_d = src.data;
+        var w1 = (w0 + 1) | 0;
+        var s = 0, s2 = 0, p = 0, pup = 0, i = 0, j = 0, v = 0, k = 0;
+
+        if (dst_sum && dst_sqsum) {
+            // fill first row with zeros
+            for (; i < w1; ++i) {
+                dst_sum[i] = 0, dst_sqsum[i] = 0;
+            }
+            p = (w1 + 1) | 0, pup = 1;
+            for (i = 0, k = 0; i < h0; ++i, ++p, ++pup) {
+                s = s2 = 0;
+                for (j = 0; j <= w0 - 2; j += 2, k += 2, p += 2, pup += 2) {
+                    v = src_d[k];
+                    s += v, s2 += v * v;
+                    dst_sum[p] = dst_sum[pup] + s;
+                    dst_sqsum[p] = dst_sqsum[pup] + s2;
+
+                    v = src_d[k + 1];
+                    s += v, s2 += v * v;
+                    dst_sum[p + 1] = dst_sum[pup + 1] + s;
+                    dst_sqsum[p + 1] = dst_sqsum[pup + 1] + s2;
+                }
+                for (; j < w0; ++j, ++k, ++p, ++pup) {
+                    v = src_d[k];
+                    s += v, s2 += v * v;
+                    dst_sum[p] = dst_sum[pup] + s;
+                    dst_sqsum[p] = dst_sqsum[pup] + s2;
+                }
+            }
+        } else if (dst_sum) {
+            // fill first row with zeros
+            for (; i < w1; ++i) {
+                dst_sum[i] = 0;
+            }
+            p = (w1 + 1) | 0, pup = 1;
+            for (i = 0, k = 0; i < h0; ++i, ++p, ++pup) {
+                s = 0;
+                for (j = 0; j <= w0 - 2; j += 2, k += 2, p += 2, pup += 2) {
+                    s += src_d[k];
+                    dst_sum[p] = dst_sum[pup] + s;
+                    s += src_d[k + 1];
+                    dst_sum[p + 1] = dst_sum[pup + 1] + s;
+                }
+                for (; j < w0; ++j, ++k, ++p, ++pup) {
+                    s += src_d[k];
+                    dst_sum[p] = dst_sum[pup] + s;
+                }
+            }
+        } else if (dst_sqsum) {
+            // fill first row with zeros
+            for (; i < w1; ++i) {
+                dst_sqsum[i] = 0;
+            }
+            p = (w1 + 1) | 0, pup = 1;
+            for (i = 0, k = 0; i < h0; ++i, ++p, ++pup) {
+                s2 = 0;
+                for (j = 0; j <= w0 - 2; j += 2, k += 2, p += 2, pup += 2) {
+                    v = src_d[k];
+                    s2 += v * v;
+                    dst_sqsum[p] = dst_sqsum[pup] + s2;
+                    v = src_d[k + 1];
+                    s2 += v * v;
+                    dst_sqsum[p + 1] = dst_sqsum[pup + 1] + s2;
+                }
+                for (; j < w0; ++j, ++k, ++p, ++pup) {
+                    v = src_d[k];
+                    s2 += v * v;
+                    dst_sqsum[p] = dst_sqsum[pup] + s2;
+                }
+            }
+        }
+
+        if (dst_tilted) {
+            // fill first row with zeros
+            for (i = 0; i < w1; ++i) {
+                dst_tilted[i] = 0;
+            }
+            // diagonal
+            p = (w1 + 1) | 0, pup = 0;
+            for (i = 0, k = 0; i < h0; ++i, ++p, ++pup) {
+                for (j = 0; j <= w0 - 2; j += 2, k += 2, p += 2, pup += 2) {
+                    dst_tilted[p] = src_d[k] + dst_tilted[pup];
+                    dst_tilted[p + 1] = src_d[k + 1] + dst_tilted[pup + 1];
+                }
+                for (; j < w0; ++j, ++k, ++p, ++pup) {
+                    dst_tilted[p] = src_d[k] + dst_tilted[pup];
+                }
+            }
+            // diagonal
+            p = (w1 + w0) | 0, pup = w0;
+            for (i = 0; i < h0; ++i, p += w1, pup += w1) {
+                dst_tilted[p] += dst_tilted[pup];
+            }
+
+            for (j = w0 - 1; j > 0; --j) {
+                p = j + h0 * w1, pup = p - w1;
+                for (i = h0; i > 0; --i, p -= w1, pup -= w1) {
+                    dst_tilted[p] += dst_tilted[pup] + dst_tilted[pup + 1];
+                }
+            }
+        }
+    }
+    equalize_histogram(src, dst) {
+        var w = src.cols, h = src.rows, src_d = src.data;
+
+        dst.resize(w, h, src.channel);
+
+        var dst_d = dst.data, size = w * h;
+        var i = 0, prev = 0, hist0, norm;
+
+        var hist0_node = this.cache.get_buffer(256 << 2);
+        hist0 = hist0_node.i32;
+        for (; i < 256; ++i) hist0[i] = 0;
+        for (i = 0; i < size; ++i) {
+            ++hist0[src_d[i]];
+        }
+
+        prev = hist0[0];
+        for (i = 1; i < 256; ++i) {
+            prev = hist0[i] += prev;
+        }
+
+        norm = 255 / size;
+        for (i = 0; i < size; ++i) {
+            dst_d[i] = (hist0[src_d[i]] * norm + 0.5) | 0;
+        }
+        this.cache.put_buffer(hist0_node);
+    }
     canny(src, dst, low_thresh, high_thresh) {
         var w = src.cols, h = src.rows, src_d = src.data;
 
@@ -663,6 +795,40 @@ export default class imgproc {
         this.cache.put_buffer(map_node);
         this.cache.put_buffer(stack_node);
     }
+    // transform is 3x3 matrix_t
+    warp_perspective(src, dst, transform, fill_value) {
+        if (typeof fill_value === "undefined") { fill_value = 0; }
+        var src_width = src.cols | 0, src_height = src.rows | 0, dst_width = dst.cols | 0, dst_height = dst.rows | 0;
+        var src_d = src.data, dst_d = dst.data;
+        var x = 0, y = 0, off = 0, ixs = 0, iys = 0, xs = 0.0, ys = 0.0, xs0 = 0.0, ys0 = 0.0, ws = 0.0, sc = 0.0, a = 0.0, b = 0.0, p0 = 0.0, p1 = 0.0;
+        var td = transform.data;
+        var m00 = td[0], m01 = td[1], m02 = td[2],
+            m10 = td[3], m11 = td[4], m12 = td[5],
+            m20 = td[6], m21 = td[7], m22 = td[8];
+
+        for (var dptr = 0; y < dst_height; ++y) {
+            xs0 = m01 * y + m02,
+                ys0 = m11 * y + m12,
+                ws = m21 * y + m22;
+            for (x = 0; x < dst_width; ++x, ++dptr, xs0 += m00, ys0 += m10, ws += m20) {
+                sc = 1.0 / ws;
+                xs = xs0 * sc, ys = ys0 * sc;
+                ixs = xs | 0, iys = ys | 0;
+
+                if (xs > 0 && ys > 0 && ixs < (src_width - 1) && iys < (src_height - 1)) {
+                    a = Math.max(xs - ixs, 0.0);
+                    b = Math.max(ys - iys, 0.0);
+                    off = (src_width * iys + ixs) | 0;
+
+                    p0 = src_d[off] + a * (src_d[off + 1] - src_d[off]);
+                    p1 = src_d[off + src_width] + a * (src_d[off + src_width + 1] - src_d[off + src_width]);
+
+                    dst_d[dptr] = p0 + b * (p1 - p0);
+                }
+                else dst_d[dptr] = fill_value;
+            }
+        }
+    }
     // transform is 3x3 or 2x3 matrix_t only first 6 values referenced
     warp_affine(src, dst, transform, fill_value) {
         if (typeof fill_value === "undefined") { fill_value = 0; }
@@ -690,6 +856,26 @@ export default class imgproc {
                     dst_d[dptr] = p0 + b * (p1 - p0);
                 }
                 else dst_d[dptr] = fill_value;
+            }
+        }
+    }
+    // Basic RGB Skin detection filter
+    // from http://popscan.blogspot.fr/2012/08/skin-detection-in-digital-images.html
+    skindetector(src, dst) {
+        var r, g, b, j;
+        var i = src.width * src.height;
+        while (i--) {
+            j = i * 4;
+            r = src.data[j];
+            g = src.data[j + 1];
+            b = src.data[j + 2];
+            if ((r > 95) && (g > 40) && (b > 20)
+                && (r > g) && (r > b)
+                && (r - Math.min(g, b) > 15)
+                && (Math.abs(r - g) > 15)) {
+                dst[i] = 255;
+            } else {
+                dst[i] = 0;
             }
         }
     }

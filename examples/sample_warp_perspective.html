@@ -7,7 +7,6 @@
         <meta name="description" content="A JavaScript Computer Vision Library">
         <title>JSFeatNext - JavaScript Computer Vision Library.</title>
 
-
         <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Droid+Sans:regular,bold|Inconsolata|PT+Sans:400,700">
         <link rel="stylesheet" href="css/bootstrap.css">
         <link rel="stylesheet" href="css/jsfeat.css">
@@ -35,6 +34,8 @@
             var canvas = document.getElementById('canvas');
             var jsfeat = jsfeatNext.jsfeatNext;
             var imgproc = new jsfeat.imgproc();
+            var math = new jsfeat.math();
+            var matmath = new jsfeat.matmath();
             try {
                 var attempts = 0;
                 var readyListener = function(event) {
@@ -89,7 +90,7 @@
             var stat = new profiler();
 
             var ctx,canvasWidth,canvasHeight;
-            var img_u8,img_gxgy;
+            var img_u8, img_u8_warp, transform;
 
             function demo_app(videoWidth, videoHeight) {
                 canvasWidth  = canvas.width;
@@ -99,11 +100,18 @@
                 ctx.fillStyle = "rgb(0,255,0)";
                 ctx.strokeStyle = "rgb(0,255,0)";
 
-                img_u8 = new jsfeat.matrix_t(640, 480, jsfeat.U8C1_t);
-                img_gxgy = new jsfeat.matrix_t(640, 480, jsfeat.S32C2_t);
+                img_u8 = new jsfeat.matrix_t(640, 480, jsfeat.U8_t | jsfeat.C1_t);
+                img_u8_warp = new jsfeat.matrix_t(640, 480, jsfeat.U8_t | jsfeat.C1_t);
+                transform = new jsfeat.matrix_t(3, 3, jsfeat.F32_t | jsfeat.C1_t);
+
+                math.perspective_4point_transform(transform, 0,   0,   50,  50,
+                                                                    640, 0,   550, 100,
+                                                                    640, 480, 300, 400,
+                                                                    0,   480, 100, 400);
+                matmath.invert_3x3(transform, transform);
 
                 stat.add("grayscale");
-                stat.add("scharr");
+                stat.add("warp perspective");
             }
 
             function tick() {
@@ -117,19 +125,17 @@
                     imgproc.grayscale(imageData.data, 640, 480, img_u8);
                     stat.stop("grayscale");
 
-                    stat.start("scharr");
-                    imgproc.scharr_derivatives(img_u8, img_gxgy);
-                    stat.stop("scharr");
+                    stat.start("warp perspective");
+                    imgproc.warp_perspective(img_u8, img_u8_warp, transform, 0);
+                    stat.stop("warp perspective");
 
                     // render result back to canvas
                     var data_u32 = new Uint32Array(imageData.data.buffer);
                     var alpha = (0xff << 24);
-                    var i = img_u8.cols*img_u8.rows, pix=0, gx = 0, gy = 0;
+                    var i = img_u8_warp.cols*img_u8_warp.rows, pix = 0;
                     while(--i >= 0) {
-                        gx = Math.abs(img_gxgy.data[i<<1]>>2)&0xff;
-                        gy = Math.abs(img_gxgy.data[(i<<1)+1]>>2)&0xff;
-                        pix = ((gx + gy)>>2)&0xff;
-                        data_u32[i] = (pix << 24) | (gx << 16) | (0 << 8) | gy;
+                        pix = img_u8_warp.data[i];
+                        data_u32[i] = alpha | (pix << 16) | (pix << 8) | pix;
                     }
 
                     ctx.putImageData(imageData, 0, 0);
