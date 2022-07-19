@@ -5,7 +5,8 @@
         <meta charset="utf-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
         <meta name="description" content="A JavaScript Computer Vision Library">
-        <title>JSFeatNext - JavaScript Computer Vision Library.</title>
+        <meta name="author" content="Eugene Zatepyakin">
+        <title>JSFeat - JavaScript Computer Vision Library.</title>
 
         <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Droid+Sans:regular,bold|Inconsolata|PT+Sans:400,700">
         <link rel="stylesheet" href="css/bootstrap.css">
@@ -34,6 +35,7 @@
             var canvas = document.getElementById('canvas');
             var jsfeat = jsfeatNext.jsfeatNext;
             var imgproc = new jsfeat.imgproc();
+            var yape = new jsfeat.yape();
             try {
                 var attempts = 0;
                 var readyListener = function(event) {
@@ -88,7 +90,7 @@
             var stat = new profiler();
 
             var ctx,canvasWidth,canvasHeight;
-            var img_u8,img_gxgy;
+            var img_u8, corners;
 
             function demo_app(videoWidth, videoHeight) {
                 canvasWidth  = canvas.width;
@@ -98,11 +100,20 @@
                 ctx.fillStyle = "rgb(0,255,0)";
                 ctx.strokeStyle = "rgb(0,255,0)";
 
-                img_u8 = new jsfeat.matrix_t(640, 480, jsfeat.U8C1_t);
-                img_gxgy = new jsfeat.matrix_t(640, 480, jsfeat.S32C2_t);
+                img_u8 = new jsfeat.matrix_t(640, 480, jsfeat.U8_t | jsfeat.C1_t);
+
+                corners = [];
+                var i = 640*480;
+                while(--i >= 0) {
+                    corners[i] = new jsfeat.keypoint_t(0,0,0,0);
+                }
+
+                // YAPE detector needs init first
+                yape.init(canvasWidth, canvasHeight, 5, 1);
 
                 stat.add("grayscale");
-                stat.add("scharr");
+                stat.add("box blur");
+                stat.add("yape");
             }
 
             function tick() {
@@ -116,24 +127,36 @@
                     imgproc.grayscale(imageData.data, 640, 480, img_u8);
                     stat.stop("grayscale");
 
-                    stat.start("scharr");
-                    imgproc.scharr_derivatives(img_u8, img_gxgy);
-                    stat.stop("scharr");
+                    stat.start("box blur");
+                    imgproc.box_blur_gray(img_u8, img_u8, 2, 0);
+                    stat.stop("box blur");
+
+                    stat.start("yape");
+                    var count = yape.detect(img_u8, corners, 5);
+                    stat.stop("yape");
 
                     // render result back to canvas
                     var data_u32 = new Uint32Array(imageData.data.buffer);
-                    var alpha = (0xff << 24);
-                    var i = img_u8.cols*img_u8.rows, pix=0, gx = 0, gy = 0;
-                    while(--i >= 0) {
-                        gx = Math.abs(img_gxgy.data[i<<1]>>2)&0xff;
-                        gy = Math.abs(img_gxgy.data[(i<<1)+1]>>2)&0xff;
-                        pix = ((gx + gy)>>2)&0xff;
-                        data_u32[i] = (pix << 24) | (gx << 16) | (0 << 8) | gy;
-                    }
+                    render_corners(corners, count, data_u32, 640);
 
                     ctx.putImageData(imageData, 0, 0);
 
                     $('#log').html(stat.log());
+                }
+            }
+
+            function render_corners(corners, count, img, step) {
+                var pix = (0xff << 24) | (0x00 << 16) | (0xff << 8) | 0x00;
+                for(var i=0; i < count; ++i)
+                {
+                    var x = corners[i].x;
+                    var y = corners[i].y;
+                    var off = (x + y * step);
+                    img[off] = pix;
+                    img[off-1] = pix;
+                    img[off+1] = pix;
+                    img[off-step] = pix;
+                    img[off+step] = pix;
                 }
             }
 
