@@ -1,4 +1,5 @@
 declare class jsfeatNext {
+    static VERSION: any;
     static EPSILON: number;
     static FLT_MIN: number;
     static U8_t: number;
@@ -25,7 +26,6 @@ declare class jsfeatNext {
     static S32C1_t: number;
     static S32C2_t: number;
     dt: data_type;
-    version: string;
     get_data_type(type: any): number;
     get_channel(type: any): number;
     get_data_type_size(type: any): number;
@@ -37,8 +37,16 @@ declare namespace jsfeatNext {
     export { keypoint_t };
     export { cache };
     export { imgproc };
+    export { math };
     export { matmath };
     export { linalg };
+    export { orb };
+    export { yape };
+    export { yape06 };
+    export { motion_estimator };
+    export { ransac_params_t };
+    export { homography2d };
+    export { optical_flow_lk };
 }
 export default jsfeatNext;
 import data_type from "./data_type/data_type.js";
@@ -48,6 +56,14 @@ import pyramid_t from "./pyramid_t/pyramid_t.js";
 import keypoint_t from "./keypoint_t/keypoint_t.js";
 import cache from "./cache/cache.js";
 import imgproc from "./imgproc/imgproc.js";
+import math from "./math/math.js";
 import matmath from "./matmath/matmath.js";
 import linalg from "./linalg/linalg.js";
+import orb from "./orb/orb.js";
+import yape from "./yape/yape.js";
+import yape06 from "./yape06/yape06.js";
+import motion_estimator from "./motion_estimator/motion_estimator.js";
+import ransac_params_t from "./motion_estimator/ransac_params_t.js";
+import { homography2d } from "./motion_estimator/motion_model.js";
+import optical_flow_lk from "./optical_flow_lk/optical_flow_lk.js";
 //# sourceMappingURL=jsfeatNext.d.ts.map
