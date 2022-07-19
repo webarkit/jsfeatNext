@@ -8,7 +8,7 @@ export default class _pool_node_t {
     i32: Int32Array;
     f32: Float32Array;
     f64: Float64Array;
-    resize(): void;
+    resize(size_in_bytes: any): void;
 }
 import data_t from "./data_t.js";
 //# sourceMappingURL=_pool_node_t.d.ts.map

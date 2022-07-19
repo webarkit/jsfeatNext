@@ -1,1 +1,1 @@
-{"version":3,"file":"linalg.d.ts","sourceRoot":"","sources":["../../src/linalg/linalg.js"],"names":[],"mappings":"AAMA;IAEQ,aAAwB;IAExB,iBAA4B;IAGhC,yEAuJC;IAED,gGA6LC;IAED,gCAkDC;IAED,sCA+DC;IAED,kEAqFC;IAED,wCAqCC;IAED,kCAiCC;IAED,6CAuBC;CACJ"}
+{"version":3,"file":"linalg.d.ts","sourceRoot":"","sources":["../../src/linalg/linalg.js"],"names":[],"mappings":"AAOA;IAEQ,aAAwB;IAExB,iBAA4B;IAGhC,yEAuJC;IAED,gGA4LC;IAED,gCAkDC;IAED,sCA+DC;IAED,kEAqFC;IAED,wCAqCC;IAED,kCAiCC;IAED,6CAuBC;CACJ"}
