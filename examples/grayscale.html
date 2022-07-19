@@ -14,7 +14,8 @@
     <canvas id="canvas"></canvas>
     <script src="../dist/jsfeatNext.js"></script>
     <script>
-        var jsfeat = jsfeatNext.jsfeatNext
+        var jsfeat = jsfeatNext.jsfeatNext;
+        var imgproc = new jsfeat.imgproc();
         var canvas = document.getElementById('canvas');
         var ctx = canvas.getContext('2d');
 
@@ -60,8 +61,7 @@
                 var width = 640, height = 480;
                 ctx.drawImage(video, 0, 0, width, height);
                 var image_data = ctx.getImageData(0, 0, width, height);
-                var img_u8 = new jsfeat.matrix_t(width, height, jsfeat.U8_t | jsfeat.C1_t);
-                var imgproc = new jsfeat.imgproc()
+                var img_u8 = new jsfeat.matrix_t(width, height, jsfeat.U8_t | jsfeat.C1_t);       
                 var code = jsfeat.COLOR_RGBA2GRAY;
                 imgproc.grayscale(image_data.data, width, height, img_u8, code);
                 var data_u32 = new Uint32Array(image_data.data.buffer);
