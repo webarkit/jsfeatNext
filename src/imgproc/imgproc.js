@@ -2,6 +2,7 @@ import { _resample, _resample_u8 } from './resample.js'
 import { _convol, _convol_u8 } from './convol.js'
 import cache from '../cache/cache.js';
 import math from '../math/math.js';
+import matrix_t from '../matrix_t/matrix_t.js';
 import { JSFEAT_CONSTANTS } from '../constants/constants.js'
 
 export default class imgproc {
@@ -497,6 +498,170 @@ export default class imgproc {
         }
         this.cache.put_buffer(buf0_node);
         this.cache.put_buffer(buf1_node);
+    }
+    canny(src, dst, low_thresh, high_thresh) {
+        var w = src.cols, h = src.rows, src_d = src.data;
+
+        dst.resize(w, h, src.channel);
+
+        var dst_d = dst.data;
+        var i = 0, j = 0, grad = 0, w2 = w << 1, _grad = 0, suppress = 0, f = 0, x = 0, y = 0, s = 0;
+        var tg22x = 0, tg67x = 0;
+
+        // cache buffers
+        var dxdy_node = this.cache.get_buffer((h * w2) << 2);
+        var buf_node = this.cache.get_buffer((3 * (w + 2)) << 2);
+        var map_node = this.cache.get_buffer(((h + 2) * (w + 2)) << 2);
+        var stack_node = this.cache.get_buffer((h * w) << 2);
+
+
+        var buf = buf_node.i32;
+        var map = map_node.i32;
+        var stack = stack_node.i32;
+        var dxdy = dxdy_node.i32;
+        var dxdy_m = new matrix_t(w, h, JSFEAT_CONSTANTS.S32C2_t, dxdy_node.data);
+        var row0 = 1, row1 = (w + 2 + 1) | 0, row2 = (2 * (w + 2) + 1) | 0, map_w = (w + 2) | 0, map_i = (map_w + 1) | 0, stack_i = 0;
+
+        this.sobel_derivatives(src, dxdy_m);
+
+        if (low_thresh > high_thresh) {
+            i = low_thresh;
+            low_thresh = high_thresh;
+            high_thresh = i;
+        }
+
+        i = (3 * (w + 2)) | 0;
+        while (--i >= 0) {
+            buf[i] = 0;
+        }
+
+        i = ((h + 2) * (w + 2)) | 0;
+        while (--i >= 0) {
+            map[i] = 0;
+        }
+
+        for (; j < w; ++j, grad += 2) {
+            //buf[row1+j] = Math.abs(dxdy[grad]) + Math.abs(dxdy[grad+1]);
+            x = dxdy[grad], y = dxdy[grad + 1];
+            //buf[row1+j] = x*x + y*y;
+            buf[row1 + j] = ((x ^ (x >> 31)) - (x >> 31)) + ((y ^ (y >> 31)) - (y >> 31));
+        }
+
+        for (i = 1; i <= h; ++i, grad += w2) {
+            if (i == h) {
+                j = row2 + w;
+                while (--j >= row2) {
+                    buf[j] = 0;
+                }
+            } else {
+                for (j = 0; j < w; j++) {
+                    //buf[row2+j] =  Math.abs(dxdy[grad+(j<<1)]) + Math.abs(dxdy[grad+(j<<1)+1]);
+                    x = dxdy[grad + (j << 1)], y = dxdy[grad + (j << 1) + 1];
+                    //buf[row2+j] = x*x + y*y;
+                    buf[row2 + j] = ((x ^ (x >> 31)) - (x >> 31)) + ((y ^ (y >> 31)) - (y >> 31));
+                }
+            }
+            _grad = (grad - w2) | 0;
+            map[map_i - 1] = 0;
+            suppress = 0;
+            for (j = 0; j < w; ++j, _grad += 2) {
+                f = buf[row1 + j];
+                if (f > low_thresh) {
+                    x = dxdy[_grad];
+                    y = dxdy[_grad + 1];
+                    s = x ^ y;
+                    // seems ot be faster than Math.abs
+                    x = ((x ^ (x >> 31)) - (x >> 31)) | 0;
+                    y = ((y ^ (y >> 31)) - (y >> 31)) | 0;
+                    //x * tan(22.5) x * tan(67.5) == 2 * x + x * tan(22.5)
+                    tg22x = x * 13573;
+                    tg67x = tg22x + ((x + x) << 15);
+                    y <<= 15;
+                    if (y < tg22x) {
+                        if (f > buf[row1 + j - 1] && f >= buf[row1 + j + 1]) {
+                            if (f > high_thresh && !suppress && map[map_i + j - map_w] != 2) {
+                                map[map_i + j] = 2;
+                                suppress = 1;
+                                stack[stack_i++] = map_i + j;
+                            } else {
+                                map[map_i + j] = 1;
+                            }
+                            continue;
+                        }
+                    } else if (y > tg67x) {
+                        if (f > buf[row0 + j] && f >= buf[row2 + j]) {
+                            if (f > high_thresh && !suppress && map[map_i + j - map_w] != 2) {
+                                map[map_i + j] = 2;
+                                suppress = 1;
+                                stack[stack_i++] = map_i + j;
+                            } else {
+                                map[map_i + j] = 1;
+                            }
+                            continue;
+                        }
+                    } else {
+                        s = s < 0 ? -1 : 1;
+                        if (f > buf[row0 + j - s] && f > buf[row2 + j + s]) {
+                            if (f > high_thresh && !suppress && map[map_i + j - map_w] != 2) {
+                                map[map_i + j] = 2;
+                                suppress = 1;
+                                stack[stack_i++] = map_i + j;
+                            } else {
+                                map[map_i + j] = 1;
+                            }
+                            continue;
+                        }
+                    }
+                }
+                map[map_i + j] = 0;
+                suppress = 0;
+            }
+            map[map_i + w] = 0;
+            map_i += map_w;
+            j = row0;
+            row0 = row1;
+            row1 = row2;
+            row2 = j;
+        }
+
+        j = map_i - map_w - 1;
+        for (i = 0; i < map_w; ++i, ++j) {
+            map[j] = 0;
+        }
+        // path following
+        while (stack_i > 0) {
+            map_i = stack[--stack_i];
+            map_i -= map_w + 1;
+            if (map[map_i] == 1) map[map_i] = 2, stack[stack_i++] = map_i;
+            map_i += 1;
+            if (map[map_i] == 1) map[map_i] = 2, stack[stack_i++] = map_i;
+            map_i += 1;
+            if (map[map_i] == 1) map[map_i] = 2, stack[stack_i++] = map_i;
+            map_i += map_w;
+            if (map[map_i] == 1) map[map_i] = 2, stack[stack_i++] = map_i;
+            map_i -= 2;
+            if (map[map_i] == 1) map[map_i] = 2, stack[stack_i++] = map_i;
+            map_i += map_w;
+            if (map[map_i] == 1) map[map_i] = 2, stack[stack_i++] = map_i;
+            map_i += 1;
+            if (map[map_i] == 1) map[map_i] = 2, stack[stack_i++] = map_i;
+            map_i += 1;
+            if (map[map_i] == 1) map[map_i] = 2, stack[stack_i++] = map_i;
+        }
+
+        map_i = map_w + 1;
+        row0 = 0;
+        for (i = 0; i < h; ++i, map_i += map_w) {
+            for (j = 0; j < w; ++j) {
+                dst_d[row0++] = (map[map_i + j] == 2) * 0xff;
+            }
+        }
+
+        // free buffers
+        this.cache.put_buffer(dxdy_node);
+        this.cache.put_buffer(buf_node);
+        this.cache.put_buffer(map_node);
+        this.cache.put_buffer(stack_node);
     }
     // transform is 3x3 or 2x3 matrix_t only first 6 values referenced
     warp_affine(src, dst, transform, fill_value) {
