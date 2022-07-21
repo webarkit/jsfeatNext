@@ -17,5 +17,12 @@ export namespace JSFEAT_CONSTANTS {
     const BOX_BLUR_NOSCALE: number;
     const SVD_U_T: number;
     const SVD_V_T: number;
+    const U8C1_t: number;
+    const U8C3_t: number;
+    const U8C4_t: number;
+    const F32C1_t: number;
+    const F32C2_t: number;
+    const S32C1_t: number;
+    const S32C2_t: number;
 }
 //# sourceMappingURL=constants.d.ts.map

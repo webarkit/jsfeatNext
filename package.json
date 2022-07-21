@@ -1,6 +1,6 @@
 {
   "name": "jsfeatnext",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "ES6 version of jsfeat for WebARKit",
   "main": "dist/jsfeatNext.js",
   "types": "types/index.d.ts",
