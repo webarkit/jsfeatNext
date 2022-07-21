@@ -11,7 +11,7 @@ import { swap, hypot } from './linalg/linalg-base.js'
 import { bit_pattern_31 } from './orb/bit_pattern_31.js'
 import { rectify_patch } from './orb/rectify_patch.js'
 import yape from './yape/yape.js'
-import yape06 from './yape06/yape06.js'
+import { compute_laplacian, hessian_min_eigen_value } from './yape06/yape06_utils.js'
 import ransac_params_t from './motion_estimator/ransac_params_t.js'
 import { JSFEAT_CONSTANTS } from './constants/constants.js'
 import pkg from '../package.json'
@@ -75,7 +75,7 @@ export default class jsfeatNext {
     }
 }
 
-class motion_model extends jsfeatNext{
+class motion_model extends jsfeatNext {
     constructor() {
         super();
         this.T0 = new matrix_t(3, 3, JSFEAT_CONSTANTS.F32_t | JSFEAT_CONSTANTS.C1_t);
@@ -150,7 +150,7 @@ class motion_model extends jsfeatNext{
     }
 }
 
-class affine2d extends motion_model{
+class affine2d extends motion_model {
     constructor() {
         super();
     }
@@ -1345,7 +1345,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
 
 };
 
-jsfeatNext.math = class math extends jsfeatNext{
+jsfeatNext.math = class math extends jsfeatNext {
     constructor() {
         super();
         this.qsort_stack = new Int32Array(48 * 2);
@@ -1748,7 +1748,7 @@ jsfeatNext.math = class math extends jsfeatNext{
 
 jsfeatNext.matmath = matmath;
 
-jsfeatNext.linalg = class linalg extends jsfeatNext{
+jsfeatNext.linalg = class linalg extends jsfeatNext {
     constructor() {
         super();
         this.matmath = new matmath();
@@ -2485,9 +2485,70 @@ jsfeatNext.orb = class orb extends jsfeatNext {
 
 jsfeatNext.yape = yape;
 
-jsfeatNext.yape06 = yape06;
+jsfeatNext.yape06 = class yape06 extends jsfeatNext {
+    constructor() {
+        super();
+        this.laplacian_threshold = 30;
+        this.min_eigen_value_threshold = 25;
+    }
+    detect(src, points, border) {
+        if (typeof border === "undefined") { border = 5; }
+        var x = 0, y = 0;
+        var w = src.cols, h = src.rows, srd_d = src.data;
+        var Dxx = 5, Dyy = (5 * w) | 0;
+        var Dxy = (3 + 3 * w) | 0, Dyx = (3 - 3 * w) | 0;
+        var lap_buf = this.cache.get_buffer((w * h) << 2);
+        var laplacian = lap_buf.i32;
+        var lv = 0, row = 0, rowx = 0, min_eigen_value = 0, pt;
+        var number_of_points = 0;
+        var lap_thresh = this.laplacian_threshold;
+        var eigen_thresh = this.min_eigen_value_threshold;
 
-jsfeatNext.motion_estimator = class motion_estimator extends jsfeatNext{
+        var sx = Math.max(5, border) | 0;
+        var sy = Math.max(3, border) | 0;
+        var ex = Math.min(w - 5, w - border) | 0;
+        var ey = Math.min(h - 3, h - border) | 0;
+
+        x = w * h;
+        while (--x >= 0) { laplacian[x] = 0; }
+        compute_laplacian(srd_d, laplacian, w, h, Dxx, Dyy, sx, sy, ex, ey);
+
+        row = (sy * w + sx) | 0;
+        for (y = sy; y < ey; ++y, row += w) {
+            for (x = sx, rowx = row; x < ex; ++x, ++rowx) {
+
+                lv = laplacian[rowx];
+                if ((lv < -lap_thresh &&
+                    lv < laplacian[rowx - 1] && lv < laplacian[rowx + 1] &&
+                    lv < laplacian[rowx - w] && lv < laplacian[rowx + w] &&
+                    lv < laplacian[rowx - w - 1] && lv < laplacian[rowx + w - 1] &&
+                    lv < laplacian[rowx - w + 1] && lv < laplacian[rowx + w + 1])
+                    ||
+                    (lv > lap_thresh &&
+                        lv > laplacian[rowx - 1] && lv > laplacian[rowx + 1] &&
+                        lv > laplacian[rowx - w] && lv > laplacian[rowx + w] &&
+                        lv > laplacian[rowx - w - 1] && lv > laplacian[rowx + w - 1] &&
+                        lv > laplacian[rowx - w + 1] && lv > laplacian[rowx + w + 1])
+                ) {
+
+                    min_eigen_value = hessian_min_eigen_value(srd_d, rowx, lv, Dxx, Dyy, Dxy, Dyx);
+                    if (min_eigen_value > eigen_thresh) {
+                        pt = points[number_of_points];
+                        pt.x = x, pt.y = y, pt.score = min_eigen_value;
+                        ++number_of_points;
+                        ++x, ++rowx; // skip next pixel since this is maxima in 3x3
+                    }
+                }
+            }
+        }
+
+        this.cache.put_buffer(lap_buf);
+
+        return number_of_points;
+    }
+};
+
+jsfeatNext.motion_estimator = class motion_estimator extends jsfeatNext {
     constructor() {
         super();
     }
@@ -2723,7 +2784,7 @@ jsfeatNext.motion_estimator = class motion_estimator extends jsfeatNext{
 
 jsfeatNext.ransac_params_t = ransac_params_t;
 
-jsfeatNext.affine2d =affine2d;
+jsfeatNext.affine2d = affine2d;
 
 jsfeatNext.homography2d = homography2d;
 
