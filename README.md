@@ -25,8 +25,8 @@ working = ✔️ not working = ⚠️
 - sample_canny_edge.html 
 - sample_equalize_hist.html ✔️
 - sample_gaussblur.html ✔️
-- sample_oflow_lk.html ⚠️
-- sample_orb.html ⚠️
+- sample_oflow_lk.html ✔️
+- sample_orb.html ✔️
 - sample_pyrdown.html ✔️
 - sample_scharr.html ✔️
 - sample_sobel_edge.html ✔️
