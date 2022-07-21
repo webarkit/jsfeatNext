@@ -24,5 +24,7 @@ export const JSFEAT_CONSTANTS = {
     // svd options
     SVD_U_T: 0x01,
     SVD_V_T: 0x02,
+
+    // popular formats
     U8C1_t: 0x0100 | 0x01,
 }
