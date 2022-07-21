@@ -5,25 +5,16 @@ import data_t from './node_utils/data_t.js'
 import keypoint_t from './keypoint_t/keypoint_t.js'
 import { _resample, _resample_u8 } from './imgproc/resample.js'
 import { _convol, _convol_u8 } from './imgproc/convol.js'
-//import math from './math/math.js'
 import matmath from './matmath/matmath.js'
 import matrix_t from './matrix_t/matrix_t.js'
-//import pyramid_t from './pyramid_t/pyramid_t.js'
-//import linalg from './linalg/linalg.js'
 import { swap, hypot } from './linalg/linalg-base.js'
-//import orb from './orb/orb.js'
 import { bit_pattern_31 } from './orb/bit_pattern_31.js'
 import { rectify_patch } from './orb/rectify_patch.js'
 import yape from './yape/yape.js'
 import yape06 from './yape06/yape06.js'
-//import motion_estimator from './motion_estimator/motion_estimator.js'
-//import { motion_model } from './motion_estimator/motion_model.js'
 import ransac_params_t from './motion_estimator/ransac_params_t.js'
 import { JSFEAT_CONSTANTS } from './constants/constants.js'
 import pkg from '../package.json'
-
-
-
 
 export default class jsfeatNext {
     constructor() {
