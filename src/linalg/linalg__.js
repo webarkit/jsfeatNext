@@ -1,4 +1,4 @@
-import jsfeatNext from '../jsfeatNext.js'
+//import jsfeatNext from '../jsfeatNext.js'
 import { JSFEAT_CONSTANTS } from '../constants/constants.js'
 import cache from '../cache/cache.js';
 import { swap, hypot } from './linalg-base.js'
