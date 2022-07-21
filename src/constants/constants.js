@@ -27,4 +27,11 @@ export const JSFEAT_CONSTANTS = {
 
     // popular formats
     U8C1_t: 0x0100 | 0x01,
+    U8C3_t: 0x0100 | 0x03,
+    U8C4_t: 0x0100 | 0x04,
+
+    F32C1_t: 0x0400 | 0x01,
+    F32C2_t: 0x0400 | 0x02,
+    S32C1_t: 0x0200 | 0x01,
+    S32C2_t: 0x0200 | 0x02
 }
