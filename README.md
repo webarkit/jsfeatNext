@@ -1,6 +1,6 @@
 # jsfeatNext
 
-A testing repository to develop a ES6 version of [jsfeat](https://github.com/inspirit/jsfeat) for the WebARKit project. Consider that is a test and many things may changes during the development. I will provide some examples for testing.
+A testing repository to develop a ES6 version of [jsfeat](https://github.com/inspirit/jsfeat) for the WebARKit project. Consider that this is a test and many things may changes during the development. I will provide some examples for testing.
 
 ## List of features
 
@@ -9,6 +9,9 @@ A testing repository to develop a ES6 version of [jsfeat](https://github.com/ins
 - ES6 support
 
 - webpack bundler
+
+## Future features
+As soon the code will be stable i will move to the webarkit.org and releasing the first npm package.
 
 ## Examples
 Go in the examples folder to test some of them.
