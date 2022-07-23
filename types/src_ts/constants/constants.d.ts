@@ -1,0 +1,27 @@
+export declare const JSFEAT_CONSTANTS: {
+    EPSILON: number;
+    FLT_MIN: number;
+    U8_t: number;
+    S32_t: number;
+    F32_t: number;
+    S64_t: number;
+    F64_t: number;
+    C1_t: number;
+    C2_t: number;
+    C3_t: number;
+    C4_t: number;
+    COLOR_RGBA2GRAY: number;
+    COLOR_RGB2GRAY: number;
+    COLOR_BGRA2GRAY: number;
+    COLOR_BGR2GRAY: number;
+    BOX_BLUR_NOSCALE: number;
+    SVD_U_T: number;
+    SVD_V_T: number;
+    U8C1_t: number;
+    U8C3_t: number;
+    U8C4_t: number;
+    F32C1_t: number;
+    F32C2_t: number;
+    S32C1_t: number;
+    S32C2_t: number;
+};
