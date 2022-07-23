@@ -9,7 +9,7 @@ module.exports = (env, argv) => {
   const module = {
     rules: [
       {
-        test: /\.tsx?$/,
+        test: /\.js?$/,
         exclude: /node_modules/,
         use: [
           {
@@ -22,15 +22,52 @@ module.exports = (env, argv) => {
               ],
             },
           },
-          {
-            loader: "ts-loader",
-          },
         ],
+      },
+      {
+        test: /\.tsx?$/,
+        exclude: /node_modules/,
+        loader: 'ts-loader'
+      }
+    ]
+  };
+  const module_ts = {
+    rules: [
+      {
+        test: /\.tsx?$/,
+        exclude: /node_modules/,
+        loader: 'ts-loader'
       }
     ]
   };
   return [{
     name: 'default',
+    devtool,
+    entry: "./src/index.js",
+    output: {
+      //path: path.resolve('dist'),
+      path: path.resolve(__dirname, "dist"),
+      filename: "jsfeatNext.js",
+      library: "jsfeatNext",
+      libraryTarget: "umd",
+      // @see: https://github.com/webpack/webpack/issues/3929
+      libraryExport: "default",
+      // @see: https://github.com/webpack/webpack/issues/6522
+      globalObject: "this",
+    },
+    resolve: {
+      extensions: [".js"],
+      // @see https://stackoverflow.com/questions/59487224/webpack-throws-error-with-emscripten-cant-resolve-fs
+      fallback: {
+        fs: false,
+        path: false,
+        crypto: false,
+      },
+    },
+    module
+  },
+  {
+    name: "typescript",
     devtool,
     entry: "./src_ts/index.ts",
     output: {
@@ -44,7 +81,7 @@ module.exports = (env, argv) => {
       globalObject: "this",
     },
     resolve: {
-      extensions: [".tsx", ".ts", ".js"],
+      extensions: [".ts", ".tsx"],
       // @see https://stackoverflow.com/questions/59487224/webpack-throws-error-with-emscripten-cant-resolve-fs
       fallback: {
         fs: false,
@@ -53,6 +90,6 @@ module.exports = (env, argv) => {
       },
     },
     module
-  },
+  }
   ];
 }

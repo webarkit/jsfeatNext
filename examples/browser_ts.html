@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Testing jsfeatNext</title>
+</head>
+
+<body>
+    <script src="../dist/jsfeatNext_ts.js"></script>
+    <script>    
+        var jsfeat = jsfeatNext.jsfeatNext       
+        console.log("jsfeatNext version: ", jsfeat.VERSION);
+        console.log(jsfeat.EPSILON);
+        console.log(jsfeat.FLT_MIN);
+        console.log(jsfeatNext);
+        var count = 12;
+        var mat = new jsfeat.matrix_t(count, 1, jsfeat.U8_t | jsfeat.C1_t);
+        console.log(mat);
+        var keypoint = new jsfeat.keypoint_t();
+        console.log(keypoint);
+        var cache = new jsfeat.cache();
+        cache.allocate(10, 2);
+        console.log(cache);
+        var bf = cache.get_buffer((2) << 2);
+        console.log(bf);
+        var math = new jsfeat.math()
+        jsfeat.yape06.laplacian_threshold = 0;
+        var yape06 = new jsfeat.yape06();
+        console.log(yape06.laplacian_threshold);
+    </script>
+
+</body>
+
+</html>
