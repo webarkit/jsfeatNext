@@ -11,7 +11,7 @@ export declare class matrix_t implements IMatrix_T {
     rows: number;
     data: any;
     buffer: any;
-    constructor(c: number, r: number, _data_type: number, _data_buffer: any);
+    constructor(c: number, r: number, _data_type: number, _data_buffer?: any);
     allocate(): void;
     copy_to(other: any): void;
     resize(c: number, r: number, ch: any): void;
