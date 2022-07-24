@@ -1,6 +1,11 @@
 //import _pool_node_t from './node_utils/_pool_node_t'
 import { IData_Type, data_type } from './data_type/data_type'
 import { ICache, cache } from './cache/cache'
+import { imgproc } from './imgproc/imgproc'
+import { _resample, _resample_u8 } from './imgproc/resample'
+import { _convol, _convol_u8 } from './imgproc/convol'
+import { linalg } from './linalg/linalg'
+import { swap, hypot } from './linalg/linalg-base'
 import { math } from './math/math'
 import matmath from './matmath/matmath'
 import { matrix_t } from './matrix_t/matrix_t'
@@ -12,6 +17,8 @@ export default class jsfeatNext {
     private dt: IData_Type;
     protected cache: ICache;
     static cache: typeof cache;
+    static imgproc: typeof imgproc;
+    static linalg: typeof linalg;
     static math: typeof math;
     static matmath: typeof matmath;
     static matrix_t: typeof matrix_t;
@@ -79,7 +86,881 @@ jsfeatNext.matrix_t = matrix_t;
 
 jsfeatNext.keypoint_t = keypoint_t;
 
-jsfeatNext.math = class _math extends jsfeatNext {
+jsfeatNext.imgproc = class imgproc extends jsfeatNext {
+    constructor() {
+        super();
+    };
+    grayscale(src: number[], w: number, h: number, dst: { resize: (arg0: any, arg1: any, arg2: number) => void; data: any }, code: number) {
+        // this is default image data representation in browser
+        if (typeof code === "undefined") { code = JSFEAT_CONSTANTS.COLOR_RGBA2GRAY; }
+        var x = 0, y = 0, i = 0, j = 0, ir = 0, jr = 0;
+        var coeff_r = 4899, coeff_g = 9617, coeff_b = 1868, cn = 4;
+
+        if (code == JSFEAT_CONSTANTS.COLOR_BGRA2GRAY || code == JSFEAT_CONSTANTS.COLOR_BGR2GRAY) {
+            coeff_r = 1868;
+            coeff_b = 4899;
+        }
+        if (code == JSFEAT_CONSTANTS.COLOR_RGB2GRAY || code == JSFEAT_CONSTANTS.COLOR_BGR2GRAY) {
+            cn = 3;
+        }
+        var cn2 = cn << 1, cn3 = (cn * 3) | 0;
+
+        dst.resize(w, h, 1);
+        var dst_u8 = dst.data;
+
+        for (y = 0; y < h; ++y, j += w, i += w * cn) {
+            for (x = 0, ir = i, jr = j; x <= w - 4; x += 4, ir += cn << 2, jr += 4) {
+                dst_u8[jr] = (src[ir] * coeff_r + src[ir + 1] * coeff_g + src[ir + 2] * coeff_b + 8192) >> 14;
+                dst_u8[jr + 1] = (src[ir + cn] * coeff_r + src[ir + cn + 1] * coeff_g + src[ir + cn + 2] * coeff_b + 8192) >> 14;
+                dst_u8[jr + 2] = (src[ir + cn2] * coeff_r + src[ir + cn2 + 1] * coeff_g + src[ir + cn2 + 2] * coeff_b + 8192) >> 14;
+                dst_u8[jr + 3] = (src[ir + cn3] * coeff_r + src[ir + cn3 + 1] * coeff_g + src[ir + cn3 + 2] * coeff_b + 8192) >> 14;
+            }
+            for (; x < w; ++x, ++jr, ir += cn) {
+                dst_u8[jr] = (src[ir] * coeff_r + src[ir + 1] * coeff_g + src[ir + 2] * coeff_b + 8192) >> 14;
+            }
+        }
+    }
+    // derived from CCV library
+    resample(src: any, dst: any, nw: number, nh: number) {
+        var h = src.rows, w = src.cols;
+        if (h > nh && w > nw) {
+            dst.resize(nw, nh, src.channel);
+            // using the fast alternative (fix point scale, 0x100 to avoid overflow)
+            if (src.type & JSFEAT_CONSTANTS.U8_t && dst.type & JSFEAT_CONSTANTS.U8_t && h * w / (nh * nw) < 0x100) {
+                _resample_u8(src, dst, this.cache, nw, nh);
+            } else {
+                _resample(src, dst, this.cache, nw, nh);
+            }
+        }
+    }
+    box_blur_gray(src: { cols: any; rows: any; data: any; channel: any }, dst: { resize: (arg0: any, arg1: any, arg2: any) => void; data: any }, radius: number, options: number) {
+        if (typeof options === "undefined") { options = 0; }
+        var w = src.cols, h = src.rows, h2 = h << 1, w2 = w << 1;
+        var i = 0, x = 0, y = 0, end = 0;
+        var windowSize = ((radius << 1) + 1) | 0;
+        var radiusPlusOne = (radius + 1) | 0, radiusPlus2 = (radiusPlusOne + 1) | 0;
+        var scale = options & JSFEAT_CONSTANTS.BOX_BLUR_NOSCALE ? 1 : (1.0 / (windowSize * windowSize));
+
+        var tmp_buff = this.cache.get_buffer((w * h) << 2);
+
+        var sum = 0, dstIndex = 0, srcIndex = 0, nextPixelIndex = 0, previousPixelIndex = 0;
+        var data_i32 = tmp_buff.i32; // to prevent overflow
+        var data_u8 = src.data;
+        var hold = 0;
+
+        dst.resize(w, h, src.channel);
+
+        // first pass
+        // no need to scale 
+        //data_u8 = src.data;
+        //data_i32 = tmp;
+        for (y = 0; y < h; ++y) {
+            dstIndex = y;
+            sum = radiusPlusOne * data_u8[srcIndex];
+
+            for (i = (srcIndex + 1) | 0, end = (srcIndex + radius) | 0; i <= end; ++i) {
+                sum += data_u8[i];
+            }
+
+            nextPixelIndex = (srcIndex + radiusPlusOne) | 0;
+            previousPixelIndex = srcIndex;
+            hold = data_u8[previousPixelIndex];
+            for (x = 0; x < radius; ++x, dstIndex += h) {
+                data_i32[dstIndex] = sum;
+                sum += data_u8[nextPixelIndex] - hold;
+                nextPixelIndex++;
+            }
+            for (; x < w - radiusPlus2; x += 2, dstIndex += h2) {
+                data_i32[dstIndex] = sum;
+                sum += data_u8[nextPixelIndex] - data_u8[previousPixelIndex];
+
+                data_i32[dstIndex + h] = sum;
+                sum += data_u8[nextPixelIndex + 1] - data_u8[previousPixelIndex + 1];
+
+                nextPixelIndex += 2;
+                previousPixelIndex += 2;
+            }
+            for (; x < w - radiusPlusOne; ++x, dstIndex += h) {
+                data_i32[dstIndex] = sum;
+                sum += data_u8[nextPixelIndex] - data_u8[previousPixelIndex];
+
+                nextPixelIndex++;
+                previousPixelIndex++;
+            }
+
+            hold = data_u8[nextPixelIndex - 1];
+            for (; x < w; ++x, dstIndex += h) {
+                data_i32[dstIndex] = sum;
+
+                sum += hold - data_u8[previousPixelIndex];
+                previousPixelIndex++;
+            }
+
+            srcIndex += w;
+        }
+        //
+        // second pass
+        srcIndex = 0;
+        //data_i32 = tmp; // this is a transpose
+        data_u8 = dst.data;
+
+        // dont scale result
+        if (scale == 1) {
+            for (y = 0; y < w; ++y) {
+                dstIndex = y;
+                sum = radiusPlusOne * data_i32[srcIndex];
+
+                for (i = (srcIndex + 1) | 0, end = (srcIndex + radius) | 0; i <= end; ++i) {
+                    sum += data_i32[i];
+                }
+
+                nextPixelIndex = srcIndex + radiusPlusOne;
+                previousPixelIndex = srcIndex;
+                hold = data_i32[previousPixelIndex];
+
+                for (x = 0; x < radius; ++x, dstIndex += w) {
+                    data_u8[dstIndex] = sum;
+                    sum += data_i32[nextPixelIndex] - hold;
+                    nextPixelIndex++;
+                }
+                for (; x < h - radiusPlus2; x += 2, dstIndex += w2) {
+                    data_u8[dstIndex] = sum;
+                    sum += data_i32[nextPixelIndex] - data_i32[previousPixelIndex];
+
+                    data_u8[dstIndex + w] = sum;
+                    sum += data_i32[nextPixelIndex + 1] - data_i32[previousPixelIndex + 1];
+
+                    nextPixelIndex += 2;
+                    previousPixelIndex += 2;
+                }
+                for (; x < h - radiusPlusOne; ++x, dstIndex += w) {
+                    data_u8[dstIndex] = sum;
+
+                    sum += data_i32[nextPixelIndex] - data_i32[previousPixelIndex];
+                    nextPixelIndex++;
+                    previousPixelIndex++;
+                }
+                hold = data_i32[nextPixelIndex - 1];
+                for (; x < h; ++x, dstIndex += w) {
+                    data_u8[dstIndex] = sum;
+
+                    sum += hold - data_i32[previousPixelIndex];
+                    previousPixelIndex++;
+                }
+
+                srcIndex += h;
+            }
+        } else {
+            for (y = 0; y < w; ++y) {
+                dstIndex = y;
+                sum = radiusPlusOne * data_i32[srcIndex];
+
+                for (i = (srcIndex + 1) | 0, end = (srcIndex + radius) | 0; i <= end; ++i) {
+                    sum += data_i32[i];
+                }
+
+                nextPixelIndex = srcIndex + radiusPlusOne;
+                previousPixelIndex = srcIndex;
+                hold = data_i32[previousPixelIndex];
+
+                for (x = 0; x < radius; ++x, dstIndex += w) {
+                    data_u8[dstIndex] = sum * scale;
+                    sum += data_i32[nextPixelIndex] - hold;
+                    nextPixelIndex++;
+                }
+                for (; x < h - radiusPlus2; x += 2, dstIndex += w2) {
+                    data_u8[dstIndex] = sum * scale;
+                    sum += data_i32[nextPixelIndex] - data_i32[previousPixelIndex];
+
+                    data_u8[dstIndex + w] = sum * scale;
+                    sum += data_i32[nextPixelIndex + 1] - data_i32[previousPixelIndex + 1];
+
+                    nextPixelIndex += 2;
+                    previousPixelIndex += 2;
+                }
+                for (; x < h - radiusPlusOne; ++x, dstIndex += w) {
+                    data_u8[dstIndex] = sum * scale;
+
+                    sum += data_i32[nextPixelIndex] - data_i32[previousPixelIndex];
+                    nextPixelIndex++;
+                    previousPixelIndex++;
+                }
+                hold = data_i32[nextPixelIndex - 1];
+                for (; x < h; ++x, dstIndex += w) {
+                    data_u8[dstIndex] = sum * scale;
+
+                    sum += hold - data_i32[previousPixelIndex];
+                    previousPixelIndex++;
+                }
+
+                srcIndex += h;
+            }
+        }
+
+        this.cache.put_buffer(tmp_buff);
+    }
+    gaussian_blur(src: { cols: any; rows: any; type: any; channel: any; data: any }, dst: { resize: (arg0: any, arg1: any, arg2: any) => void; data: any }, kernel_size: number, sigma: number) {
+        var jsfeatmath = new jsfeatNext.math();
+        if (typeof sigma === "undefined") { sigma = 0.0; }
+        if (typeof kernel_size === "undefined") { kernel_size = 0; }
+        kernel_size = kernel_size == 0 ? (Math.max(1, (4.0 * sigma + 1.0 - 1e-8)) * 2 + 1) | 0 : kernel_size;
+        var half_kernel = kernel_size >> 1;
+        var w = src.cols, h = src.rows;
+        var data_type = src.type, is_u8 = data_type & JSFEAT_CONSTANTS.U8_t;
+
+        dst.resize(w, h, src.channel);
+
+        var src_d = src.data, dst_d = dst.data;
+        var buf, filter, buf_sz = (kernel_size + Math.max(h, w)) | 0;
+
+        var buf_node = this.cache.get_buffer(buf_sz << 2);
+        var filt_node = this.cache.get_buffer(kernel_size << 2);
+
+        if (is_u8) {
+            buf = buf_node.i32;
+            filter = filt_node.i32;
+        } else if (data_type & JSFEAT_CONSTANTS.S32_t) {
+            buf = buf_node.i32;
+            filter = filt_node.f32;
+        } else {
+            buf = buf_node.f32;
+            filter = filt_node.f32;
+        }
+
+        jsfeatmath.get_gaussian_kernel(kernel_size, sigma, filter, data_type);
+
+        if (is_u8) {
+            _convol_u8(buf, src_d, dst_d, w, h, filter, kernel_size, half_kernel);
+        } else {
+            _convol(buf, src_d, dst_d, w, h, filter, kernel_size, half_kernel);
+        }
+
+        this.cache.put_buffer(buf_node);
+        this.cache.put_buffer(filt_node);
+    }
+    /*hough_transform(img: any, rho_res: number, theta_res: number, threshold: number) {
+        var image = img.data;
+
+        var width = img.cols;
+        var height = img.rows;
+        var step = width;
+
+        var min_theta = 0.0;
+        var max_theta = Math.PI;
+
+        var numangle = Math.round((max_theta - min_theta) / theta_res);
+        var numrho = Math.round(((width + height) * 2 + 1) / rho_res);
+        var irho = 1.0 / rho_res;
+
+        var accum = new Int32Array((numangle + 2) * (numrho + 2)); //typed arrays are initialized to 0
+        var tabSin = new Float32Array(numangle);
+        var tabCos = new Float32Array(numangle);
+
+        var n = 0;
+        var ang = min_theta;
+        for (; n < numangle; n++) {
+            tabSin[n] = Math.sin(ang) * irho;
+            tabCos[n] = Math.cos(ang) * irho;
+            ang += theta_res
+        }
+
+        // stage 1. fill accumulator
+        for (var i = 0; i < height; i++) {
+            for (var j = 0; j < width; j++) {
+                if (image[i * step + j] != 0) {
+                    //console.log(r, (n+1) * (numrho+2) + r+1, tabCos[n], tabSin[n]);
+                    for (var n = 0; n < numangle; n++) {
+                        var r = Math.round(j * tabCos[n] + i * tabSin[n]);
+                        r += (numrho - 1) / 2;
+                        accum[(n + 1) * (numrho + 2) + r + 1] += 1;
+                    }
+                }
+            }
+        }
+
+        // stage 2. find local maximums
+        //TODO: Consider making a vector class that uses typed arrays
+        var _sort_buf = new Array();
+        for (var r = 0; r < numrho; r++) {
+            for (var n = 0; n < numangle; n++) {
+                var base = (n + 1) * (numrho + 2) + r + 1;
+                if (accum[base] > threshold &&
+                    accum[base] > accum[base - 1] && accum[base] >= accum[base + 1] &&
+                    accum[base] > accum[base - numrho - 2] && accum[base] >= accum[base + numrho + 2]) {
+                    _sort_buf.push(base);
+                }
+            }
+        }
+
+        // stage 3. sort the detected lines by accumulator value
+        _sort_buf.sort(function (l1, l2) {
+            return accum[l1] > accum[l2] || (accum[l1] == accum[l2] && l1 < l2);
+        });
+
+        // stage 4. store the first min(total,linesMax) lines to the output buffer
+        var linesMax = Math.min(numangle * numrho, _sort_buf.length);
+        var scale = 1.0 / (numrho + 2);
+        var lines = new Array();
+        for (var i = 0; i < linesMax; i++) {
+            var idx = _sort_buf[i];
+            var n = Math.floor(idx * scale) - 1;
+            var r = idx - (n + 1) * (numrho + 2) - 1;
+            var lrho = (r - (numrho - 1) * 0.5) * rho_res;
+            var langle = n * theta_res;
+            lines.push([lrho, langle]);
+        }
+        return lines;
+    }*/
+    pyrdown(src: { cols: any; rows: any; channel: any; data: any }, dst: { resize: (arg0: number, arg1: number, arg2: any) => void; data: any }, sx: number, sy: number) {
+        // this is needed for bbf
+        if (typeof sx === "undefined") { sx = 0; }
+        if (typeof sy === "undefined") { sy = 0; }
+
+        var w = src.cols, h = src.rows;
+        var w2 = w >> 1, h2 = h >> 1;
+        var _w2 = w2 - (sx << 1), _h2 = h2 - (sy << 1);
+        var x = 0, y = 0, sptr = sx + sy * w, sline = 0, dptr = 0, dline = 0;
+
+        dst.resize(w2, h2, src.channel);
+
+        var src_d = src.data, dst_d = dst.data;
+
+        for (y = 0; y < _h2; ++y) {
+            sline = sptr;
+            dline = dptr;
+            for (x = 0; x <= _w2 - 2; x += 2, dline += 2, sline += 4) {
+                dst_d[dline] = (src_d[sline] + src_d[sline + 1] +
+                    src_d[sline + w] + src_d[sline + w + 1] + 2) >> 2;
+                dst_d[dline + 1] = (src_d[sline + 2] + src_d[sline + 3] +
+                    src_d[sline + w + 2] + src_d[sline + w + 3] + 2) >> 2;
+            }
+            for (; x < _w2; ++x, ++dline, sline += 2) {
+                dst_d[dline] = (src_d[sline] + src_d[sline + 1] +
+                    src_d[sline + w] + src_d[sline + w + 1] + 2) >> 2;
+            }
+            sptr += w << 1;
+            dptr += w2;
+        }
+    }
+    // dst: [gx,gy,...]
+    scharr_derivatives(src: { cols: any; rows: any; data: any; type: number }, dst: { resize: (arg0: any, arg1: any, arg2: number) => void; data: any }) {
+        var w = src.cols, h = src.rows;
+        var dstep = w << 1, x = 0, y = 0, x1 = 0, a, b, c, d, e, f;
+        var srow0 = 0, srow1 = 0, srow2 = 0, drow = 0;
+        var trow0, trow1;
+
+        dst.resize(w, h, 2); // 2 channel output gx, gy
+
+        var img = src.data, gxgy = dst.data;
+
+        var buf0_node = this.cache.get_buffer((w + 2) << 2);
+        var buf1_node = this.cache.get_buffer((w + 2) << 2);
+
+        if (src.type & JSFEAT_CONSTANTS.U8_t || src.type & JSFEAT_CONSTANTS.S32_t) {
+            trow0 = buf0_node.i32;
+            trow1 = buf1_node.i32;
+        } else {
+            trow0 = buf0_node.f32;
+            trow1 = buf1_node.f32;
+        }
+
+        for (; y < h; ++y, srow1 += w) {
+            srow0 = ((y > 0 ? y - 1 : 1) * w) | 0;
+            srow2 = ((y < h - 1 ? y + 1 : h - 2) * w) | 0;
+            drow = (y * dstep) | 0;
+            // do vertical convolution
+            for (x = 0, x1 = 1; x <= w - 2; x += 2, x1 += 2) {
+                a = img[srow0 + x], b = img[srow2 + x];
+                trow0[x1] = ((a + b) * 3 + (img[srow1 + x]) * 10);
+                trow1[x1] = (b - a);
+                //
+                a = img[srow0 + x + 1], b = img[srow2 + x + 1];
+                trow0[x1 + 1] = ((a + b) * 3 + (img[srow1 + x + 1]) * 10);
+                trow1[x1 + 1] = (b - a);
+            }
+            for (; x < w; ++x, ++x1) {
+                a = img[srow0 + x], b = img[srow2 + x];
+                trow0[x1] = ((a + b) * 3 + (img[srow1 + x]) * 10);
+                trow1[x1] = (b - a);
+            }
+            // make border
+            x = (w + 1) | 0;
+            trow0[0] = trow0[1]; trow0[x] = trow0[w];
+            trow1[0] = trow1[1]; trow1[x] = trow1[w];
+            // do horizontal convolution, interleave the results and store them
+            for (x = 0; x <= w - 4; x += 4) {
+                a = trow1[x + 2], b = trow1[x + 1], c = trow1[x + 3], d = trow1[x + 4],
+                    e = trow0[x + 2], f = trow0[x + 3];
+                gxgy[drow++] = (e - trow0[x]);
+                gxgy[drow++] = ((a + trow1[x]) * 3 + b * 10);
+                gxgy[drow++] = (f - trow0[x + 1]);
+                gxgy[drow++] = ((c + b) * 3 + a * 10);
+
+                gxgy[drow++] = ((trow0[x + 4] - e));
+                gxgy[drow++] = (((d + a) * 3 + c * 10));
+                gxgy[drow++] = ((trow0[x + 5] - f));
+                gxgy[drow++] = (((trow1[x + 5] + c) * 3 + d * 10));
+            }
+            for (; x < w; ++x) {
+                gxgy[drow++] = ((trow0[x + 2] - trow0[x]));
+                gxgy[drow++] = (((trow1[x + 2] + trow1[x]) * 3 + trow1[x + 1] * 10));
+            }
+        }
+        this.cache.put_buffer(buf0_node);
+        this.cache.put_buffer(buf1_node);
+    }
+    // compute gradient using Sobel kernel [1 2 1] * [-1 0 1]^T
+    // dst: [gx,gy,...]
+    sobel_derivatives(src: { cols: any; rows: any; data: any; type: number }, dst: matrix_t) {
+        var w = src.cols, h = src.rows;
+        var dstep = w << 1, x = 0, y = 0, x1 = 0, a, b, c, d, e, f;
+        var srow0 = 0, srow1 = 0, srow2 = 0, drow = 0;
+        var trow0, trow1;
+
+        dst.resize(w, h, 2); // 2 channel output gx, gy
+
+        var img = src.data, gxgy = dst.data;
+
+        var buf0_node = this.cache.get_buffer((w + 2) << 2);
+        var buf1_node = this.cache.get_buffer((w + 2) << 2);
+
+        if (src.type & JSFEAT_CONSTANTS.U8_t || src.type & JSFEAT_CONSTANTS.S32_t) {
+            trow0 = buf0_node.i32;
+            trow1 = buf1_node.i32;
+        } else {
+            trow0 = buf0_node.f32;
+            trow1 = buf1_node.f32;
+        }
+
+        for (; y < h; ++y, srow1 += w) {
+            srow0 = ((y > 0 ? y - 1 : 1) * w) | 0;
+            srow2 = ((y < h - 1 ? y + 1 : h - 2) * w) | 0;
+            drow = (y * dstep) | 0;
+            // do vertical convolution
+            for (x = 0, x1 = 1; x <= w - 2; x += 2, x1 += 2) {
+                a = img[srow0 + x], b = img[srow2 + x];
+                trow0[x1] = ((a + b) + (img[srow1 + x] * 2));
+                trow1[x1] = (b - a);
+                //
+                a = img[srow0 + x + 1], b = img[srow2 + x + 1];
+                trow0[x1 + 1] = ((a + b) + (img[srow1 + x + 1] * 2));
+                trow1[x1 + 1] = (b - a);
+            }
+            for (; x < w; ++x, ++x1) {
+                a = img[srow0 + x], b = img[srow2 + x];
+                trow0[x1] = ((a + b) + (img[srow1 + x] * 2));
+                trow1[x1] = (b - a);
+            }
+            // make border
+            x = (w + 1) | 0;
+            trow0[0] = trow0[1]; trow0[x] = trow0[w];
+            trow1[0] = trow1[1]; trow1[x] = trow1[w];
+            // do horizontal convolution, interleave the results and store them
+            for (x = 0; x <= w - 4; x += 4) {
+                a = trow1[x + 2], b = trow1[x + 1], c = trow1[x + 3], d = trow1[x + 4],
+                    e = trow0[x + 2], f = trow0[x + 3];
+                gxgy[drow++] = (e - trow0[x]);
+                gxgy[drow++] = (a + trow1[x] + b * 2);
+                gxgy[drow++] = (f - trow0[x + 1]);
+                gxgy[drow++] = (c + b + a * 2);
+
+                gxgy[drow++] = (trow0[x + 4] - e);
+                gxgy[drow++] = (d + a + c * 2);
+                gxgy[drow++] = (trow0[x + 5] - f);
+                gxgy[drow++] = (trow1[x + 5] + c + d * 2);
+            }
+            for (; x < w; ++x) {
+                gxgy[drow++] = (trow0[x + 2] - trow0[x]);
+                gxgy[drow++] = (trow1[x + 2] + trow1[x] + trow1[x + 1] * 2);
+            }
+        }
+        this.cache.put_buffer(buf0_node);
+        this.cache.put_buffer(buf1_node);
+    }
+    // please note: 
+    // dst_(type) size should be cols = src.cols+1, rows = src.rows+1
+    compute_integral_image(src: { cols: number; rows: number; data: any }, dst_sum: number[], dst_sqsum: number[], dst_tilted: any[]) {
+        var w0 = src.cols | 0, h0 = src.rows | 0, src_d = src.data;
+        var w1 = (w0 + 1) | 0;
+        var s = 0, s2 = 0, p = 0, pup = 0, i = 0, j = 0, v = 0, k = 0;
+
+        if (dst_sum && dst_sqsum) {
+            // fill first row with zeros
+            for (; i < w1; ++i) {
+                dst_sum[i] = 0, dst_sqsum[i] = 0;
+            }
+            p = (w1 + 1) | 0, pup = 1;
+            for (i = 0, k = 0; i < h0; ++i, ++p, ++pup) {
+                s = s2 = 0;
+                for (j = 0; j <= w0 - 2; j += 2, k += 2, p += 2, pup += 2) {
+                    v = src_d[k];
+                    s += v, s2 += v * v;
+                    dst_sum[p] = dst_sum[pup] + s;
+                    dst_sqsum[p] = dst_sqsum[pup] + s2;
+
+                    v = src_d[k + 1];
+                    s += v, s2 += v * v;
+                    dst_sum[p + 1] = dst_sum[pup + 1] + s;
+                    dst_sqsum[p + 1] = dst_sqsum[pup + 1] + s2;
+                }
+                for (; j < w0; ++j, ++k, ++p, ++pup) {
+                    v = src_d[k];
+                    s += v, s2 += v * v;
+                    dst_sum[p] = dst_sum[pup] + s;
+                    dst_sqsum[p] = dst_sqsum[pup] + s2;
+                }
+            }
+        } else if (dst_sum) {
+            // fill first row with zeros
+            for (; i < w1; ++i) {
+                dst_sum[i] = 0;
+            }
+            p = (w1 + 1) | 0, pup = 1;
+            for (i = 0, k = 0; i < h0; ++i, ++p, ++pup) {
+                s = 0;
+                for (j = 0; j <= w0 - 2; j += 2, k += 2, p += 2, pup += 2) {
+                    s += src_d[k];
+                    dst_sum[p] = dst_sum[pup] + s;
+                    s += src_d[k + 1];
+                    dst_sum[p + 1] = dst_sum[pup + 1] + s;
+                }
+                for (; j < w0; ++j, ++k, ++p, ++pup) {
+                    s += src_d[k];
+                    dst_sum[p] = dst_sum[pup] + s;
+                }
+            }
+        } else if (dst_sqsum) {
+            // fill first row with zeros
+            for (; i < w1; ++i) {
+                dst_sqsum[i] = 0;
+            }
+            p = (w1 + 1) | 0, pup = 1;
+            for (i = 0, k = 0; i < h0; ++i, ++p, ++pup) {
+                s2 = 0;
+                for (j = 0; j <= w0 - 2; j += 2, k += 2, p += 2, pup += 2) {
+                    v = src_d[k];
+                    s2 += v * v;
+                    dst_sqsum[p] = dst_sqsum[pup] + s2;
+                    v = src_d[k + 1];
+                    s2 += v * v;
+                    dst_sqsum[p + 1] = dst_sqsum[pup + 1] + s2;
+                }
+                for (; j < w0; ++j, ++k, ++p, ++pup) {
+                    v = src_d[k];
+                    s2 += v * v;
+                    dst_sqsum[p] = dst_sqsum[pup] + s2;
+                }
+            }
+        }
+
+        if (dst_tilted) {
+            // fill first row with zeros
+            for (i = 0; i < w1; ++i) {
+                dst_tilted[i] = 0;
+            }
+            // diagonal
+            p = (w1 + 1) | 0, pup = 0;
+            for (i = 0, k = 0; i < h0; ++i, ++p, ++pup) {
+                for (j = 0; j <= w0 - 2; j += 2, k += 2, p += 2, pup += 2) {
+                    dst_tilted[p] = src_d[k] + dst_tilted[pup];
+                    dst_tilted[p + 1] = src_d[k + 1] + dst_tilted[pup + 1];
+                }
+                for (; j < w0; ++j, ++k, ++p, ++pup) {
+                    dst_tilted[p] = src_d[k] + dst_tilted[pup];
+                }
+            }
+            // diagonal
+            p = (w1 + w0) | 0, pup = w0;
+            for (i = 0; i < h0; ++i, p += w1, pup += w1) {
+                dst_tilted[p] += dst_tilted[pup];
+            }
+
+            for (j = w0 - 1; j > 0; --j) {
+                p = j + h0 * w1, pup = p - w1;
+                for (i = h0; i > 0; --i, p -= w1, pup -= w1) {
+                    dst_tilted[p] += dst_tilted[pup] + dst_tilted[pup + 1];
+                }
+            }
+        }
+    }
+    equalize_histogram(src: { cols: any; rows: any; data: any; channel: any }, dst: { resize: (arg0: any, arg1: any, arg2: any) => void; data: any }) {
+        var w = src.cols, h = src.rows, src_d = src.data;
+
+        dst.resize(w, h, src.channel);
+
+        var dst_d = dst.data, size = w * h;
+        var i = 0, prev = 0, hist0, norm;
+
+        var hist0_node = this.cache.get_buffer(256 << 2);
+        hist0 = hist0_node.i32;
+        for (; i < 256; ++i) hist0[i] = 0;
+        for (i = 0; i < size; ++i) {
+            ++hist0[src_d[i]];
+        }
+
+        prev = hist0[0];
+        for (i = 1; i < 256; ++i) {
+            prev = hist0[i] += prev;
+        }
+
+        norm = 255 / size;
+        for (i = 0; i < size; ++i) {
+            dst_d[i] = (hist0[src_d[i]] * norm + 0.5) | 0;
+        }
+        this.cache.put_buffer(hist0_node);
+    }
+    /*canny(src: any, dst: any, low_thresh: number, high_thresh: number) {
+        var w = src.cols, h = src.rows, src_d = src.data;
+
+        dst.resize(w, h, src.channel);
+
+        var dst_d = dst.data;
+        var i = 0, j: number = 0, grad = 0, w2 = w << 1, _grad = 0, suppress = 0, f = 0, x = 0, y = 0, s = 0;
+        var tg22x = 0, tg67x = 0;
+
+        // cache buffers
+        var dxdy_node = this.cache.get_buffer((h * w2) << 2);
+        var buf_node = this.cache.get_buffer((3 * (w + 2)) << 2);
+        var map_node = this.cache.get_buffer(((h + 2) * (w + 2)) << 2);
+        var stack_node = this.cache.get_buffer((h * w) << 2);
+
+
+        var buf = buf_node.i32;
+        var map: number[] = <number[]>map_node.i32;
+        var stack = stack_node.i32;
+        var dxdy = dxdy_node.i32;
+        var dxdy_m = new matrix_t(w, h, JSFEAT_CONSTANTS.S32C2_t, dxdy_node.data);
+        var row0 = 1, row1 = (w + 2 + 1) | 0, row2 = (2 * (w + 2) + 1) | 0, map_w = (w + 2) | 0, map_i: number = (map_w + 1) | 0, stack_i = 0;
+
+        this.sobel_derivatives(src, dxdy_m);
+
+        if (low_thresh > high_thresh) {
+            i = low_thresh;
+            low_thresh = high_thresh;
+            high_thresh = i;
+        }
+
+        i = (3 * (w + 2)) | 0;
+        while (--i >= 0) {
+            buf[i] = 0;
+        }
+
+        i = ((h + 2) * (w + 2)) | 0;
+        while (--i >= 0) {
+            map[i] = 0;
+        }
+
+        for (; j < w; ++j, grad += 2) {
+            //buf[row1+j] = Math.abs(dxdy[grad]) + Math.abs(dxdy[grad+1]);
+            x = dxdy[grad], y = dxdy[grad + 1];
+            //buf[row1+j] = x*x + y*y;
+            buf[row1 + j] = ((x ^ (x >> 31)) - (x >> 31)) + ((y ^ (y >> 31)) - (y >> 31));
+        }
+
+        for (i = 1; i <= h; ++i, grad += w2) {
+            if (i == h) {
+                j = row2 + w;
+                while (--j >= row2) {
+                    buf[j] = 0;
+                }
+            } else {
+                for (j = 0; j < w; j++) {
+                    //buf[row2+j] =  Math.abs(dxdy[grad+(j<<1)]) + Math.abs(dxdy[grad+(j<<1)+1]);
+                    x = dxdy[grad + (j << 1)], y = dxdy[grad + (j << 1) + 1];
+                    //buf[row2+j] = x*x + y*y;
+                    buf[row2 + j] = ((x ^ (x >> 31)) - (x >> 31)) + ((y ^ (y >> 31)) - (y >> 31));
+                }
+            }
+            _grad = (grad - w2) | 0;
+            map[map_i - 1] = 0;
+            suppress = 0;
+            for (j = 0; j < w; ++j, _grad += 2) {
+                f = buf[row1 + j];
+                if (f > low_thresh) {
+                    x = dxdy[_grad];
+                    y = dxdy[_grad + 1];
+                    s = x ^ y;
+                    // seems ot be faster than Math.abs
+                    x = ((x ^ (x >> 31)) - (x >> 31)) | 0;
+                    y = ((y ^ (y >> 31)) - (y >> 31)) | 0;
+                    //x * tan(22.5) x * tan(67.5) == 2 * x + x * tan(22.5)
+                    tg22x = x * 13573;
+                    tg67x = tg22x + ((x + x) << 15);
+                    y <<= 15;
+                    if (y < tg22x) {
+                        if (f > buf[row1 + j - 1] && f >= buf[row1 + j + 1]) {
+                            if (f > high_thresh && !suppress && map[map_i + j - map_w] != 2) {
+                                map[map_i + j] = 2;
+                                suppress = 1;
+                                stack[stack_i++] = map_i + j;
+                            } else {
+                                map[map_i + j] = 1;
+                            }
+                            continue;
+                        }
+                    } else if (y > tg67x) {
+                        if (f > buf[row0 + j] && f >= buf[row2 + j]) {
+                            if (f > high_thresh && !suppress && map[map_i + j - map_w] != 2) {
+                                map[map_i + j] = 2;
+                                suppress = 1;
+                                stack[stack_i++] = map_i + j;
+                            } else {
+                                map[map_i + j] = 1;
+                            }
+                            continue;
+                        }
+                    } else {
+                        s = s < 0 ? -1 : 1;
+                        if (f > buf[row0 + j - s] && f > buf[row2 + j + s]) {
+                            if (f > high_thresh && !suppress && map[map_i + j - map_w] != 2) {
+                                map[map_i + j] = 2;
+                                suppress = 1;
+                                stack[stack_i++] = map_i + j;
+                            } else {
+                                map[map_i + j] = 1;
+                            }
+                            continue;
+                        }
+                    }
+                }
+                map[map_i + j] = 0;
+                suppress = 0;
+            }
+            map[map_i + w] = 0;
+            map_i += map_w;
+            j = row0;
+            row0 = row1;
+            row1 = row2;
+            row2 = j;
+        }
+
+        j = map_i - map_w - 1;
+        for (i = 0; i < map_w; ++i, ++j) {
+            map[j] = 0;
+        }
+        // path following
+        while (stack_i > 0) {
+            map_i = stack[--stack_i];
+            map_i -= map_w + 1;
+            if (map[map_i] == 1) map[map_i] = 2, stack[stack_i++] = map_i;
+            map_i += 1;
+            if (map[map_i] == 1) map[map_i] = 2, stack[stack_i++] = map_i;
+            map_i += 1;
+            if (map[map_i] == 1) map[map_i] = 2, stack[stack_i++] = map_i;
+            map_i += map_w;
+            if (map[map_i] == 1) map[map_i] = 2, stack[stack_i++] = map_i;
+            map_i -= 2;
+            if (map[map_i] == 1) map[map_i] = 2, stack[stack_i++] = map_i;
+            map_i += map_w;
+            if (map[map_i] == 1) map[map_i] = 2, stack[stack_i++] = map_i;
+            map_i += 1;
+            if (map[map_i] == 1) map[map_i] = 2, stack[stack_i++] = map_i;
+            map_i += 1;
+            if (map[map_i] == 1) map[map_i] = 2, stack[stack_i++] = map_i;
+        }
+
+        map_i = map_w + 1;
+        row0 = 0;
+        for (i = 0; i < h; ++i, map_i += map_w) {
+            for (j = 0; j < w; ++j) {
+                dst_d[row0++] = (map[map_i + j] == 2) * 0xff;
+            }
+        }
+
+        // free buffers
+        this.cache.put_buffer(dxdy_node);
+        this.cache.put_buffer(buf_node);
+        this.cache.put_buffer(map_node);
+        this.cache.put_buffer(stack_node);
+    }*/
+    // transform is 3x3 matrix_t
+    warp_perspective(src: { cols: number; rows: number; data: any }, dst: { cols: number; rows: number; data: any }, transform: { data: any }, fill_value: number) {
+        if (typeof fill_value === "undefined") { fill_value = 0; }
+        var src_width = src.cols | 0, src_height = src.rows | 0, dst_width = dst.cols | 0, dst_height = dst.rows | 0;
+        var src_d = src.data, dst_d = dst.data;
+        var x = 0, y = 0, off = 0, ixs = 0, iys = 0, xs = 0.0, ys = 0.0, xs0 = 0.0, ys0 = 0.0, ws = 0.0, sc = 0.0, a = 0.0, b = 0.0, p0 = 0.0, p1 = 0.0;
+        var td = transform.data;
+        var m00 = td[0], m01 = td[1], m02 = td[2],
+            m10 = td[3], m11 = td[4], m12 = td[5],
+            m20 = td[6], m21 = td[7], m22 = td[8];
+
+        for (var dptr = 0; y < dst_height; ++y) {
+            xs0 = m01 * y + m02,
+                ys0 = m11 * y + m12,
+                ws = m21 * y + m22;
+            for (x = 0; x < dst_width; ++x, ++dptr, xs0 += m00, ys0 += m10, ws += m20) {
+                sc = 1.0 / ws;
+                xs = xs0 * sc, ys = ys0 * sc;
+                ixs = xs | 0, iys = ys | 0;
+
+                if (xs > 0 && ys > 0 && ixs < (src_width - 1) && iys < (src_height - 1)) {
+                    a = Math.max(xs - ixs, 0.0);
+                    b = Math.max(ys - iys, 0.0);
+                    off = (src_width * iys + ixs) | 0;
+
+                    p0 = src_d[off] + a * (src_d[off + 1] - src_d[off]);
+                    p1 = src_d[off + src_width] + a * (src_d[off + src_width + 1] - src_d[off + src_width]);
+
+                    dst_d[dptr] = p0 + b * (p1 - p0);
+                }
+                else dst_d[dptr] = fill_value;
+            }
+        }
+    }
+    // transform is 3x3 or 2x3 matrix_t only first 6 values referenced
+    warp_affine(src: { cols: any; rows: any; data: any }, dst: { cols: any; rows: any; data: any }, transform: { data: any }, fill_value: number) {
+        if (typeof fill_value === "undefined") { fill_value = 0; }
+        var src_width = src.cols, src_height = src.rows, dst_width = dst.cols, dst_height = dst.rows;
+        var src_d = src.data, dst_d = dst.data;
+        var x = 0, y = 0, off = 0, ixs = 0, iys = 0, xs = 0.0, ys = 0.0, a = 0.0, b = 0.0, p0 = 0.0, p1 = 0.0;
+        var td = transform.data;
+        var m00 = td[0], m01 = td[1], m02 = td[2],
+            m10 = td[3], m11 = td[4], m12 = td[5];
+
+        for (var dptr = 0; y < dst_height; ++y) {
+            xs = m01 * y + m02;
+            ys = m11 * y + m12;
+            for (x = 0; x < dst_width; ++x, ++dptr, xs += m00, ys += m10) {
+                ixs = xs | 0; iys = ys | 0;
+
+                if (ixs >= 0 && iys >= 0 && ixs < (src_width - 1) && iys < (src_height - 1)) {
+                    a = xs - ixs;
+                    b = ys - iys;
+                    off = src_width * iys + ixs;
+
+                    p0 = src_d[off] + a * (src_d[off + 1] - src_d[off]);
+                    p1 = src_d[off + src_width] + a * (src_d[off + src_width + 1] - src_d[off + src_width]);
+
+                    dst_d[dptr] = p0 + b * (p1 - p0);
+                }
+                else dst_d[dptr] = fill_value;
+            }
+        }
+    }
+    // Basic RGB Skin detection filter
+    // from http://popscan.blogspot.fr/2012/08/skin-detection-in-digital-images.html
+    skindetector(src: { width: number; height: number; data: any[] }, dst: number[]) {
+        var r, g, b, j;
+        var i = src.width * src.height;
+        while (i--) {
+            j = i * 4;
+            r = src.data[j];
+            g = src.data[j + 1];
+            b = src.data[j + 2];
+            if ((r > 95) && (g > 40) && (b > 20)
+                && (r > g) && (r > b)
+                && (r - Math.min(g, b) > 15)
+                && (Math.abs(r - g) > 15)) {
+                dst[i] = 255;
+            } else {
+                dst[i] = 0;
+            }
+        }
+    }
+
+};
+
+jsfeatNext.math = class math extends jsfeatNext {
     private qsort_stack: Int32Array;
     constructor() {
         super();
@@ -482,4 +1363,658 @@ jsfeatNext.math = class _math extends jsfeatNext {
 };
 
 jsfeatNext.matmath = matmath;
+
+jsfeatNext.linalg = class linalg extends jsfeatNext {
+    public matmath: matmath;
+    constructor() {
+        super();
+        this.matmath = new matmath();
+    }
+
+    JacobiImpl(A: number[], astep: number, W: number[], V: number[], vstep: number, n: number) {
+        var eps = JSFEAT_CONSTANTS.EPSILON;
+        var i = 0, j = 0, k = 0, m = 0, l = 0, idx = 0, _in = 0, _in2 = 0;
+        var iters = 0, max_iter = n * n * 30;
+        var mv = 0.0, val = 0.0, p = 0.0, y = 0.0, t = 0.0, s = 0.0, c = 0.0, a0 = 0.0, b0 = 0.0;
+
+        var indR_buff = this.cache.get_buffer(n << 2);
+        var indC_buff = this.cache.get_buffer(n << 2);
+        var indR = indR_buff.i32;
+        var indC = indC_buff.i32;
+
+        if (V) {
+            for (; i < n; i++) {
+                k = i * vstep;
+                for (j = 0; j < n; j++) {
+                    V[k + j] = 0.0;
+                }
+                V[k + i] = 1.0;
+            }
+        }
+
+        for (k = 0; k < n; k++) {
+            W[k] = A[(astep + 1) * k];
+            if (k < n - 1) {
+                for (m = k + 1, mv = Math.abs(A[astep * k + m]), i = k + 2; i < n; i++) {
+                    val = Math.abs(A[astep * k + i]);
+                    if (mv < val)
+                        mv = val, m = i;
+                }
+                indR[k] = m;
+            }
+            if (k > 0) {
+                for (m = 0, mv = Math.abs(A[k]), i = 1; i < k; i++) {
+                    val = Math.abs(A[astep * i + k]);
+                    if (mv < val)
+                        mv = val, m = i;
+                }
+                indC[k] = m;
+            }
+        }
+
+        if (n > 1) for (; iters < max_iter; iters++) {
+            // find index (k,l) of pivot p
+            for (k = 0, mv = Math.abs(A[indR[0]]), i = 1; i < n - 1; i++) {
+                val = Math.abs(A[astep * i + indR[i]]);
+                if (mv < val)
+                    mv = val, k = i;
+            }
+            l = indR[k];
+            for (i = 1; i < n; i++) {
+                val = Math.abs(A[astep * indC[i] + i]);
+                if (mv < val)
+                    mv = val, k = indC[i], l = i;
+            }
+
+            p = A[astep * k + l];
+
+            if (Math.abs(p) <= eps) break;
+
+            y = (W[l] - W[k]) * 0.5;
+            t = Math.abs(y) + hypot(p, y);
+            s = hypot(p, t);
+            c = t / s;
+            s = p / s; t = (p / t) * p;
+            if (y < 0)
+                s = -s, t = -t;
+            A[astep * k + l] = 0;
+
+            W[k] -= t;
+            W[l] += t;
+
+            // rotate rows and columns k and l
+            for (i = 0; i < k; i++) {
+                _in = (astep * i + k);
+                _in2 = (astep * i + l);
+                a0 = A[_in];
+                b0 = A[_in2];
+                A[_in] = a0 * c - b0 * s;
+                A[_in2] = a0 * s + b0 * c;
+            }
+            for (i = (k + 1); i < l; i++) {
+                _in = (astep * k + i);
+                _in2 = (astep * i + l);
+                a0 = A[_in];
+                b0 = A[_in2];
+                A[_in] = a0 * c - b0 * s;
+                A[_in2] = a0 * s + b0 * c;
+            }
+            i = l + 1;
+            _in = (astep * k + i);
+            _in2 = (astep * l + i);
+            for (; i < n; i++, _in++, _in2++) {
+                a0 = A[_in];
+                b0 = A[_in2];
+                A[_in] = a0 * c - b0 * s;
+                A[_in2] = a0 * s + b0 * c;
+            }
+
+            // rotate eigenvectors
+            if (V) {
+                _in = vstep * k;
+                _in2 = vstep * l;
+                for (i = 0; i < n; i++, _in++, _in2++) {
+                    a0 = V[_in];
+                    b0 = V[_in2];
+                    V[_in] = a0 * c - b0 * s;
+                    V[_in2] = a0 * s + b0 * c;
+                }
+            }
+
+            for (j = 0; j < 2; j++) {
+                idx = j == 0 ? k : l;
+                if (idx < n - 1) {
+                    for (m = idx + 1, mv = Math.abs(A[astep * idx + m]), i = idx + 2; i < n; i++) {
+                        val = Math.abs(A[astep * idx + i]);
+                        if (mv < val)
+                            mv = val, m = i;
+                    }
+                    indR[idx] = m;
+                }
+                if (idx > 0) {
+                    for (m = 0, mv = Math.abs(A[idx]), i = 1; i < idx; i++) {
+                        val = Math.abs(A[astep * i + idx]);
+                        if (mv < val)
+                            mv = val, m = i;
+                    }
+                    indC[idx] = m;
+                }
+            }
+        }
+
+        // sort eigenvalues & eigenvectors
+        for (k = 0; k < n - 1; k++) {
+            m = k;
+            for (i = k + 1; i < n; i++) {
+                if (W[m] < W[i])
+                    m = i;
+            }
+            if (k != m) {
+                swap(W, m, k, mv);
+                if (V) {
+                    for (i = 0; i < n; i++) {
+                        swap(V, vstep * m + i, vstep * k + i, mv);
+                    }
+                }
+            }
+        }
+
+
+        this.cache.put_buffer(indR_buff);
+        this.cache.put_buffer(indC_buff);
+    }
+
+    JacobiSVDImpl(At: number[], astep: number, _W: any[], Vt: number[], vstep: number, m: number, n: number, n1: number) {
+        var eps = JSFEAT_CONSTANTS.EPSILON * 2.0;
+        var minval = JSFEAT_CONSTANTS.FLT_MIN;
+        var i = 0, j = 0, k = 0, iter = 0, max_iter = Math.max(m, 30);
+        var Ai = 0, Aj = 0, Vi = 0, Vj = 0, changed = 0;
+        var c = 0.0, s = 0.0, t = 0.0;
+        var t0 = 0.0, t1 = 0.0, sd = 0.0, beta = 0.0, gamma = 0.0, delta = 0.0, a = 0.0, p = 0.0, b = 0.0;
+        var seed = 0x1234;
+        var val = 0.0, val0 = 0.0, asum = 0.0;
+
+        var W_buff = this.cache.get_buffer(n << 3);
+        var W = W_buff.f64;
+
+        for (; i < n; i++) {
+            for (k = 0, sd = 0; k < m; k++) {
+                t = At[i * astep + k];
+                sd += t * t;
+            }
+            W[i] = sd;
+
+            if (Vt) {
+                for (k = 0; k < n; k++) {
+                    Vt[i * vstep + k] = 0;
+                }
+                Vt[i * vstep + i] = 1;
+            }
+        }
+
+        for (; iter < max_iter; iter++) {
+            changed = 0;
+
+            for (i = 0; i < n - 1; i++) {
+                for (j = i + 1; j < n; j++) {
+                    Ai = (i * astep) | 0, Aj = (j * astep) | 0;
+                    a = W[i], p = 0, b = W[j];
+
+                    k = 2;
+                    p += At[Ai] * At[Aj];
+                    p += At[Ai + 1] * At[Aj + 1];
+
+                    for (; k < m; k++)
+                        p += At[Ai + k] * At[Aj + k];
+
+                    if (Math.abs(p) <= eps * Math.sqrt(a * b)) continue;
+
+                    p *= 2.0;
+                    beta = a - b, gamma = hypot(p, beta);
+                    if (beta < 0) {
+                        delta = (gamma - beta) * 0.5;
+                        s = Math.sqrt(delta / gamma);
+                        c = (p / (gamma * s * 2.0));
+                    } else {
+                        c = Math.sqrt((gamma + beta) / (gamma * 2.0));
+                        s = (p / (gamma * c * 2.0));
+                    }
+
+                    a = 0.0, b = 0.0;
+
+                    k = 2; // unroll
+                    t0 = c * At[Ai] + s * At[Aj];
+                    t1 = -s * At[Ai] + c * At[Aj];
+                    At[Ai] = t0; At[Aj] = t1;
+                    a += t0 * t0; b += t1 * t1;
+
+                    t0 = c * At[Ai + 1] + s * At[Aj + 1];
+                    t1 = -s * At[Ai + 1] + c * At[Aj + 1];
+                    At[Ai + 1] = t0; At[Aj + 1] = t1;
+                    a += t0 * t0; b += t1 * t1;
+
+                    for (; k < m; k++) {
+                        t0 = c * At[Ai + k] + s * At[Aj + k];
+                        t1 = -s * At[Ai + k] + c * At[Aj + k];
+                        At[Ai + k] = t0; At[Aj + k] = t1;
+
+                        a += t0 * t0; b += t1 * t1;
+                    }
+
+                    W[i] = a; W[j] = b;
+
+                    changed = 1;
+
+                    if (Vt) {
+                        Vi = (i * vstep) | 0, Vj = (j * vstep) | 0;
+
+                        k = 2;
+                        t0 = c * Vt[Vi] + s * Vt[Vj];
+                        t1 = -s * Vt[Vi] + c * Vt[Vj];
+                        Vt[Vi] = t0; Vt[Vj] = t1;
+
+                        t0 = c * Vt[Vi + 1] + s * Vt[Vj + 1];
+                        t1 = -s * Vt[Vi + 1] + c * Vt[Vj + 1];
+                        Vt[Vi + 1] = t0; Vt[Vj + 1] = t1;
+
+                        for (; k < n; k++) {
+                            t0 = c * Vt[Vi + k] + s * Vt[Vj + k];
+                            t1 = -s * Vt[Vi + k] + c * Vt[Vj + k];
+                            Vt[Vi + k] = t0; Vt[Vj + k] = t1;
+                        }
+                    }
+                }
+            }
+            if (changed == 0) break;
+        }
+
+        for (i = 0; i < n; i++) {
+            for (k = 0, sd = 0; k < m; k++) {
+                t = At[i * astep + k];
+                sd += t * t;
+            }
+            W[i] = Math.sqrt(sd);
+        }
+
+        for (i = 0; i < n - 1; i++) {
+            j = i;
+            for (k = i + 1; k < n; k++) {
+                if (W[j] < W[k])
+                    j = k;
+            }
+            if (i != j) {
+                swap(W, i, j, sd);
+                if (Vt) {
+                    for (k = 0; k < m; k++) {
+                        swap(At, i * astep + k, j * astep + k, t);
+                    }
+
+                    for (k = 0; k < n; k++) {
+                        swap(Vt, i * vstep + k, j * vstep + k, t);
+                    }
+                }
+            }
+        }
+
+        for (i = 0; i < n; i++) {
+            _W[i] = W[i];
+        }
+
+        if (!Vt) {
+            this.cache.put_buffer(W_buff);
+            return;
+        }
+
+        for (i = 0; i < n1; i++) {
+
+            sd = i < n ? W[i] : 0;
+
+            while (sd <= minval) {
+                // if we got a zero singular value, then in order to get the corresponding left singular vector
+                // we generate a random vector, project it to the previously computed left singular vectors,
+                // subtract the projection and normalize the difference.
+                val0 = (1.0 / m);
+                for (k = 0; k < m; k++) {
+                    seed = (seed * 214013 + 2531011);
+                    val = (((seed >> 16) & 0x7fff) & 256) != 0 ? val0 : -val0;
+                    At[i * astep + k] = val;
+                }
+                for (iter = 0; iter < 2; iter++) {
+                    for (j = 0; j < i; j++) {
+                        sd = 0;
+                        for (k = 0; k < m; k++) {
+                            sd += At[i * astep + k] * At[j * astep + k];
+                        }
+                        asum = 0.0;
+                        for (k = 0; k < m; k++) {
+                            t = (At[i * astep + k] - sd * At[j * astep + k]);
+                            At[i * astep + k] = t;
+                            asum += Math.abs(t);
+                        }
+                        asum = asum ? 1.0 / asum : 0;
+                        for (k = 0; k < m; k++) {
+                            At[i * astep + k] *= asum;
+                        }
+                    }
+                }
+                sd = 0;
+                for (k = 0; k < m; k++) {
+                    t = At[i * astep + k];
+                    sd += t * t;
+                }
+                sd = Math.sqrt(sd);
+            }
+
+            s = (1.0 / sd);
+            for (k = 0; k < m; k++) {
+                At[i * astep + k] *= s;
+            }
+        }
+
+        this.cache.put_buffer(W_buff);
+    }
+
+    lu_solve(A: { cols: any; data: any }, B: { data: any }) {
+        var i = 0, j = 0, k = 0, p = 1, astep = A.cols;
+        var ad = A.data, bd = B.data;
+        var t, alpha, d, s;
+
+        for (i = 0; i < astep; i++) {
+            k = i;
+            for (j = i + 1; j < astep; j++) {
+                if (Math.abs(ad[j * astep + i]) > Math.abs(ad[k * astep + i])) {
+                    k = j;
+                }
+            }
+
+            if (Math.abs(ad[k * astep + i]) < JSFEAT_CONSTANTS.EPSILON) {
+                return 0; // FAILED
+            }
+
+            if (k != i) {
+                for (j = i; j < astep; j++) {
+                    swap(ad, i * astep + j, k * astep + j, t);
+                }
+
+                swap(bd, i, k, t);
+                p = -p;
+            }
+
+            d = -1.0 / ad[i * astep + i];
+
+            for (j = i + 1; j < astep; j++) {
+                alpha = ad[j * astep + i] * d;
+
+                for (k = i + 1; k < astep; k++) {
+                    ad[j * astep + k] += alpha * ad[i * astep + k];
+                }
+
+                bd[j] += alpha * bd[i];
+            }
+
+            ad[i * astep + i] = -d;
+        }
+
+        for (i = astep - 1; i >= 0; i--) {
+            s = bd[i];
+            for (k = i + 1; k < astep; k++) {
+                s -= ad[i * astep + k] * bd[k];
+            }
+            bd[i] = s * ad[i * astep + i];
+        }
+
+        return 1; // OK
+    }
+
+    cholesky_solve(A: { cols: any; data: any }, B: { data: any }) {
+        var col = 0, row = 0, col2 = 0, cs = 0, rs = 0, i = 0, j = 0;
+        var size = A.cols;
+        var ad = A.data, bd = B.data;
+        var val, inv_diag;
+
+        for (col = 0; col < size; col++) {
+            inv_diag = 1.0;
+            cs = (col * size);
+            rs = cs;
+            for (row = col; row < size; row++) {
+                // correct for the parts of cholesky already computed
+                val = ad[(rs + col)];
+                for (col2 = 0; col2 < col; col2++) {
+                    val -= ad[(col2 * size + col)] * ad[(rs + col2)];
+                }
+                if (row == col) {
+                    // this is the diagonal element so don't divide
+                    ad[(rs + col)] = val;
+                    if (val == 0) {
+                        return 0;
+                    }
+                    inv_diag = 1.0 / val;
+                } else {
+                    // cache the value without division in the upper half
+                    ad[(cs + row)] = val;
+                    // divide my the diagonal element for all others
+                    ad[(rs + col)] = val * inv_diag;
+                }
+                rs = (rs + size);
+            }
+        }
+
+        // first backsub through L
+        cs = 0;
+        for (i = 0; i < size; i++) {
+            val = bd[i];
+            for (j = 0; j < i; j++) {
+                val -= ad[(cs + j)] * bd[j];
+            }
+            bd[i] = val;
+            cs = (cs + size);
+        }
+        // backsub through diagonal
+        cs = 0;
+        for (i = 0; i < size; i++) {
+            bd[i] /= ad[(cs + i)];
+            cs = (cs + size);
+        }
+        // backsub through L Transpose
+        i = (size - 1);
+        for (; i >= 0; i--) {
+            val = bd[i];
+            j = (i + 1);
+            cs = (j * size);
+            for (; j < size; j++) {
+                val -= ad[(cs + i)] * bd[j];
+                cs = (cs + size);
+            }
+            bd[i] = val;
+        }
+
+        return 1;
+    }
+
+    svd_decompose(A: any, W: matrix_t, U: matrix_t, V: matrix_t, options: number) {
+        if (typeof options === "undefined") { options = 0; };
+        var at = 0, i = 0, j = 0, _m = A.rows, _n = A.cols, m = _m, n = _n;
+        var dt = A.type | JSFEAT_CONSTANTS.C1_t; // we only work with single channel 
+
+        if (m < n) {
+            at = 1;
+            i = m;
+            m = n;
+            n = i;
+        }
+
+        var a_buff = this.cache.get_buffer((m * m) << 3);
+        var w_buff = this.cache.get_buffer(n << 3);
+        var v_buff = this.cache.get_buffer((n * n) << 3);
+
+        var a_mt = new matrix_t(m, m, dt, a_buff.data);
+        var w_mt = new matrix_t(1, n, dt, w_buff.data);
+        var v_mt = new matrix_t(n, n, dt, v_buff.data);
+
+        if (at == 0) {
+            // transpose
+            this.matmath.transpose(a_mt, A);
+        } else {
+            for (i = 0; i < _n * _m; i++) {
+                a_mt.data[i] = A.data[i];
+            }
+            for (; i < n * m; i++) {
+                a_mt.data[i] = 0;
+            }
+        }
+
+        this.JacobiSVDImpl(a_mt.data, m, w_mt.data, v_mt.data, n, m, n, m);
+
+        if (W) {
+            for (i = 0; i < n; i++) {
+                W.data[i] = w_mt.data[i];
+            }
+            for (; i < _n; i++) {
+                W.data[i] = 0;
+            }
+        }
+
+        if (at == 0) {
+            if (U && (options & JSFEAT_CONSTANTS.SVD_U_T)) {
+                i = m * m;
+                while (--i >= 0) {
+                    U.data[i] = a_mt.data[i];
+                }
+            } else if (U) {
+                this.matmath.transpose(U, a_mt);
+            }
+
+            if (V && (options & JSFEAT_CONSTANTS.SVD_V_T)) {
+                i = n * n;
+                while (--i >= 0) {
+                    V.data[i] = v_mt.data[i];
+                }
+            } else if (V) {
+                this.matmath.transpose(V, v_mt);
+            }
+        } else {
+            if (U && (options & JSFEAT_CONSTANTS.SVD_U_T)) {
+                i = n * n;
+                while (--i >= 0) {
+                    U.data[i] = v_mt.data[i];
+                }
+            } else if (U) {
+                this.matmath.transpose(U, v_mt);
+            }
+
+            if (V && (options & JSFEAT_CONSTANTS.SVD_V_T)) {
+                i = m * m;
+                while (--i >= 0) {
+                    V.data[i] = a_mt.data[i];
+                }
+            } else if (V) {
+                this.matmath.transpose(V, a_mt);
+            }
+        }
+
+        this.cache.put_buffer(a_buff);
+        this.cache.put_buffer(w_buff);
+        this.cache.put_buffer(v_buff);
+
+    }
+
+    svd_solve(A: { rows: any; cols: any; type: number }, X: { data: number[] }, B: { data: any }) {
+        var i = 0, j = 0, k = 0;
+        var pu = 0, pv = 0;
+        var nrows = A.rows, ncols = A.cols;
+        var sum = 0.0, xsum = 0.0, tol = 0.0;
+        var dt = A.type | JSFEAT_CONSTANTS.C1_t;
+
+        var u_buff = this.cache.get_buffer((nrows * nrows) << 3);
+        var w_buff = this.cache.get_buffer(ncols << 3);
+        var v_buff = this.cache.get_buffer((ncols * ncols) << 3);
+
+        var u_mt = new matrix_t(nrows, nrows, dt, u_buff.data);
+        var w_mt = new matrix_t(1, ncols, dt, w_buff.data);
+        var v_mt = new matrix_t(ncols, ncols, dt, v_buff.data);
+
+        var bd = B.data, ud = u_mt.data, wd = w_mt.data, vd = v_mt.data;
+
+        this.svd_decompose(A, w_mt, u_mt, v_mt, 0);
+
+        tol = JSFEAT_CONSTANTS.EPSILON * wd[0] * ncols;
+
+        for (; i < ncols; i++, pv += ncols) {
+            xsum = 0.0;
+            for (j = 0; j < ncols; j++) {
+                if (wd[j] > tol) {
+                    for (k = 0, sum = 0.0, pu = 0; k < nrows; k++, pu += ncols) {
+                        sum += ud[pu + j] * bd[k];
+                    }
+                    xsum += sum * vd[pv + j] / wd[j];
+                }
+            }
+            X.data[i] = xsum;
+        }
+
+        this.cache.put_buffer(u_buff);
+        this.cache.put_buffer(w_buff);
+        this.cache.put_buffer(v_buff);
+    }
+
+    svd_invert(Ai: { data: any }, A: { rows: any; cols: any; type: number }) {
+        var i = 0, j = 0, k = 0;
+        var pu = 0, pv = 0, pa = 0;
+        var nrows = A.rows, ncols = A.cols;
+        var sum = 0.0, tol = 0.0;
+        var dt = A.type | JSFEAT_CONSTANTS.C1_t;
+
+        //var u_buff = cache1.get_buffer((nrows * nrows) << 3);
+        var u_buff = this.cache.get_buffer((nrows * nrows) << 3);
+        var w_buff = this.cache.get_buffer(ncols << 3);
+        var v_buff = this.cache.get_buffer((ncols * ncols) << 3);
+        var u_mt = new matrix_t(nrows, nrows, dt, u_buff.data);
+        var w_mt = new matrix_t(1, ncols, dt, w_buff.data);
+        var v_mt = new matrix_t(ncols, ncols, dt, v_buff.data);
+
+        var id = Ai.data, ud = u_mt.data, wd = w_mt.data, vd = v_mt.data;
+
+        this.svd_decompose(A, w_mt, u_mt, v_mt, 0);
+
+        tol = JSFEAT_CONSTANTS.EPSILON * wd[0] * ncols;
+
+        for (; i < ncols; i++, pv += ncols) {
+            for (j = 0, pu = 0; j < nrows; j++, pa++) {
+                for (k = 0, sum = 0.0; k < ncols; k++, pu++) {
+                    if (wd[k] > tol) sum += vd[pv + k] * ud[pu] / wd[k];
+                }
+                id[pa] = sum;
+            }
+        }
+
+        this.cache.put_buffer(u_buff);
+        this.cache.put_buffer(w_buff);
+        this.cache.put_buffer(v_buff);
+    }
+
+    eigenVV(A: { cols: any; type: number; data: any[] }, vects: { data: number[] }, vals: { data: { [x: string]: any } }) {
+        var n = A.cols, i = n * n;
+        var dt = A.type | JSFEAT_CONSTANTS.C1_t;
+
+        var a_buff = this.cache.get_buffer((n * n) << 3);
+        var w_buff = this.cache.get_buffer(n << 3);
+        var a_mt = new matrix_t(n, n, dt, a_buff.data);
+        var w_mt = new matrix_t(1, n, dt, w_buff.data);
+
+        while (--i >= 0) {
+            a_mt.data[i] = A.data[i];
+        }
+
+        this.JacobiImpl(a_mt.data, n, w_mt.data, vects ? vects.data : null, n, n);
+
+        if (vals) {
+            while (--n >= 0) {
+                vals.data[n] = w_mt.data[n];
+            }
+        }
+
+        this.cache.put_buffer(a_buff);
+        this.cache.put_buffer(w_buff);
+    }
+}
 
