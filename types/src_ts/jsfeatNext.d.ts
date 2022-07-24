@@ -1,4 +1,6 @@
 import { ICache, cache } from './cache/cache';
+import { imgproc } from './imgproc/imgproc';
+import { linalg } from './linalg/linalg';
 import { math } from './math/math';
 import matmath from './matmath/matmath';
 import { matrix_t } from './matrix_t/matrix_t';
@@ -7,6 +9,8 @@ export default class jsfeatNext {
     private dt;
     protected cache: ICache;
     static cache: typeof cache;
+    static imgproc: typeof imgproc;
+    static linalg: typeof linalg;
     static math: typeof math;
     static matmath: typeof matmath;
     static matrix_t: typeof matrix_t;
