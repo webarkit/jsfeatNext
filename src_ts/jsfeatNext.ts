@@ -338,7 +338,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         this.cache.put_buffer(buf_node);
         this.cache.put_buffer(filt_node);
     }
-    /*hough_transform(img: any, rho_res: number, theta_res: number, threshold: number) {
+    hough_transform(img: any, rho_res: number, theta_res: number, threshold: number) {
         var image = img.data;
 
         var width = img.cols;
@@ -394,7 +394,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
 
         // stage 3. sort the detected lines by accumulator value
         _sort_buf.sort(function (l1, l2) {
-            return accum[l1] > accum[l2] || (accum[l1] == accum[l2] && l1 < l2);
+            return <number><unknown>(accum[l1] > accum[l2] || (accum[l1] == accum[l2] && l1 < l2));
         });
 
         // stage 4. store the first min(total,linesMax) lines to the output buffer
@@ -410,7 +410,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
             lines.push([lrho, langle]);
         }
         return lines;
-    }*/
+    }
     pyrdown(src: { cols: any; rows: any; channel: any; data: any }, dst: { resize: (arg0: number, arg1: number, arg2: any) => void; data: any }, sx: number, sy: number) {
         // this is needed for bbf
         if (typeof sx === "undefined") { sx = 0; }
@@ -709,7 +709,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         }
         this.cache.put_buffer(hist0_node);
     }
-    /*canny(src: any, dst: any, low_thresh: number, high_thresh: number) {
+    canny(src: any, dst: any, low_thresh: number, high_thresh: number) {
         var w = src.cols, h = src.rows, src_d = src.data;
 
         dst.resize(w, h, src.channel);
@@ -863,7 +863,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         row0 = 0;
         for (i = 0; i < h; ++i, map_i += map_w) {
             for (j = 0; j < w; ++j) {
-                dst_d[row0++] = (map[map_i + j] == 2) * 0xff;
+                dst_d[row0++] = (Number(map[map_i + j] == 2) * 0xff);
             }
         }
 
@@ -872,7 +872,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         this.cache.put_buffer(buf_node);
         this.cache.put_buffer(map_node);
         this.cache.put_buffer(stack_node);
-    }*/
+    }
     // transform is 3x3 matrix_t
     warp_perspective(src: { cols: number; rows: number; data: any }, dst: { cols: number; rows: number; data: any }, transform: { data: any }, fill_value: number) {
         if (typeof fill_value === "undefined") { fill_value = 0; }
