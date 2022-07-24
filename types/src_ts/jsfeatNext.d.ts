@@ -4,6 +4,7 @@ import { linalg } from './linalg/linalg';
 import { math } from './math/math';
 import matmath from './matmath/matmath';
 import { matrix_t } from './matrix_t/matrix_t';
+import { pyramid_t } from './pyramid_t/pyramid_t';
 import { keypoint_t } from './keypoint_t/keypoint_t';
 export default class jsfeatNext {
     private dt;
@@ -14,6 +15,7 @@ export default class jsfeatNext {
     static math: typeof math;
     static matmath: typeof matmath;
     static matrix_t: typeof matrix_t;
+    static pyramid_t: typeof pyramid_t;
     static keypoint_t: typeof keypoint_t;
     constructor();
     static VERSION: string;

@@ -9,6 +9,7 @@ import { swap, hypot } from './linalg/linalg-base'
 import { math } from './math/math'
 import matmath from './matmath/matmath'
 import { matrix_t } from './matrix_t/matrix_t'
+import { pyramid_t } from './pyramid_t/pyramid_t'
 import { keypoint_t } from './keypoint_t/keypoint_t'
 import { JSFEAT_CONSTANTS } from './constants/constants'
 import pkg from '../package.json'
@@ -22,6 +23,7 @@ export default class jsfeatNext {
     static math: typeof math;
     static matmath: typeof matmath;
     static matrix_t: typeof matrix_t;
+    static pyramid_t: typeof pyramid_t;
     static keypoint_t: typeof keypoint_t;
     constructor() {
         this.dt = new data_type();
@@ -81,6 +83,43 @@ export default class jsfeatNext {
 }
 
 jsfeatNext.cache = cache;
+
+jsfeatNext.pyramid_t = class pyramid_t extends jsfeatNext {
+    public levels: number;
+    public data: any;
+    private pyrdown: any;
+    constructor(levels: number) {
+        super();
+        this.levels = levels | 0;
+        this.data = new Array(levels);
+        var _imgproc = new jsfeatNext.imgproc();
+        this.pyrdown = _imgproc.pyrdown;
+    }
+    allocate(start_w: number, start_h: number, data_type: number) {
+        var i = this.levels;
+        while (--i >= 0) {
+            this.data[i] = new matrix_t(start_w >> i, start_h >> i, data_type);
+        }
+    }
+    build(input: matrix_t, skip_first_level: boolean) {
+        if (typeof skip_first_level === "undefined") { skip_first_level = true; }
+        // just copy data to first level
+        var i = 2, a = input, b: any = this.data[0];
+        if (!skip_first_level) {
+            var j = input.cols * input.rows;
+            while (--j >= 0) {
+                b.data[j] = input.data[j];
+            }
+        }
+        b = this.data[1];
+        this.pyrdown(a, b);
+        for (; i < this.levels; ++i) {
+            a = b;
+            b = this.data[i];
+            this.pyrdown(a, b);
+        }
+    }
+};
 
 jsfeatNext.matrix_t = matrix_t;
 

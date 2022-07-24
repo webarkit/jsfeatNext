@@ -15,7 +15,7 @@ export class matrix_t implements IMatrix_T {
     public rows: number;
     public data: any;
     public buffer: any;
-    constructor(c: number, r: number, _data_type: number, _data_buffer: any) {
+    constructor(c: number, r: number, _data_type: number, _data_buffer?: any) {
         this.dt = new data_type();
         this.type = this.dt._get_data_type(_data_type) | 0;
         this.channel = this.dt._get_channel(_data_type) | 0;
