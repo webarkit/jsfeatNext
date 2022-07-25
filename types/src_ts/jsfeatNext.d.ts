@@ -7,6 +7,7 @@ import { matrix_t } from './matrix_t/matrix_t';
 import { pyramid_t } from './pyramid_t/pyramid_t';
 import { keypoint_t } from './keypoint_t/keypoint_t';
 import { yape } from './yape/yape';
+import { yape06 } from './yape06/yape06';
 export default class jsfeatNext {
     private dt;
     protected cache: ICache;
@@ -19,6 +20,7 @@ export default class jsfeatNext {
     static pyramid_t: typeof pyramid_t;
     static keypoint_t: typeof keypoint_t;
     static yape: typeof yape;
+    static yape06: typeof yape06;
     constructor();
     static VERSION: string;
     static EPSILON: number;
