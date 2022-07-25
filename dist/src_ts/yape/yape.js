@@ -1,5 +1,5 @@
-import { third_check, is_local_maxima, perform_one_point, lev_table_t } from './yape_utils.js';
-export default class yape {
+import { third_check, is_local_maxima, perform_one_point, lev_table_t } from './yape_utils';
+export class yape {
     level_tables;
     tau;
     constructor() {
