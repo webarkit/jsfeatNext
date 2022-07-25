@@ -6,6 +6,7 @@ import matmath from './matmath/matmath';
 import { matrix_t } from './matrix_t/matrix_t';
 import { pyramid_t } from './pyramid_t/pyramid_t';
 import { keypoint_t } from './keypoint_t/keypoint_t';
+import { orb } from './orb/orb';
 import { yape } from './yape/yape';
 import { yape06 } from './yape06/yape06';
 import { ransac_params_t } from './motion_estimator/ransac_params_t';
@@ -29,6 +30,7 @@ export default class jsfeatNext {
     static homography2d: typeof homography2d;
     static motion_estimator: typeof motion_estimator;
     static optical_flow_lk: typeof optical_flow_lk;
+    static orb: typeof orb;
     constructor();
     static VERSION: string;
     static EPSILON: number;
