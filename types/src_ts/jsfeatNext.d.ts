@@ -8,6 +8,9 @@ import { pyramid_t } from './pyramid_t/pyramid_t';
 import { keypoint_t } from './keypoint_t/keypoint_t';
 import { yape } from './yape/yape';
 import { yape06 } from './yape06/yape06';
+import { ransac_params_t } from './motion_estimator/ransac_params_t';
+import { motion_estimator } from './motion_estimator/motion_estimator';
+import { optical_flow_lk } from './optical_flow_lk/optical_flow_lk';
 export default class jsfeatNext {
     private dt;
     protected cache: ICache;
@@ -21,6 +24,11 @@ export default class jsfeatNext {
     static keypoint_t: typeof keypoint_t;
     static yape: typeof yape;
     static yape06: typeof yape06;
+    static ransac_params_t: typeof ransac_params_t;
+    static affine2d: typeof affine2d;
+    static homography2d: typeof homography2d;
+    static motion_estimator: typeof motion_estimator;
+    static optical_flow_lk: typeof optical_flow_lk;
     constructor();
     static VERSION: string;
     static EPSILON: number;
@@ -52,3 +60,54 @@ export default class jsfeatNext {
     get_channel(type: number): number;
     get_data_type_size(type: number): number;
 }
+declare class motion_model extends jsfeatNext {
+    T0: matrix_t;
+    T1: matrix_t;
+    AtA: matrix_t;
+    AtB: matrix_t;
+    constructor();
+    sqr(x: number): number;
+    iso_normalize_points(from: {
+        x: number;
+        y: number;
+    }[], to: {
+        x: number;
+        y: number;
+    }[], T0: number[], T1: number[], count: number): void;
+    have_collinear_points(points: {
+        x: number;
+        y: number;
+    }[], count: number): boolean;
+}
+declare class affine2d extends motion_model {
+    constructor();
+    run(from: {
+        x: number;
+        y: number;
+    }[], to: {
+        x: number;
+        y: number;
+    }[], model: {
+        type?: any;
+        data: any;
+    }, count: number): number;
+}
+declare class homography2d extends motion_model {
+    mLtL: matrix_t;
+    Evec: matrix_t;
+    constructor();
+    run(from: {
+        x: number;
+        y: number;
+    }[], to: {
+        x: number;
+        y: number;
+    }[], model: {
+        data: any;
+    }, count: number): 1 | 0;
+    error(from: any[], to: any[], model: {
+        data: any;
+    }, err: number[], count: number): void;
+    check_subset(from: any[], to: any[], count: number): boolean;
+}
+export {};
