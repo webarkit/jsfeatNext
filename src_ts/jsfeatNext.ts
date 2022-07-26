@@ -2829,13 +2829,13 @@ jsfeatNext.affine2d = affine2d;
 jsfeatNext.homography2d = homography2d;
 
 jsfeatNext.optical_flow_lk = class optical_flow_lk extends jsfeatNext {
-    scharr_deriv: any;
+    public scharr_deriv: any;
     constructor() {
         super();
         var _imgproc = new jsfeatNext.imgproc()
         this.scharr_deriv = _imgproc.scharr_derivatives;
     }
-    track(prev_pyr: { data: any; levels: number }, curr_pyr: { data: any }, prev_xy: number[], curr_xy: number[], count: number, win_size: number, max_iter: number, status: Uint8Array, eps: number, min_eigen_threshold: number) {
+    track(prev_pyr: pyramid_t, curr_pyr: pyramid_t, prev_xy: number[], curr_xy: number[], count: number, win_size: number, max_iter: number, status: Uint8Array, eps: number, min_eigen_threshold: number): void {
         if (typeof max_iter === "undefined") { max_iter = 30; }
         if (typeof status === "undefined") { status = new Uint8Array(count); }
         if (typeof eps === "undefined") { eps = 0.01; }
