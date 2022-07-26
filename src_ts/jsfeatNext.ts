@@ -182,7 +182,7 @@ class affine2d extends motion_model {
     constructor() {
         super();
     }
-    run(from: { x: number, y: number }[], to: { x: number, y: number }[], model: { type?: any; data: any }, count: number): number {
+    run(from: { x: number, y: number }[], to: { x: number, y: number }[], model: matrix_t, count: number): number {
         var i = 0, j = 0;
         var dt = model.type | JSFEAT_CONSTANTS.C1_t;
         var md = model.data, t0d = this.T0.data, t1d = this.T1.data;

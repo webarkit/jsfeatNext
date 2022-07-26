@@ -1,7 +1,8 @@
+import { matrix_t } from '../matrix_t/matrix_t'
 export default class matmath {
     constructor() { }
 
-    identity(M: { data: any; rows: any; cols: any; }, value: number) {
+    identity(M: matrix_t, value: number): void {
         if (typeof value === "undefined") { value = 1; }
         var src = M.data;
         var rows = M.rows, cols = M.cols, cols_1 = (cols + 1) | 0;
@@ -16,7 +17,7 @@ export default class matmath {
         }
     }
 
-    transpose(At: { data: any; }, A: { rows: any; cols: any; data: any; }) {
+    transpose(At: matrix_t, A: matrix_t): void {
         var i = 0, j = 0, nrows = A.rows, ncols = A.cols;
         var Ai = 0, Ati = 0, pAt = 0;
         var ad = A.data, atd = At.data;
@@ -28,7 +29,7 @@ export default class matmath {
     }
 
     // C = A * B
-    multiply(C: { data: any; }, A: { cols: any; rows: any; data: any; }, B: { cols: any; data: any; }) {
+    multiply(C: matrix_t, A: matrix_t, B: matrix_t): void {
         var i = 0, j = 0, k = 0;
         var Ap = 0, pA = 0, pB = 0, p_B = 0, Cp = 0;
         var ncols = A.cols, nrows = A.rows, mcols = B.cols;
@@ -49,7 +50,7 @@ export default class matmath {
     }
 
     // C = A * B'
-    multiply_ABt(C: { data: any; }, A: { cols: any; rows: any; data: any; }, B: { rows: any; data: any; }) {
+    multiply_ABt(C: matrix_t, A: matrix_t, B: matrix_t): void {
         var i = 0, j = 0, k = 0;
         var Ap = 0, pA = 0, pB = 0, Cp = 0;
         var ncols = A.cols, nrows = A.rows, mrows = B.rows;
@@ -69,7 +70,7 @@ export default class matmath {
     }
 
     // C = A' * B
-    multiply_AtB(C: { data: any; }, A: { cols: any; rows: any; data: any; }, B: { cols: any; data: any; }) {
+    multiply_AtB(C: matrix_t, A: matrix_t, B: matrix_t): void {
         var i = 0, j = 0, k = 0;
         var Ap = 0, pA = 0, pB = 0, p_B = 0, Cp = 0;
         var ncols = A.cols, nrows = A.rows, mcols = B.cols;
@@ -90,7 +91,7 @@ export default class matmath {
     }
 
     // C = A * A'
-    multiply_AAt(C: { data: any; }, A: { cols: any; rows: any; data: any; }) {
+    multiply_AAt(C: matrix_t, A: matrix_t): void {
         var i = 0, j = 0, k = 0;
         var pCdiag = 0, p_A = 0, pA = 0, pB = 0, pC = 0, pCt = 0;
         var ncols = A.cols, nrows = A.rows;
@@ -114,7 +115,7 @@ export default class matmath {
     }
 
     // C = A' * A
-    multiply_AtA(C: { data: any; }, A: { cols: any; rows: any; data: any; }) {
+    multiply_AtA(C: matrix_t, A: matrix_t): void {
         var i = 0, j = 0, k = 0;
         var p_A = 0, pA = 0, pB = 0, p_C = 0, pC = 0, p_CC = 0;
         var ncols = A.cols, nrows = A.rows;
@@ -139,7 +140,7 @@ export default class matmath {
     }
 
     // various small matrix operations
-    identity_3x3(M: { data: any; }, value: number) {
+    identity_3x3(M: matrix_t, value: number) {
         if (typeof value === "undefined") { value = 1; }
         var dt = M.data;
         dt[0] = dt[4] = dt[8] = value;
@@ -147,7 +148,7 @@ export default class matmath {
         dt[5] = dt[6] = dt[7] = 0;
     }
 
-    invert_3x3(from: { data: any; }, to: { data: any; }) {
+    invert_3x3(from: matrix_t, to: matrix_t): void {
         var A = from.data, invA = to.data;
         var t1 = A[4];
         var t2 = A[8];
@@ -178,7 +179,7 @@ export default class matmath {
     }
 
     // C = A * B
-    multiply_3x3(C: { data: any; }, A: { data: any; }, B: { data: any; }) {
+    multiply_3x3(C: matrix_t, A: matrix_t, B: matrix_t): void {
         var Cd = C.data, Ad = A.data, Bd = B.data;
         var m1_0 = Ad[0], m1_1 = Ad[1], m1_2 = Ad[2];
         var m1_3 = Ad[3], m1_4 = Ad[4], m1_5 = Ad[5];
@@ -199,7 +200,7 @@ export default class matmath {
         Cd[8] = m1_6 * m2_2 + m1_7 * m2_5 + m1_8 * m2_8;
     }
 
-    mat3x3_determinant(M: { data: any; }) {
+    mat3x3_determinant(M: matrix_t): number {
         var md = M.data;
         return md[0] * md[4] * md[8] -
             md[0] * md[5] * md[7] -
@@ -211,7 +212,7 @@ export default class matmath {
 
     determinant_3x3(M11: number, M12: number, M13: number,
         M21: number, M22: number, M23: number,
-        M31: number, M32: number, M33: number) {
+        M31: number, M32: number, M33: number): number {
         return M11 * M22 * M33 - M11 * M23 * M32 -
             M21 * M12 * M33 + M21 * M13 * M32 +
             M31 * M12 * M23 - M31 * M13 * M22;
