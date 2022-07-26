@@ -1,18 +1,16 @@
 {
-    "name": "jsfeatnext",
-    "version": "0.6.0",
+    "name": "@webarkit/jsfeat-next",
+    "version": "0.6.1",
     "description": "Typescript version of jsfeat for WebARKit",
     "main": "dist/jsfeatNext.js",
     "types": "types/src/index.d.ts",
     "scripts": {
-        "dev": "webpack --mode development --progress --watch",
-        "build": "webpack --mode production",
         "build-ts": "rimraf ./build && tsc && webpack --mode production",
         "dev-ts": "rimraf ./build && tsc && webpack --mode development --progress --watch"
     },
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/kalwalt/jsfeatNext.git"
+        "url": "git+https://github.com/webarkit/jsfeatNext.git"
     },
     "keywords": [
         "jsfeat",
@@ -26,9 +24,9 @@
     "author": "Walter Perdan @kalwalt",
     "license": "LGPL-3.0-or-later",
     "bugs": {
-        "url": "https://github.com/kalwalt/jsfeatNext/issues"
+        "url": "https://github.com/webarkit/jsfeatNext/issues"
     },
-    "homepage": "https://github.com/kalwalt/jsfeatNext#readme",
+    "homepage": "https://github.com/webarkit/jsfeatNext#readme",
     "devDependencies": {
         "@babel/core": "^7.18.9",
         "@babel/plugin-transform-runtime": "^7.18.9",

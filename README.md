@@ -10,6 +10,15 @@ A testing repository to develop a ES6 version of [jsfeat](https://github.com/ins
 
 - webpack bundler
 
+- npm packages
+
+## npm package
+You can install the package with:
+
+`npm install @webarkit/jsfeat-next`
+
+Consider that the package is not well tested and many bugs may arise...
+
 ## Future features
 As soon the code will be stable i will move to the webarkit.org and releasing the first npm package.
 Not all the original classes from jsfeat are yet implemented, this will be done in a near future.
