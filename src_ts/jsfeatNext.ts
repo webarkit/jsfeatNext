@@ -2409,7 +2409,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         this.cache.put_buffer(v_buff);
     }
 
-    eigenVV(A: matrix_t, vects: matrix_t, vals: { data: { [x: string]: any } }) {
+    eigenVV(A: matrix_t, vects: matrix_t, vals?: { data: { [x: string]: any } }) {
         var n = A.cols, i = n * n;
         var dt = A.type | JSFEAT_CONSTANTS.C1_t;
 

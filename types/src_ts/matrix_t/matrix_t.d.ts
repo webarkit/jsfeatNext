@@ -1,3 +1,4 @@
+import { data_t } from '../node_utils/data_t';
 export interface IMatrix_T {
     allocate: () => void;
     copy_to: (other: any) => void;
@@ -10,9 +11,9 @@ export declare class matrix_t implements IMatrix_T {
     cols: number;
     rows: number;
     data: any;
-    buffer: any;
-    constructor(c: number, r: number, _data_type: number, _data_buffer?: any);
+    buffer: data_t;
+    constructor(c: number, r: number, _data_type: number, _data_buffer?: data_t);
     allocate(): void;
     copy_to(other: any): void;
-    resize(c: number, r: number, ch: any): void;
+    resize(c: number, r: number, ch: number): void;
 }
