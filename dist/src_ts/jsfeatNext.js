@@ -2,7 +2,7 @@ import { data_type } from './data_type/data_type';
 import { cache } from './cache/cache';
 import { _resample, _resample_u8 } from './imgproc/resample';
 import { _convol, _convol_u8 } from './imgproc/convol';
-import { swap, hypot } from './linalg/linalg-base';
+import { swap, hypot } from './linalg/linalg_base';
 import matmath from './matmath/matmath';
 import { matrix_t } from './matrix_t/matrix_t';
 import { keypoint_t } from './keypoint_t/keypoint_t';

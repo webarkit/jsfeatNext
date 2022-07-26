@@ -1,10 +1,10 @@
-export function swap(A: { [x: string]: any; }, i0: string | number, i1: string | number, t: any) {
+export function swap(A: Int32Array | Float32Array | Float64Array, i0: number, i1: number, t: number): void {
     t = A[i0];
     A[i0] = A[i1];
     A[i1] = t;
 }
 
-export function hypot(a: number, b: number) {
+export function hypot(a: number, b: number): number {
     a = Math.abs(a);
     b = Math.abs(b);
     if (a > b) {
