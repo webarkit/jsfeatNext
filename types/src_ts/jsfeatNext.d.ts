@@ -89,10 +89,7 @@ declare class affine2d extends motion_model {
     }[], to: {
         x: number;
         y: number;
-    }[], model: {
-        type?: any;
-        data: any;
-    }, count: number): number;
+    }[], model: matrix_t, count: number): number;
 }
 declare class homography2d extends motion_model {
     mLtL: matrix_t;
