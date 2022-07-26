@@ -1,4 +1,4 @@
-export function compute_laplacian(src: any[], dst: any[], w: number, h: any, Dxx: number, Dyy: number, sx: number, sy: number, ex: number, ey: number) {
+export function compute_laplacian(src: Int32Array | Float32Array, dst: Int32Array | Float32Array, w: number, h: any, Dxx: number, Dyy: number, sx: number, sy: number, ex: number, ey: number) {
     var y = 0, x = 0, yrow = (sy * w + sx) | 0, row = yrow;
 
     for (y = sy; y < ey; ++y, yrow += w, row = yrow) {

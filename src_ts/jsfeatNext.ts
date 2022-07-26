@@ -369,7 +369,7 @@ class homography2d extends motion_model {
 
         return 1;
     }
-    error(from: { x: number, y: number }[], to: { x: number, y: number }[], model: matrix_t, err: number[], count: number): void {
+    error(from: { x: number, y: number }[], to: { x: number, y: number }[], model: matrix_t, err: Int32Array | Float32Array, count: number): void {
         var i = 0;
         var pt0, pt1, ww = 0.0, dx = 0.0, dy = 0.0;
         var m = model.data;
@@ -1143,7 +1143,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
 
 
         var buf = buf_node.i32;
-        var map: number[] = <number[]>map_node.i32;
+        var map = map_node.i32;
         var stack = stack_node.i32;
         var dxdy = dxdy_node.i32;
         var dxdy_m = new matrix_t(w, h, JSFEAT_CONSTANTS.S32C2_t, dxdy_node.data);
@@ -2623,7 +2623,7 @@ jsfeatNext.motion_estimator = class motion_estimator extends jsfeatNext {
         return (i == need_cnt && ssiter < max_try);
     }
 
-    find_inliers(kernel: homography2d, model: matrix_t, from: { x: number, y: number }[], to: { x: number, y: number }[], count: number, thresh: number, err: number[], mask: number[]): number {
+    find_inliers(kernel: homography2d, model: matrix_t, from: { x: number, y: number }[], to: { x: number, y: number }[], count: number, thresh: number, err: Int32Array | Float32Array, mask: number[]): number {
         var numinliers: number = 0, i = 0, f = 0;
         var t = thresh * thresh;
 

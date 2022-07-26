@@ -1,4 +1,4 @@
-export function _convol_u8(buf: number[], src_d: number[], dst_d: number[], w: number, h: number, filter: number[], kernel_size: number, half_kernel: number) {
+export function _convol_u8(buf: Int32Array | Float32Array, src_d: number[], dst_d: number[], w: number, h: number, filter: Int32Array | Float32Array, kernel_size: number, half_kernel: number) {
     var i = 0, j = 0, k = 0, sp = 0, dp = 0, sum = 0, sum1 = 0, sum2 = 0, sum3 = 0, f0 = filter[0], fk = 0;
     var w2 = w << 1, w3 = w * 3, w4 = w << 2;
     // hor pass
@@ -92,7 +92,7 @@ export function _convol_u8(buf: number[], src_d: number[], dst_d: number[], w: n
     }
 }
 
-export function _convol(buf: number[], src_d: number[], dst_d: number[], w: number, h: number, filter: number[], kernel_size: number, half_kernel: number) {
+export function _convol(buf: Int32Array | Float32Array, src_d: number[], dst_d: number[], w: number, h: number, filter: Int32Array | Float32Array, kernel_size: number, half_kernel: number) {
     var i = 0, j = 0, k = 0, sp = 0, dp = 0, sum = 0.0, sum1 = 0.0, sum2 = 0.0, sum3 = 0.0, f0 = filter[0], fk = 0.0;
     var w2 = w << 1, w3 = w * 3, w4 = w << 2;
     // hor pass

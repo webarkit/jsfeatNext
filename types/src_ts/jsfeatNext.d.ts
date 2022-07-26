@@ -111,7 +111,7 @@ declare class homography2d extends motion_model {
     }[], to: {
         x: number;
         y: number;
-    }[], model: matrix_t, err: number[], count: number): void;
+    }[], model: matrix_t, err: Int32Array | Float32Array, count: number): void;
     check_subset(from: {
         x: number;
         y: number;
