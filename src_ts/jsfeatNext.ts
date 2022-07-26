@@ -247,7 +247,7 @@ class homography2d extends motion_model {
         this.mLtL = new matrix_t(9, 9, JSFEAT_CONSTANTS.F32_t | JSFEAT_CONSTANTS.C1_t);
         this.Evec = new matrix_t(9, 9, JSFEAT_CONSTANTS.F32_t | JSFEAT_CONSTANTS.C1_t);
     }
-    run(from: { x: number, y: number }[], to: { x: number, y: number }[], model: { data: any }, count: number) {
+    run(from: { x: number, y: number }[], to: { x: number, y: number }[], model: matrix_t, count: number) {
         var i = 0, j = 0;
         var md = model.data, t0d = this.T0.data, t1d = this.T1.data;
         var LtL = this.mLtL.data, evd = this.Evec.data;
@@ -369,7 +369,7 @@ class homography2d extends motion_model {
 
         return 1;
     }
-    error(from: any[], to: any[], model: { data: any }, err: number[], count: number) {
+    error(from: { x: number, y: number }[], to: { x: number, y: number }[], model: matrix_t, err: number[], count: number) {
         var i = 0;
         var pt0, pt1, ww = 0.0, dx = 0.0, dy = 0.0;
         var m = model.data;
@@ -384,7 +384,7 @@ class homography2d extends motion_model {
             err[i] = (dx * dx + dy * dy);
         }
     }
-    check_subset(from: any[], to: any[], count: number) {
+    check_subset(from: { x: number, y: number }[], to: { x: number, y: number }[], count: number) {
         // seems to reject good subsets actually
         //if( have_collinear_points(from, count) || have_collinear_points(to, count) ) {
         //return false;
@@ -1442,7 +1442,7 @@ jsfeatNext.math = class math extends jsfeatNext {
     }
 
     // model is 3x3 matrix_t
-    perspective_4point_transform(model: any, src_x0: number, src_y0:number, dst_x0: number, dst_y0: number,
+    perspective_4point_transform(model: any, src_x0: number, src_y0: number, dst_x0: number, dst_y0: number,
         src_x1: number, src_y1: number, dst_x1: number, dst_y1: number,
         src_x2: number, src_y2: number, dst_x2: number, dst_y2: number,
         src_x3: number, src_y3: number, dst_x3: number, dst_y3: number) {
@@ -2374,7 +2374,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         this.cache.put_buffer(v_buff);
     }
 
-    svd_invert(Ai: { data: any }, A: { rows: any; cols: any; type: number }) {
+    svd_invert(Ai: matrix_t, A: matrix_t) {
         var i = 0, j = 0, k = 0;
         var pu = 0, pv = 0, pa = 0;
         var nrows = A.rows, ncols = A.cols;
@@ -2409,7 +2409,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         this.cache.put_buffer(v_buff);
     }
 
-    eigenVV(A: { cols: any; type: number; data: any[] }, vects: { data: number[] }, vals: { data: { [x: string]: any } }) {
+    eigenVV(A: matrix_t, vects: matrix_t, vals: { data: { [x: string]: any } }) {
         var n = A.cols, i = n * n;
         var dt = A.type | JSFEAT_CONSTANTS.C1_t;
 
