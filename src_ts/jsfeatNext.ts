@@ -1444,7 +1444,7 @@ jsfeatNext.math = class math extends jsfeatNext {
     perspective_4point_transform(model: any, src_x0: number, src_y0: number, dst_x0: number, dst_y0: number,
         src_x1: number, src_y1: number, dst_x1: number, dst_y1: number,
         src_x2: number, src_y2: number, dst_x2: number, dst_y2: number,
-        src_x3: number, src_y3: number, dst_x3: number, dst_y3: number) {
+        src_x3: number, src_y3: number, dst_x3: number, dst_y3: number): void {
         var t1 = src_x0;
         var t2 = src_x2;
         var t4 = src_y1;
@@ -1560,7 +1560,7 @@ jsfeatNext.math = class math extends jsfeatNext {
     // The current implementation was derived from *BSD system qsort():
     // Copyright (c) 1992, 1993
     // The Regents of the University of California.  All rights reserved.
-    qsort(array: any, low: number, high: number, cmp: any) {
+    qsort(array: number[], low: number, high: number, cmp: any): void {
         var isort_thresh = 7;
         var t, ta, tb, tc;
         var sp = 0, left = 0, right = 0, i = 0, n = 0, m = 0, ptr = 0, ptr2 = 0, d = 0;
@@ -1724,7 +1724,7 @@ jsfeatNext.math = class math extends jsfeatNext {
         }
     }
 
-    median(array: any, low: number, high: number) {
+    median(array: number[], low: number, high: number): number {
         var w;
         var middle = 0, ll = 0, hh = 0, median = (low + high) >> 1;
         for (; ;) {
