@@ -4,7 +4,7 @@ import { imgproc } from './imgproc/imgproc'
 import { _resample, _resample_u8 } from './imgproc/resample'
 import { _convol, _convol_u8 } from './imgproc/convol'
 import { linalg } from './linalg/linalg'
-import { swap, hypot } from './linalg/linalg-base'
+import { swap, hypot } from './linalg/linalg_base'
 import { math } from './math/math'
 import matmath from './matmath/matmath'
 import { matrix_t } from './matrix_t/matrix_t'
@@ -1787,7 +1787,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         this.matmath = new matmath();
     }
 
-    JacobiImpl(A: number[], astep: number, W: number[], V: number[], vstep: number, n: number) {
+    JacobiImpl(A: Int32Array | Float32Array | Float64Array, astep: number, W: Int32Array | Float32Array | Float64Array, V: Int32Array | Float32Array | Float64Array, vstep: number, n: number) {
         var eps = JSFEAT_CONSTANTS.EPSILON;
         var i = 0, j = 0, k = 0, m = 0, l = 0, idx = 0, _in = 0, _in2 = 0;
         var iters = 0, max_iter = n * n * 30;
@@ -1940,7 +1940,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         this.cache.put_buffer(indC_buff);
     }
 
-    JacobiSVDImpl(At: number[], astep: number, _W: any[], Vt: number[], vstep: number, m: number, n: number, n1: number): void {
+    JacobiSVDImpl(At: Int32Array | Float32Array | Float64Array, astep: number, _W: any[], Vt: Int32Array | Float32Array | Float64Array, vstep: number, m: number, n: number, n1: number): void {
         var eps = JSFEAT_CONSTANTS.EPSILON * 2.0;
         var minval = JSFEAT_CONSTANTS.FLT_MIN;
         var i = 0, j = 0, k = 0, iter = 0, max_iter = Math.max(m, 30);
