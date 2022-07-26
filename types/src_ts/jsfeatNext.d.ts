@@ -104,7 +104,7 @@ declare class homography2d extends motion_model {
     }[], to: {
         x: number;
         y: number;
-    }[], model: matrix_t, count: number): 1 | 0;
+    }[], model: matrix_t, count: number): number;
     error(from: {
         x: number;
         y: number;

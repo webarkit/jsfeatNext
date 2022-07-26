@@ -101,10 +101,10 @@ export default class jsfeatNext {
 }
 
 class motion_model extends jsfeatNext {
-    T0: matrix_t
-    T1: matrix_t
-    AtA: matrix_t
-    AtB: matrix_t
+    public T0: matrix_t;
+    public T1: matrix_t;
+    public AtA: matrix_t;
+    public AtB: matrix_t;
     constructor() {
         super();
         this.T0 = new matrix_t(3, 3, JSFEAT_CONSTANTS.F32_t | JSFEAT_CONSTANTS.C1_t);
@@ -112,12 +112,12 @@ class motion_model extends jsfeatNext {
         this.AtA = new matrix_t(6, 6, JSFEAT_CONSTANTS.F32_t | JSFEAT_CONSTANTS.C1_t);
         this.AtB = new matrix_t(6, 1, JSFEAT_CONSTANTS.F32_t | JSFEAT_CONSTANTS.C1_t);
     }
-    sqr(x: number) {
+    sqr(x: number): number {
         return x * x;
     }
 
     // does isotropic normalization
-    iso_normalize_points(from: { x: number, y: number }[], to: { x: number, y: number }[], T0: number[], T1: number[], count: number) {
+    iso_normalize_points(from: { x: number, y: number }[], to: { x: number, y: number }[], T0: number[], T1: number[], count: number): void {
         var i = 0;
         var cx0 = 0.0, cy0 = 0.0, d0 = 0.0, s0 = 0.0;
         var cx1 = 0.0, cy1 = 0.0, d1 = 0.0, s1 = 0.0;
@@ -159,7 +159,7 @@ class motion_model extends jsfeatNext {
         T1[8] = 1.0;
     }
 
-    have_collinear_points(points: { x: number, y: number }[], count: number) {
+    have_collinear_points(points: { x: number, y: number }[], count: number): boolean {
         var j = 0, k = 0, i = (count - 1) | 0;
         var dx1 = 0.0, dy1 = 0.0, dx2 = 0.0, dy2 = 0.0;
 
@@ -183,7 +183,7 @@ class affine2d extends motion_model {
     constructor() {
         super();
     }
-    run(from: { x: number, y: number }[], to: { x: number, y: number }[], model: { type?: any; data: any }, count: number) {
+    run(from: { x: number, y: number }[], to: { x: number, y: number }[], model: { type?: any; data: any }, count: number): number {
         var i = 0, j = 0;
         var dt = model.type | JSFEAT_CONSTANTS.C1_t;
         var md = model.data, t0d = this.T0.data, t1d = this.T1.data;
@@ -240,14 +240,14 @@ class affine2d extends motion_model {
 }
 
 class homography2d extends motion_model {
-    mLtL: matrix_t
-    Evec: matrix_t
+    public mLtL: matrix_t;
+    public Evec: matrix_t;
     constructor() {
         super();
         this.mLtL = new matrix_t(9, 9, JSFEAT_CONSTANTS.F32_t | JSFEAT_CONSTANTS.C1_t);
         this.Evec = new matrix_t(9, 9, JSFEAT_CONSTANTS.F32_t | JSFEAT_CONSTANTS.C1_t);
     }
-    run(from: { x: number, y: number }[], to: { x: number, y: number }[], model: matrix_t, count: number) {
+    run(from: { x: number, y: number }[], to: { x: number, y: number }[], model: matrix_t, count: number): number {
         var i = 0, j = 0;
         var md = model.data, t0d = this.T0.data, t1d = this.T1.data;
         var LtL = this.mLtL.data, evd = this.Evec.data;
@@ -369,7 +369,7 @@ class homography2d extends motion_model {
 
         return 1;
     }
-    error(from: { x: number, y: number }[], to: { x: number, y: number }[], model: matrix_t, err: number[], count: number) {
+    error(from: { x: number, y: number }[], to: { x: number, y: number }[], model: matrix_t, err: number[], count: number): void {
         var i = 0;
         var pt0, pt1, ww = 0.0, dx = 0.0, dy = 0.0;
         var m = model.data;
@@ -384,7 +384,7 @@ class homography2d extends motion_model {
             err[i] = (dx * dx + dy * dy);
         }
     }
-    check_subset(from: { x: number, y: number }[], to: { x: number, y: number }[], count: number) {
+    check_subset(from: { x: number, y: number }[], to: { x: number, y: number }[], count: number): boolean {
         // seems to reject good subsets actually
         //if( have_collinear_points(from, count) || have_collinear_points(to, count) ) {
         //return false;
