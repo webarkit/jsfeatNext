@@ -2531,7 +2531,7 @@ jsfeatNext.yape06 = class yape06 extends jsfeatNext {
         this.laplacian_threshold = 30;
         this.min_eigen_value_threshold = 25;
     }
-    detect(src: matrix_t, points: keypoint_t[], border: number) {
+    detect(src: matrix_t, points: keypoint_t[], border: number): number {
         if (typeof border === "undefined") { border = 5; }
         var x = 0, y = 0;
         var w = src.cols, h = src.rows, srd_d = src.data;
@@ -2593,7 +2593,7 @@ jsfeatNext.motion_estimator = class motion_estimator extends jsfeatNext {
         super();
     }
 
-    get_subset(kernel: { check_subset: (arg0: any, arg1: any, arg2: number) => any }, from: any[], to: any[], need_cnt: number, max_cnt: number, from_sub: any[], to_sub: any[]) {
+    get_subset(kernel: homography2d, from: any[], to: any[], need_cnt: number, max_cnt: number, from_sub: any[], to_sub: any[]): boolean {
         var max_try = 1000;
         var indices = [];
         var i = 0, j = 0, ssiter = 0, idx_i = 0, ok = false;
@@ -2623,8 +2623,8 @@ jsfeatNext.motion_estimator = class motion_estimator extends jsfeatNext {
         return (i == need_cnt && ssiter < max_try);
     }
 
-    find_inliers(kernel: { error: (arg0: any, arg1: any, arg2: any, arg3: any, arg4: any) => void }, model: matrix_t, from: any, to: any, count: number, thresh: number, err: number[], mask: number[]) {
-        var numinliers = 0, i = 0, f = 0;
+    find_inliers(kernel: homography2d, model: matrix_t, from: { x: number, y: number }[], to: { x: number, y: number }[], count: number, thresh: number, err: number[], mask: number[]): number {
+        var numinliers: number = 0, i = 0, f = 0;
         var t = thresh * thresh;
 
         kernel.error(from, to, model, err, count);
@@ -2637,14 +2637,14 @@ jsfeatNext.motion_estimator = class motion_estimator extends jsfeatNext {
         return numinliers;
     }
 
-    ransac(params: { size: number; thresh: number; update_iters: (arg0: number, arg1: any) => any }, kernel: any, from: any[], to: any[], count: number, model: { cols: any; rows: any; type: number }, mask: { data: { [x: string]: number } }, max_iters: number) {
+    ransac(params: ransac_params_t, kernel: any, from: { x: number, y: number }[], to: { x: number, y: number }[], count: number, model: matrix_t, mask: { data: { [x: string]: number } }, max_iters: number): boolean {
         if (typeof max_iters === "undefined") { max_iters = 1000; }
 
         if (count < params.size) return false;
 
         var model_points = params.size;
         var niters = max_iters, iter = 0;
-        var result = false;
+        var result: boolean = false;
 
         var subset0: any = [];
         var subset1: any = [];
@@ -2722,14 +2722,14 @@ jsfeatNext.motion_estimator = class motion_estimator extends jsfeatNext {
         return result;
     }
 
-    lmeds(params: { size: number; eps: number; update_iters: (arg0: any, arg1: any) => any }, kernel: any, from: any[], to: any[], count: number, model: matrix_t, mask: { data: { [x: string]: number } }, max_iters: number) {
+    lmeds(params: ransac_params_t, kernel: any, from: { x: number, y: number }[], to: { x: number, y: number }[], count: number, model: matrix_t, mask: { data: { [x: string]: number } }, max_iters: number): boolean {
         if (typeof max_iters === "undefined") { max_iters = 1000; }
 
         if (count < params.size) return false;
 
         var model_points = params.size;
         var niters = max_iters, iter = 0;
-        var result = false;
+        var result: boolean = false;
         var _math = new jsfeatNext.math();
 
         var subset0: any = [];
