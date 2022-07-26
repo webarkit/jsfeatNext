@@ -2436,10 +2436,10 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
 }
 
 jsfeatNext.orb = class orb extends jsfeatNext {
-    bit_pattern_31_: Int32Array
-    H: matrix_t
-    patch_img: matrix_t
-    imgproc: imgproc;
+    public bit_pattern_31_: Int32Array
+    public H: matrix_t
+    public patch_img: matrix_t
+    public imgproc: imgproc;
     constructor() {
         super();
         this.bit_pattern_31_ = new Int32Array(bit_pattern_31);
@@ -2448,11 +2448,11 @@ jsfeatNext.orb = class orb extends jsfeatNext {
         this.imgproc = new jsfeatNext.imgproc();
     }
 
-    describe(src: { data: any; cols: any; rows: any }, corners: { x: number, y: number, angle: number }[], count: number, descriptors: { type: number; cols: number; rows: any; channel: number; allocate: () => void; resize: (arg0: number, arg1: any, arg2: number) => void; data: any }) {
+    describe(src: matrix_t, corners: { x: number, y: number, angle: number }[], count: number, descriptors: matrix_t): void {
         var DESCR_SIZE = 32; // bytes;
         var i = 0, b = 0, px = 0.0, py = 0.0, angle = 0.0;
         var t0 = 0, t1 = 0, val = 0;
-        var img = src.data, w = src.cols, h = src.rows;
+        //var img = src.data, w = src.cols, h = src.rows;
         var patch_d = this.patch_img.data;
         var patch_off = 16 * 32 + 16; // center of patch
         var patt = 0;
