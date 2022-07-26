@@ -2531,7 +2531,7 @@ jsfeatNext.yape06 = class yape06 extends jsfeatNext {
         this.laplacian_threshold = 30;
         this.min_eigen_value_threshold = 25;
     }
-    detect(src: { cols: any; rows: any; data: any }, points: any[], border: number) {
+    detect(src: matrix_t, points: keypoint_t[], border: number) {
         if (typeof border === "undefined") { border = 5; }
         var x = 0, y = 0;
         var w = src.cols, h = src.rows, srd_d = src.data;
