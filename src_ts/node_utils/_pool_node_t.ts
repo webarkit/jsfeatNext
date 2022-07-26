@@ -24,7 +24,7 @@ export default class _pool_node_t implements IPool_Node_T {
         this.f32 = this.data.f32;
         this.f64 = this.data.f64;
     }
-    resize(size_in_bytes: number) {
+    resize(size_in_bytes: number): void {
         delete this.data;
         this.data = new data_t(size_in_bytes);
         this.size = this.data.size;
