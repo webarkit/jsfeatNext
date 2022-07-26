@@ -1,5 +1,6 @@
 import { third_check, is_local_maxima, perform_one_point, lev_table_t } from './yape_utils'
-
+import { matrix_t } from '../matrix_t/matrix_t'
+import { keypoint_t } from '../keypoint_t/keypoint_t'
 export class yape {
     private level_tables: lev_table_t[];
     private tau: number;
@@ -8,7 +9,7 @@ export class yape {
         this.tau = 7;
     }
 
-    init(width: number, height: number, radius: number, pyramid_levels: number) {
+    init(width: number, height: number, radius: number, pyramid_levels: number): void {
         if (typeof pyramid_levels === "undefined") { pyramid_levels = 1; }
         var i;
         radius = Math.min(radius, 7);
@@ -18,7 +19,7 @@ export class yape {
         }
     }
 
-    detect(src: { data: any; cols: number; rows: number; }, points: any[], border: number) {
+    detect(src: matrix_t, points: keypoint_t[], border: number): number {
         if (typeof border === "undefined") { border = 4; }
         var t = this.level_tables[0];
         var R = t.radius | 0, Rm1 = (R - 1) | 0;
