@@ -1,0 +1,1 @@
+{"version":3,"file":"linalg.js","sourceRoot":"","sources":["../../../src/linalg/linalg.ts"],"names":[],"mappings":"AACA,MAAM,OAAO,MAAM;IACf,OAAO,CAAC,CAAW,EAAE,KAAe,EAAE,IAAqC;QACvE,MAAM,IAAI,KAAK,CAAC,yBAAyB,CAAC,CAAC;IAC/C,CAAC;IACD,QAAQ,CAAC,CAAW,EAAE,CAAgB;QAClC,MAAM,IAAI,KAAK,CAAC,yBAAyB,CAAC,CAAC;IAC/C,CAAC;CACJ"}

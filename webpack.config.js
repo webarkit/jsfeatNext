@@ -32,10 +32,10 @@ module.exports = (env, argv) => {
   return [{
     name: 'default',
     devtool,
-    entry: "./src_ts/index.ts",
+    entry: "./src/index.ts",
     output: {
       path: path.resolve(__dirname, "dist"),
-      filename: "jsfeatNext_ts.js",
+      filename: "jsfeatNext.js",
       library: "jsfeatNext",
       libraryTarget: "umd",
       // @see: https://github.com/webpack/webpack/issues/3929

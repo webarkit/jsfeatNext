@@ -1,9 +1,9 @@
 {
   "name": "jsfeatnext",
   "version": "0.5.0",
-  "description": "ES6 version of jsfeat for WebARKit",
+  "description": "Typescript version of jsfeat for WebARKit",
   "main": "dist/jsfeatNext.js",
-  "types": "types/index.d.ts",
+  "types": "types/src/index.d.ts",
   "scripts": {
     "dev": "webpack --mode development --progress --watch",
     "build": "webpack --mode production",
