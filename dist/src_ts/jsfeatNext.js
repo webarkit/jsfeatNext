@@ -2148,7 +2148,6 @@ jsfeatNext.orb = class orb extends jsfeatNext {
         var DESCR_SIZE = 32;
         var i = 0, b = 0, px = 0.0, py = 0.0, angle = 0.0;
         var t0 = 0, t1 = 0, val = 0;
-        var img = src.data, w = src.cols, h = src.rows;
         var patch_d = this.patch_img.data;
         var patch_off = 16 * 32 + 16;
         var patt = 0;
