@@ -1,4 +1,4 @@
-import { ICache, cache } from './cache/cache';
+import { cache } from './cache/cache';
 import { imgproc } from './imgproc/imgproc';
 import { linalg } from './linalg/linalg';
 import { math } from './math/math';
@@ -14,7 +14,7 @@ import { motion_estimator } from './motion_estimator/motion_estimator';
 import { optical_flow_lk } from './optical_flow_lk/optical_flow_lk';
 export default class jsfeatNext {
     private dt;
-    protected cache: ICache;
+    protected cache: cache;
     static cache: typeof cache;
     static imgproc: typeof imgproc;
     static linalg: typeof linalg;

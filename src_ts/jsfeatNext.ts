@@ -1,6 +1,5 @@
-//import _pool_node_t from './node_utils/_pool_node_t'
 import { IData_Type, data_type } from './data_type/data_type'
-import { ICache, cache } from './cache/cache'
+import { cache } from './cache/cache'
 import { imgproc } from './imgproc/imgproc'
 import { _resample, _resample_u8 } from './imgproc/resample'
 import { _convol, _convol_u8 } from './imgproc/convol'
@@ -25,7 +24,7 @@ import pkg from '../package.json'
 
 export default class jsfeatNext {
     private dt: IData_Type;
-    protected cache: ICache;
+    protected cache: cache;
     static cache: typeof cache;
     static imgproc: typeof imgproc;
     static linalg: typeof linalg;

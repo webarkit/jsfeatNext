@@ -1,6 +1,7 @@
-//import jsfeatNext from '../jsfeatNext.js'
+import { matrix_t } from '../matrix_t/matrix_t'
+import { cache } from '../cache/cache'
 
-export function _resample_u8 (src: { channel: any; cols: any; rows: any; data: any; }, dst: { data: any; }, cache: { get_buffer: (arg0: number) => any; put_buffer: (arg0: any) => void; }, nw: number, nh: number) {
+export function _resample_u8(src: matrix_t, dst: matrix_t, cache: cache, nw: number, nh: number) {
     var xofs_count = 0;
     var ch = src.channel, w = src.cols, h = src.rows;
     var src_d = src.data, dst_d = dst.data;
@@ -87,7 +88,7 @@ export function _resample_u8 (src: { channel: any; cols: any; rows: any; data: a
     cache.put_buffer(xofs_node);
 }
 
-export function _resample (src: { channel: any; cols: any; rows: any; data: any; }, dst: { data: any; }, cache: { get_buffer: (arg0: number) => any; put_buffer: (arg0: any) => void; }, nw: number, nh: number) {
+export function _resample(src: matrix_t, dst: matrix_t, cache: cache, nw: number, nh: number) {
     var xofs_count = 0;
     var ch = src.channel, w = src.cols, h = src.rows;
     var src_d = src.data, dst_d = dst.data;
