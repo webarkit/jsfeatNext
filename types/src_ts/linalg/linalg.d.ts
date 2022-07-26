@@ -7,5 +7,5 @@ export declare class linalg {
     }): void;
     lu_solve(A: matrix_t, B: {
         data: any;
-    }): void;
+    }): number;
 }

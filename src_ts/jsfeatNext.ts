@@ -1384,7 +1384,7 @@ jsfeatNext.math = class math extends jsfeatNext {
         this.qsort_stack = new Int32Array(48 * 2);
     }
 
-    get_gaussian_kernel(size: number, sigma: number, kernel: any, data_type: any) {
+    get_gaussian_kernel(size: number, sigma: number, kernel: any, data_type: any): void {
         var i = 0, x = 0.0, t = 0.0, sigma_x = 0.0, scale_2x = 0.0;
         var sum = 0.0;
         var kern_node = this.cache.get_buffer(size << 2);
@@ -1941,7 +1941,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         this.cache.put_buffer(indC_buff);
     }
 
-    JacobiSVDImpl(At: number[], astep: number, _W: any[], Vt: number[], vstep: number, m: number, n: number, n1: number) {
+    JacobiSVDImpl(At: number[], astep: number, _W: any[], Vt: number[], vstep: number, m: number, n: number, n1: number): void {
         var eps = JSFEAT_CONSTANTS.EPSILON * 2.0;
         var minval = JSFEAT_CONSTANTS.FLT_MIN;
         var i = 0, j = 0, k = 0, iter = 0, max_iter = Math.max(m, 30);
@@ -2131,7 +2131,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         this.cache.put_buffer(W_buff);
     }
 
-    lu_solve(A: { cols: any; data: any }, B: { data: any }) {
+    lu_solve(A: { cols: any; data: any }, B: { data: any }): number {
         var i = 0, j = 0, k = 0, p = 1, astep = A.cols;
         var ad = A.data, bd = B.data;
         var t, alpha, d, s;
@@ -2183,7 +2183,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         return 1; // OK
     }
 
-    cholesky_solve(A: { cols: any; data: any }, B: { data: any }) {
+    cholesky_solve(A: { cols: any; data: any }, B: { data: any }): number {
         var col = 0, row = 0, col2 = 0, cs = 0, rs = 0, i = 0, j = 0;
         var size = A.cols;
         var ad = A.data, bd = B.data;
@@ -2248,7 +2248,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         return 1;
     }
 
-    svd_decompose(A: any, W: matrix_t, U: matrix_t, V: matrix_t, options: number) {
+    svd_decompose(A: any, W: matrix_t, U: matrix_t, V: matrix_t, options: number): void {
         if (typeof options === "undefined") { options = 0; };
         var at = 0, i = 0, j = 0, _m = A.rows, _n = A.cols, m = _m, n = _n;
         var dt = A.type | JSFEAT_CONSTANTS.C1_t; // we only work with single channel 
@@ -2335,7 +2335,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
 
     }
 
-    svd_solve(A: { rows: any; cols: any; type: number }, X: { data: number[] }, B: { data: any }) {
+    svd_solve(A: { rows: any; cols: any; type: number }, X: { data: number[] }, B: { data: any }): void {
         var i = 0, j = 0, k = 0;
         var pu = 0, pv = 0;
         var nrows = A.rows, ncols = A.cols;
@@ -2374,7 +2374,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         this.cache.put_buffer(v_buff);
     }
 
-    svd_invert(Ai: matrix_t, A: matrix_t) {
+    svd_invert(Ai: matrix_t, A: matrix_t): void {
         var i = 0, j = 0, k = 0;
         var pu = 0, pv = 0, pa = 0;
         var nrows = A.rows, ncols = A.cols;
@@ -2409,7 +2409,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         this.cache.put_buffer(v_buff);
     }
 
-    eigenVV(A: matrix_t, vects: matrix_t, vals?: { data: { [x: string]: any } }) {
+    eigenVV(A: matrix_t, vects: matrix_t, vals?: { data: { [x: string]: any } }): void {
         var n = A.cols, i = n * n;
         var dt = A.type | JSFEAT_CONSTANTS.C1_t;
 
