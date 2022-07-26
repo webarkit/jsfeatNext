@@ -104,12 +104,20 @@ declare class homography2d extends motion_model {
     }[], to: {
         x: number;
         y: number;
-    }[], model: {
-        data: any;
-    }, count: number): 1 | 0;
-    error(from: any[], to: any[], model: {
-        data: any;
-    }, err: number[], count: number): void;
-    check_subset(from: any[], to: any[], count: number): boolean;
+    }[], model: matrix_t, count: number): 1 | 0;
+    error(from: {
+        x: number;
+        y: number;
+    }[], to: {
+        x: number;
+        y: number;
+    }[], model: matrix_t, err: number[], count: number): void;
+    check_subset(from: {
+        x: number;
+        y: number;
+    }[], to: {
+        x: number;
+        y: number;
+    }[], count: number): boolean;
 }
 export {};
