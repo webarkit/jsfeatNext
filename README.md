@@ -20,7 +20,6 @@ You can install the package with:
 Consider that the package is not well tested and many bugs may arise...
 
 ## Future features
-As soon the code will be stable i will move to the webarkit.org and releasing the first npm package.
 Not all the original classes from jsfeat are yet implemented, this will be done in a near future.
 
 ## Examples
