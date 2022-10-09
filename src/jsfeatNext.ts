@@ -506,7 +506,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
     constructor() {
         super();
     };
-    grayscale(src: number[], w: number, h: number, dst: { resize: (arg0: any, arg1: any, arg2: number) => void; data: any }, code: number) {
+    grayscale(src: number[], w: number, h: number, dst: matrix_t, code: number): void {
         // this is default image data representation in browser
         if (typeof code === "undefined") { code = JSFEAT_CONSTANTS.COLOR_RGBA2GRAY; }
         var x = 0, y = 0, i = 0, j = 0, ir = 0, jr = 0;
@@ -537,7 +537,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         }
     }
     // derived from CCV library
-    resample(src: any, dst: any, nw: number, nh: number) {
+    resample(src: matrix_t, dst: matrix_t, nw: number, nh: number): void {
         var h = src.rows, w = src.cols;
         if (h > nh && w > nw) {
             dst.resize(nw, nh, src.channel);
@@ -549,7 +549,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
             }
         }
     }
-    box_blur_gray(src: { cols: any; rows: any; data: any; channel: any }, dst: { resize: (arg0: any, arg1: any, arg2: any) => void; data: any }, radius: number, options: number) {
+    box_blur_gray(src: matrix_t, dst: matrix_t, radius: number, options: number): void {
         if (typeof options === "undefined") { options = 0; }
         var w = src.cols, h = src.rows, h2 = h << 1, w2 = w << 1;
         var i = 0, x = 0, y = 0, end = 0;
@@ -715,7 +715,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
 
         this.cache.put_buffer(tmp_buff);
     }
-    gaussian_blur(src: { cols: any; rows: any; type: any; channel: any; data: any }, dst: { resize: (arg0: any, arg1: any, arg2: any) => void; data: any }, kernel_size: number, sigma: number) {
+    gaussian_blur(src: matrix_t, dst: matrix_t, kernel_size: number, sigma: number): void {
         var jsfeatmath = new jsfeatNext.math();
         if (typeof sigma === "undefined") { sigma = 0.0; }
         if (typeof kernel_size === "undefined") { kernel_size = 0; }
@@ -754,7 +754,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         this.cache.put_buffer(buf_node);
         this.cache.put_buffer(filt_node);
     }
-    hough_transform(img: any, rho_res: number, theta_res: number, threshold: number) {
+    hough_transform(img: matrix_t, rho_res: number, theta_res: number, threshold: number): Array<number> {
         var image = img.data;
 
         var width = img.cols;
@@ -827,7 +827,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         }
         return lines;
     }
-    pyrdown(src: { cols: any; rows: any; channel: any; data: any }, dst: { resize: (arg0: number, arg1: number, arg2: any) => void; data: any }, sx: number, sy: number) {
+    pyrdown(src: matrix_t, dst: matrix_t, sx: number, sy: number): void {
         // this is needed for bbf
         if (typeof sx === "undefined") { sx = 0; }
         if (typeof sy === "undefined") { sy = 0; }
@@ -859,7 +859,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         }
     }
     // dst: [gx,gy,...]
-    scharr_derivatives(src: { cols: any; rows: any; data: any; type: number }, dst: { resize: (arg0: any, arg1: any, arg2: number) => void; data: any }) {
+    scharr_derivatives(src: matrix_t, dst: matrix_t): void {
         var w = src.cols, h = src.rows;
         var dstep = w << 1, x = 0, y = 0, x1 = 0, a, b, c, d, e, f;
         var srow0 = 0, srow1 = 0, srow2 = 0, drow = 0;
@@ -927,7 +927,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
     }
     // compute gradient using Sobel kernel [1 2 1] * [-1 0 1]^T
     // dst: [gx,gy,...]
-    sobel_derivatives(src: { cols: any; rows: any; data: any; type: number }, dst: matrix_t) {
+    sobel_derivatives(src: matrix_t, dst: matrix_t): void {
         var w = src.cols, h = src.rows;
         var dstep = w << 1, x = 0, y = 0, x1 = 0, a, b, c, d, e, f;
         var srow0 = 0, srow1 = 0, srow2 = 0, drow = 0;
@@ -995,7 +995,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
     }
     // please note: 
     // dst_(type) size should be cols = src.cols+1, rows = src.rows+1
-    compute_integral_image(src: { cols: number; rows: number; data: any }, dst_sum: number[], dst_sqsum: number[], dst_tilted: any[]) {
+    compute_integral_image(src: matrix_t, dst_sum: number[], dst_sqsum: number[], dst_tilted: any[]): void {
         var w0 = src.cols | 0, h0 = src.rows | 0, src_d = src.data;
         var w1 = (w0 + 1) | 0;
         var s = 0, s2 = 0, p = 0, pup = 0, i = 0, j = 0, v = 0, k = 0;
@@ -1099,7 +1099,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
             }
         }
     }
-    equalize_histogram(src: { cols: any; rows: any; data: any; channel: any }, dst: { resize: (arg0: any, arg1: any, arg2: any) => void; data: any }) {
+    equalize_histogram(src: matrix_t, dst: matrix_t): void {
         var w = src.cols, h = src.rows, src_d = src.data;
 
         dst.resize(w, h, src.channel);
@@ -1125,7 +1125,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         }
         this.cache.put_buffer(hist0_node);
     }
-    canny(src: any, dst: any, low_thresh: number, high_thresh: number) {
+    canny(src: matrix_t, dst: matrix_t, low_thresh: number, high_thresh: number): void {
         var w = src.cols, h = src.rows, src_d = src.data;
 
         dst.resize(w, h, src.channel);
@@ -1290,7 +1290,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         this.cache.put_buffer(stack_node);
     }
     // transform is 3x3 matrix_t
-    warp_perspective(src: { cols: number; rows: number; data: any }, dst: { cols: number; rows: number; data: any }, transform: { data: any }, fill_value: number) {
+    warp_perspective(src: matrix_t, dst: matrix_t, transform: matrix_t, fill_value: number): void {
         if (typeof fill_value === "undefined") { fill_value = 0; }
         var src_width = src.cols | 0, src_height = src.rows | 0, dst_width = dst.cols | 0, dst_height = dst.rows | 0;
         var src_d = src.data, dst_d = dst.data;
@@ -1324,7 +1324,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         }
     }
     // transform is 3x3 or 2x3 matrix_t only first 6 values referenced
-    warp_affine(src: { cols: any; rows: any; data: any }, dst: { cols: any; rows: any; data: any }, transform: { data: any }, fill_value: number) {
+    warp_affine(src: matrix_t, dst: matrix_t, transform: matrix_t, fill_value: number): void {
         if (typeof fill_value === "undefined") { fill_value = 0; }
         var src_width = src.cols, src_height = src.rows, dst_width = dst.cols, dst_height = dst.rows;
         var src_d = src.data, dst_d = dst.data;
@@ -1355,7 +1355,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
     }
     // Basic RGB Skin detection filter
     // from http://popscan.blogspot.fr/2012/08/skin-detection-in-digital-images.html
-    skindetector(src: { width: number; height: number; data: any[] }, dst: number[]) {
+    skindetector(src: { width: number; height: number; data: any[] }, dst: number[]): void {
         var r, g, b, j;
         var i = src.width * src.height;
         while (i--) {
@@ -2447,7 +2447,7 @@ jsfeatNext.orb = class orb extends jsfeatNext {
         this.imgproc = new jsfeatNext.imgproc();
     }
 
-    describe(src: matrix_t, corners: { x: number, y: number, angle: number }[], count: number, descriptors: matrix_t): void {
+    describe(src: matrix_t, corners: keypoint_t[], count: number, descriptors: matrix_t): void {
         var DESCR_SIZE = 32; // bytes;
         var i = 0, b = 0, px = 0.0, py = 0.0, angle = 0.0;
         var t0 = 0, t1 = 0, val = 0;
