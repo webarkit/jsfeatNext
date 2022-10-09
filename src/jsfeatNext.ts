@@ -117,7 +117,7 @@ class motion_model extends jsfeatNext {
     }
 
     // does isotropic normalization
-    iso_normalize_points(from: { x: number, y: number }[], to: { x: number, y: number }[], T0: number[], T1: number[], count: number): void {
+    iso_normalize_points(from: point_t[], to: point_t[], T0: number[], T1: number[], count: number): void {
         var i = 0;
         var cx0 = 0.0, cy0 = 0.0, d0 = 0.0, s0 = 0.0;
         var cx1 = 0.0, cy1 = 0.0, d1 = 0.0, s1 = 0.0;
@@ -159,7 +159,7 @@ class motion_model extends jsfeatNext {
         T1[8] = 1.0;
     }
 
-    have_collinear_points(points: { x: number, y: number }[], count: number): boolean {
+    have_collinear_points(points: point_t[], count: number): boolean {
         var j = 0, k = 0, i = (count - 1) | 0;
         var dx1 = 0.0, dy1 = 0.0, dx2 = 0.0, dy2 = 0.0;
 
@@ -183,7 +183,7 @@ class affine2d extends motion_model {
     constructor() {
         super();
     }
-    run(from: { x: number, y: number }[], to: { x: number, y: number }[], model: matrix_t, count: number): number {
+    run(from: point_t[], to: point_t[], model: matrix_t, count: number): number {
         var i = 0, j = 0;
         var dt = model.type | JSFEAT_CONSTANTS.C1_t;
         var md = model.data, t0d = this.T0.data, t1d = this.T1.data;
@@ -247,7 +247,7 @@ class homography2d extends motion_model {
         this.mLtL = new matrix_t(9, 9, JSFEAT_CONSTANTS.F32_t | JSFEAT_CONSTANTS.C1_t);
         this.Evec = new matrix_t(9, 9, JSFEAT_CONSTANTS.F32_t | JSFEAT_CONSTANTS.C1_t);
     }
-    run(from: { x: number, y: number }[], to: { x: number, y: number }[], model: matrix_t, count: number): number {
+    run(from: point_t[], to: point_t[], model: matrix_t, count: number): number {
         var i = 0, j = 0;
         var md = model.data, t0d = this.T0.data, t1d = this.T1.data;
         var LtL = this.mLtL.data, evd = this.Evec.data;
@@ -369,7 +369,7 @@ class homography2d extends motion_model {
 
         return 1;
     }
-    error(from: { x: number, y: number }[], to: { x: number, y: number }[], model: matrix_t, err: Int32Array | Float32Array, count: number): void {
+    error(from: point_t[], to: point_t[], model: matrix_t, err: Int32Array | Float32Array, count: number): void {
         var i = 0;
         var pt0, pt1, ww = 0.0, dx = 0.0, dy = 0.0;
         var m = model.data;
@@ -384,7 +384,7 @@ class homography2d extends motion_model {
             err[i] = (dx * dx + dy * dy);
         }
     }
-    check_subset(from: { x: number, y: number }[], to: { x: number, y: number }[], count: number): boolean {
+    check_subset(from: point_t[], to: point_t[], count: number): boolean {
         // seems to reject good subsets actually
         //if( have_collinear_points(from, count) || have_collinear_points(to, count) ) {
         //return false;
@@ -2593,7 +2593,7 @@ jsfeatNext.motion_estimator = class motion_estimator extends jsfeatNext {
         super();
     }
 
-    get_subset(kernel: homography2d, from: any[], to: any[], need_cnt: number, max_cnt: number, from_sub: any[], to_sub: any[]): boolean {
+    get_subset(kernel: homography2d, from: point_t[], to: point_t[], need_cnt: number, max_cnt: number, from_sub: point_t[], to_sub: point_t[]): boolean {
         var max_try = 1000;
         var indices = [];
         var i = 0, j = 0, ssiter = 0, idx_i = 0, ok = false;
@@ -2835,7 +2835,7 @@ jsfeatNext.optical_flow_lk = class optical_flow_lk extends jsfeatNext {
         var _imgproc = new jsfeatNext.imgproc()
         this.scharr_deriv = _imgproc.scharr_derivatives;
     }
-    track(prev_pyr: pyramid_t, curr_pyr: pyramid_t, prev_xy: number[], curr_xy: number[], count: number, win_size: number, max_iter: number, status: Uint8Array, eps: number, min_eigen_threshold: number): void {
+    track(prev_pyr: pyramid_t, curr_pyr: pyramid_t, prev_xy: Float32Array, curr_xy: Float32Array, count: number, win_size: number, max_iter: number, status: Uint8Array, eps: number, min_eigen_threshold: number): void {
         if (typeof max_iter === "undefined") { max_iter = 30; }
         if (typeof status === "undefined") { status = new Uint8Array(count); }
         if (typeof eps === "undefined") { eps = 0.01; }
