@@ -9,6 +9,7 @@ import { math } from './math/math'
 import matmath from './matmath/matmath'
 import { matrix_t } from './matrix_t/matrix_t'
 import { pyramid_t } from './pyramid_t/pyramid_t'
+import { point_t } from './point_t/point_t'
 import { keypoint_t } from './keypoint_t/keypoint_t'
 import { orb } from './orb/orb'
 import { bit_pattern_31 } from './orb/bit_pattern_31'
@@ -2622,7 +2623,7 @@ jsfeatNext.motion_estimator = class motion_estimator extends jsfeatNext {
         return (i == need_cnt && ssiter < max_try);
     }
 
-    find_inliers(kernel: homography2d, model: matrix_t, from: { x: number, y: number }[], to: { x: number, y: number }[], count: number, thresh: number, err: Int32Array | Float32Array, mask: number[]): number {
+    find_inliers(kernel: homography2d, model: matrix_t, from: point_t[], to: point_t[], count: number, thresh: number, err: Int32Array | Float32Array, mask: number[]): number {
         var numinliers: number = 0, i = 0, f = 0;
         var t = thresh * thresh;
 
@@ -2636,7 +2637,7 @@ jsfeatNext.motion_estimator = class motion_estimator extends jsfeatNext {
         return numinliers;
     }
 
-    ransac(params: ransac_params_t, kernel: any, from: { x: number, y: number }[], to: { x: number, y: number }[], count: number, model: matrix_t, mask: { data: { [x: string]: number } }, max_iters: number): boolean {
+    ransac(params: ransac_params_t, kernel: any, from: point_t[], to: point_t[], count: number, model: matrix_t, mask: matrix_t, max_iters: number): boolean {
         if (typeof max_iters === "undefined") { max_iters = 1000; }
 
         if (count < params.size) return false;
@@ -2721,7 +2722,7 @@ jsfeatNext.motion_estimator = class motion_estimator extends jsfeatNext {
         return result;
     }
 
-    lmeds(params: ransac_params_t, kernel: any, from: { x: number, y: number }[], to: { x: number, y: number }[], count: number, model: matrix_t, mask: { data: { [x: string]: number } }, max_iters: number): boolean {
+    lmeds(params: ransac_params_t, kernel: any, from: point_t[], to: point_t[], count: number, model: matrix_t, mask: matrix_t, max_iters: number): boolean {
         if (typeof max_iters === "undefined") { max_iters = 1000; }
 
         if (count < params.size) return false;

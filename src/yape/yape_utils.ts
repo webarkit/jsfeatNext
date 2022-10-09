@@ -1,4 +1,4 @@
-export function precompute_directions(step: number, dirs: Int32Array, R: number) {
+export function precompute_directions(step: number, dirs: Int32Array, R: number): number {
     var i = 0;
     var x, y;
 
