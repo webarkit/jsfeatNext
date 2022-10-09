@@ -1,8 +1,12 @@
+import { matrix_t } from '../matrix_t/matrix_t'
 export class imgproc {
-    pyrdown(src: { cols: any; rows: any; channel: any; data: any }, dst: { resize: (arg0: number, arg1: number, arg2: any) => void; data: any }, sx: number, sy: number) {
+    pyrdown(src: matrix_t, dst: matrix_t, sx: number, sy: number): void {
         throw new Error('Method not implemented.');
     }
-    scharr_derivatives(src: { cols: any; rows: any; data: any; type: number }, dst: { resize: (arg0: any, arg1: any, arg2: number) => void; data: any }) {
+    scharr_derivatives(src: matrix_t, dst: matrix_t): void {
         throw new Error('Method not implemented.');
+    }
+    warp_affine(src: matrix_t, dst: matrix_t, transform: matrix_t, fill_value: number): void {
+        throw new Error('Method not implemented.'); 
     }
 }
