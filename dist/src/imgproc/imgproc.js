@@ -5,5 +5,8 @@ export class imgproc {
     scharr_derivatives(src, dst) {
         throw new Error('Method not implemented.');
     }
+    warp_affine(src, dst, transform, fill_value) {
+        throw new Error('Method not implemented.');
+    }
 }
 //# sourceMappingURL=imgproc.js.map
