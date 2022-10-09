@@ -472,13 +472,13 @@ jsfeatNext.pyramid_t = class pyramid_t extends jsfeatNext {
         var _imgproc = new jsfeatNext.imgproc();
         this.pyrdown = _imgproc.pyrdown;
     }
-    allocate(start_w: number, start_h: number, data_type: number) {
+    allocate(start_w: number, start_h: number, data_type: number): void {
         var i = this.levels;
         while (--i >= 0) {
             this.data[i] = new matrix_t(start_w >> i, start_h >> i, data_type);
         }
     }
-    build(input: matrix_t, skip_first_level: boolean) {
+    build(input: matrix_t, skip_first_level: boolean): void {
         if (typeof skip_first_level === "undefined") { skip_first_level = true; }
         // just copy data to first level
         var i = 2, a = input, b: any = this.data[0];
@@ -1383,7 +1383,7 @@ jsfeatNext.math = class math extends jsfeatNext {
         this.qsort_stack = new Int32Array(48 * 2);
     }
 
-    get_gaussian_kernel(size: number, sigma: number, kernel: any, data_type: any): void {
+    get_gaussian_kernel(size: number, sigma: number, kernel: Float32Array | Int32Array, data_type: number): void {
         var i = 0, x = 0.0, t = 0.0, sigma_x = 0.0, scale_2x = 0.0;
         var sum = 0.0;
         var kern_node = this.cache.get_buffer(size << 2);
@@ -1441,7 +1441,7 @@ jsfeatNext.math = class math extends jsfeatNext {
     }
 
     // model is 3x3 matrix_t
-    perspective_4point_transform(model: any, src_x0: number, src_y0: number, dst_x0: number, dst_y0: number,
+    perspective_4point_transform(model: matrix_t, src_x0: number, src_y0: number, dst_x0: number, dst_y0: number,
         src_x1: number, src_y1: number, dst_x1: number, dst_y1: number,
         src_x2: number, src_y2: number, dst_x2: number, dst_y2: number,
         src_x3: number, src_y3: number, dst_x3: number, dst_y3: number): void {
@@ -1560,7 +1560,7 @@ jsfeatNext.math = class math extends jsfeatNext {
     // The current implementation was derived from *BSD system qsort():
     // Copyright (c) 1992, 1993
     // The Regents of the University of California.  All rights reserved.
-    qsort(array: number[], low: number, high: number, cmp: any): void {
+    qsort(array: number[], low: number, high: number, cmp: (a: number, b: number) => number): void {
         var isort_thresh = 7;
         var t, ta, tb, tc;
         var sp = 0, left = 0, right = 0, i = 0, n = 0, m = 0, ptr = 0, ptr2 = 0, d = 0;
