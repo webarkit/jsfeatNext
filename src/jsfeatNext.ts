@@ -1940,7 +1940,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         this.cache.put_buffer(indC_buff);
     }
 
-    JacobiSVDImpl(At: Int32Array | Float32Array | Float64Array, astep: number, _W: any[], Vt: Int32Array | Float32Array | Float64Array, vstep: number, m: number, n: number, n1: number): void {
+    JacobiSVDImpl(At: Int32Array | Float32Array | Float64Array, astep: number, _W: Int32Array | Float32Array | Float64Array, Vt: Int32Array | Float32Array | Float64Array, vstep: number, m: number, n: number, n1: number): void {
         var eps = JSFEAT_CONSTANTS.EPSILON * 2.0;
         var minval = JSFEAT_CONSTANTS.FLT_MIN;
         var i = 0, j = 0, k = 0, iter = 0, max_iter = Math.max(m, 30);
@@ -2130,7 +2130,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         this.cache.put_buffer(W_buff);
     }
 
-    lu_solve(A: { cols: any; data: any }, B: { data: any }): number {
+    lu_solve(A: matrix_t, B: matrix_t): number {
         var i = 0, j = 0, k = 0, p = 1, astep = A.cols;
         var ad = A.data, bd = B.data;
         var t, alpha, d, s;
@@ -2182,7 +2182,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         return 1; // OK
     }
 
-    cholesky_solve(A: { cols: any; data: any }, B: { data: any }): number {
+    cholesky_solve(A: matrix_t, B: matrix_t): number {
         var col = 0, row = 0, col2 = 0, cs = 0, rs = 0, i = 0, j = 0;
         var size = A.cols;
         var ad = A.data, bd = B.data;
@@ -2334,7 +2334,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
 
     }
 
-    svd_solve(A: { rows: any; cols: any; type: number }, X: { data: number[] }, B: { data: any }): void {
+    svd_solve(A: matrix_t, X: matrix_t, B: matrix_t): void {
         var i = 0, j = 0, k = 0;
         var pu = 0, pv = 0;
         var nrows = A.rows, ncols = A.cols;
@@ -2408,7 +2408,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         this.cache.put_buffer(v_buff);
     }
 
-    eigenVV(A: matrix_t, vects: matrix_t, vals?: { data: { [x: string]: any } }): void {
+    eigenVV(A: matrix_t, vects: matrix_t, vals?: matrix_t): void {
         var n = A.cols, i = n * n;
         var dt = A.type | JSFEAT_CONSTANTS.C1_t;
 
