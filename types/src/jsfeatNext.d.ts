@@ -5,6 +5,7 @@ import { math } from './math/math';
 import matmath from './matmath/matmath';
 import { matrix_t } from './matrix_t/matrix_t';
 import { pyramid_t } from './pyramid_t/pyramid_t';
+import { point_t } from './point_t/point_t';
 import { keypoint_t } from './keypoint_t/keypoint_t';
 import { orb } from './orb/orb';
 import { yape } from './yape/yape';
@@ -69,52 +70,19 @@ declare class motion_model extends jsfeatNext {
     AtB: matrix_t;
     constructor();
     sqr(x: number): number;
-    iso_normalize_points(from: {
-        x: number;
-        y: number;
-    }[], to: {
-        x: number;
-        y: number;
-    }[], T0: number[], T1: number[], count: number): void;
-    have_collinear_points(points: {
-        x: number;
-        y: number;
-    }[], count: number): boolean;
+    iso_normalize_points(from: point_t[], to: point_t[], T0: number[], T1: number[], count: number): void;
+    have_collinear_points(points: point_t[], count: number): boolean;
 }
 declare class affine2d extends motion_model {
     constructor();
-    run(from: {
-        x: number;
-        y: number;
-    }[], to: {
-        x: number;
-        y: number;
-    }[], model: matrix_t, count: number): number;
+    run(from: point_t[], to: point_t[], model: matrix_t, count: number): number;
 }
 declare class homography2d extends motion_model {
     mLtL: matrix_t;
     Evec: matrix_t;
     constructor();
-    run(from: {
-        x: number;
-        y: number;
-    }[], to: {
-        x: number;
-        y: number;
-    }[], model: matrix_t, count: number): number;
-    error(from: {
-        x: number;
-        y: number;
-    }[], to: {
-        x: number;
-        y: number;
-    }[], model: matrix_t, err: Int32Array | Float32Array, count: number): void;
-    check_subset(from: {
-        x: number;
-        y: number;
-    }[], to: {
-        x: number;
-        y: number;
-    }[], count: number): boolean;
+    run(from: point_t[], to: point_t[], model: matrix_t, count: number): number;
+    error(from: point_t[], to: point_t[], model: matrix_t, err: Int32Array | Float32Array, count: number): void;
+    check_subset(from: point_t[], to: point_t[], count: number): boolean;
 }
 export {};
