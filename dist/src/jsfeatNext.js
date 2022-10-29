@@ -3,6 +3,7 @@ import { cache } from './cache/cache';
 import { _resample, _resample_u8 } from './imgproc/resample';
 import { _convol, _convol_u8 } from './imgproc/convol';
 import { swap, hypot } from './linalg/linalg_base';
+import { _cmp_score_16 } from './fast_corners/fast_private';
 import matmath from './matmath/matmath';
 import { matrix_t } from './matrix_t/matrix_t';
 import { keypoint_t } from './keypoint_t/keypoint_t';
@@ -17,6 +18,7 @@ export default class jsfeatNext {
     dt;
     cache;
     static cache;
+    static fast_corners;
     static imgproc;
     static linalg;
     static math;
@@ -418,6 +420,177 @@ jsfeatNext.pyramid_t = class pyramid_t extends jsfeatNext {
 };
 jsfeatNext.matrix_t = matrix_t;
 jsfeatNext.keypoint_t = keypoint_t;
+jsfeatNext.fast_corners = class fast_corners extends jsfeatNext {
+    offsets16;
+    _threshold;
+    threshold_tab;
+    pixel_off;
+    score_diff;
+    constructor() {
+        super();
+        this.offsets16 = new Int32Array([0, 3, 1, 3, 2, 2, 3, 1, 3, 0, 3, -1, 2, -2, 1, -3, 0, -3, -1, -3, -2, -2, -3, -1, -3, 0, -3, 1, -2, 2, -1, 3]);
+        this.threshold_tab = new Uint8Array(512);
+        this._threshold = 20;
+        this.pixel_off = new Int32Array(25);
+        this.score_diff = new Int32Array(25);
+    }
+    ;
+    set_threshold(threshold) {
+        this._threshold = Math.min(Math.max(threshold, 0), 255);
+        for (var i = -255; i <= 255; ++i) {
+            this.threshold_tab[(i + 255)] = (i < -this._threshold ? 1 : (i > this._threshold ? 2 : 0));
+        }
+        return this._threshold;
+    }
+    detect(src, corners, border) {
+        if (typeof border === "undefined") {
+            border = 3;
+        }
+        var K = 8, N = 25;
+        var img = src.data, w = src.cols, h = src.rows;
+        var i = 0, j = 0, k = 0, vt = 0, x = 0, m3 = 0;
+        var buf_node = this.cache.get_buffer(3 * w);
+        var cpbuf_node = this.cache.get_buffer(((w + 1) * 3) << 2);
+        var buf = buf_node.u8;
+        var cpbuf = cpbuf_node.i32;
+        var pixel = this.pixel_off;
+        var sd = this.score_diff;
+        var sy = Math.max(3, border);
+        var ey = Math.min((h - 2), (h - border));
+        var sx = Math.max(3, border);
+        var ex = Math.min((w - 3), (w - border));
+        var _count = 0, corners_cnt = 0, pt;
+        var score_func = _cmp_score_16;
+        var thresh_tab = this.threshold_tab;
+        var threshold = this._threshold;
+        var v = 0, tab = 0, d = 0, ncorners = 0, cornerpos = 0, curr = 0, ptr = 0, prev = 0, pprev = 0;
+        var jp1 = 0, jm1 = 0, score = 0;
+        this._cmp_offsets(pixel, w, 16);
+        var pixel0 = pixel[0];
+        var pixel1 = pixel[1];
+        var pixel2 = pixel[2];
+        var pixel3 = pixel[3];
+        var pixel4 = pixel[4];
+        var pixel5 = pixel[5];
+        var pixel6 = pixel[6];
+        var pixel7 = pixel[7];
+        var pixel8 = pixel[8];
+        var pixel9 = pixel[9];
+        var pixel10 = pixel[10];
+        var pixel11 = pixel[11];
+        var pixel12 = pixel[12];
+        var pixel13 = pixel[13];
+        var pixel14 = pixel[14];
+        var pixel15 = pixel[15];
+        for (i = 0; i < w * 3; ++i) {
+            buf[i] = 0;
+        }
+        for (i = sy; i < ey; ++i) {
+            ptr = ((i * w) + sx) | 0;
+            m3 = (i - 3) % 3;
+            curr = (m3 * w) | 0;
+            cornerpos = (m3 * (w + 1)) | 0;
+            for (j = 0; j < w; ++j)
+                buf[curr + j] = 0;
+            ncorners = 0;
+            if (i < (ey - 1)) {
+                j = sx;
+                for (; j < ex; ++j, ++ptr) {
+                    v = img[ptr];
+                    tab = (-v + 255);
+                    d = (thresh_tab[tab + img[ptr + pixel0]] | thresh_tab[tab + img[ptr + pixel8]]);
+                    if (d == 0) {
+                        continue;
+                    }
+                    d &= (thresh_tab[tab + img[ptr + pixel2]] | thresh_tab[tab + img[ptr + pixel10]]);
+                    d &= (thresh_tab[tab + img[ptr + pixel4]] | thresh_tab[tab + img[ptr + pixel12]]);
+                    d &= (thresh_tab[tab + img[ptr + pixel6]] | thresh_tab[tab + img[ptr + pixel14]]);
+                    if (d == 0) {
+                        continue;
+                    }
+                    d &= (thresh_tab[tab + img[ptr + pixel1]] | thresh_tab[tab + img[ptr + pixel9]]);
+                    d &= (thresh_tab[tab + img[ptr + pixel3]] | thresh_tab[tab + img[ptr + pixel11]]);
+                    d &= (thresh_tab[tab + img[ptr + pixel5]] | thresh_tab[tab + img[ptr + pixel13]]);
+                    d &= (thresh_tab[tab + img[ptr + pixel7]] | thresh_tab[tab + img[ptr + pixel15]]);
+                    if (d & 1) {
+                        vt = (v - threshold);
+                        _count = 0;
+                        for (k = 0; k < N; ++k) {
+                            x = img[(ptr + pixel[k])];
+                            if (x < vt) {
+                                ++_count;
+                                if (_count > K) {
+                                    ++ncorners;
+                                    cpbuf[cornerpos + ncorners] = j;
+                                    buf[curr + j] = score_func(img, ptr, pixel, sd, threshold);
+                                    break;
+                                }
+                            }
+                            else {
+                                _count = 0;
+                            }
+                        }
+                    }
+                    if (d & 2) {
+                        vt = (v + threshold);
+                        _count = 0;
+                        for (k = 0; k < N; ++k) {
+                            x = img[(ptr + pixel[k])];
+                            if (x > vt) {
+                                ++_count;
+                                if (_count > K) {
+                                    ++ncorners;
+                                    cpbuf[cornerpos + ncorners] = j;
+                                    buf[curr + j] = score_func(img, ptr, pixel, sd, threshold);
+                                    break;
+                                }
+                            }
+                            else {
+                                _count = 0;
+                            }
+                        }
+                    }
+                }
+            }
+            cpbuf[cornerpos + w] = ncorners;
+            if (i == sy) {
+                continue;
+            }
+            m3 = (i - 4 + 3) % 3;
+            prev = (m3 * w) | 0;
+            cornerpos = (m3 * (w + 1)) | 0;
+            m3 = (i - 5 + 3) % 3;
+            pprev = (m3 * w) | 0;
+            ncorners = cpbuf[cornerpos + w];
+            for (k = 0; k < ncorners; ++k) {
+                j = cpbuf[cornerpos + k];
+                jp1 = (j + 1) | 0;
+                jm1 = (j - 1) | 0;
+                score = buf[prev + j];
+                if ((score > buf[prev + jp1] && score > buf[prev + jm1] &&
+                    score > buf[pprev + jm1] && score > buf[pprev + j] && score > buf[pprev + jp1] &&
+                    score > buf[curr + jm1] && score > buf[curr + j] && score > buf[curr + jp1])) {
+                    pt = corners[corners_cnt];
+                    pt.x = j, pt.y = (i - 1), pt.score = score;
+                    corners_cnt++;
+                }
+            }
+        }
+        this.cache.put_buffer(buf_node);
+        this.cache.put_buffer(cpbuf_node);
+        return corners_cnt;
+    }
+    _cmp_offsets(pixel, step, pattern_size) {
+        var k = 0;
+        var offsets = this.offsets16;
+        for (; k < pattern_size; ++k) {
+            pixel[k] = offsets[k << 1] + offsets[(k << 1) + 1] * step;
+        }
+        for (; k < 25; ++k) {
+            pixel[k] = pixel[k - pattern_size];
+        }
+    }
+};
 jsfeatNext.imgproc = class imgproc extends jsfeatNext {
     constructor() {
         super();
