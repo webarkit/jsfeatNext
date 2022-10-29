@@ -1,6 +1,7 @@
 import { cache } from './cache/cache';
 import { imgproc } from './imgproc/imgproc';
 import { linalg } from './linalg/linalg';
+import { fast_corners } from './fast_corners/fast_corners';
 import { math } from './math/math';
 import matmath from './matmath/matmath';
 import { matrix_t } from './matrix_t/matrix_t';
@@ -17,6 +18,7 @@ export default class jsfeatNext {
     private dt;
     protected cache: cache;
     static cache: typeof cache;
+    static fast_corners: typeof fast_corners;
     static imgproc: typeof imgproc;
     static linalg: typeof linalg;
     static math: typeof math;
