@@ -36,6 +36,7 @@ working = ✔️ not working = ⚠️
 - sample_box_blur.html ✔️
 - sample_canny_edge.html 
 - sample_equalize_hist.html ✔️
+- sample_fast_corners.html ✔️
 - sample_gaussblur.html ✔️
 - sample_oflow_lk.html ✔️
 - sample_orb.html ✔️
