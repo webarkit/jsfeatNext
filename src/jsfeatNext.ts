@@ -520,14 +520,14 @@ jsfeatNext.fast_corners = class fast_corners extends jsfeatNext{
         this.pixel_off = new Int32Array(25);
         this.score_diff = new Int32Array(25);
     };
-    set_threshold(threshold: number) {
+    set_threshold(threshold: number): number {
         this._threshold = Math.min(Math.max(threshold, 0), 255);
         for (var i = -255; i <= 255; ++i) {
             this.threshold_tab[(i + 255)] = (i < -this._threshold ? 1 : (i > this._threshold ? 2 : 0));
         }
         return this._threshold;
     }
-    detect(src: matrix_t, corners: point_t[], border: number) {
+    detect(src: matrix_t, corners: point_t[], border: number): number {
         if (typeof border === "undefined") { border = 3; }
 
         var K = 8, N = 25;
