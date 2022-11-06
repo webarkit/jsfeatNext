@@ -1,6 +1,6 @@
 import { matrix_t } from '../matrix_t/matrix_t'
 export class imgproc {
-    grayscale(src: number[], w: number, h: number, dst: matrix_t, code: number): void {
+    grayscale(src: Uint8Array | Uint8ClampedArray, w: number, h: number, dst: matrix_t, code: number): void {
         throw new Error('Method not implemented.');
     }
     pyrdown(src: matrix_t, dst: matrix_t, sx: number, sy: number): void {
