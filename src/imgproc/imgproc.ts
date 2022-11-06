@@ -15,7 +15,7 @@ export class imgproc {
     hough_transform(img: matrix_t, rho_res: number, theta_res: number, threshold: number): Array<number> {
         throw new Error('Method not implemented.');
     }
-    pyrdown(src: matrix_t, dst: matrix_t, sx: number, sy: number): void {
+    pyrdown(src: matrix_t, dst: matrix_t, sx?: number, sy?: number): void {
         throw new Error('Method not implemented.');
     }
     scharr_derivatives(src: matrix_t, dst: matrix_t): void {

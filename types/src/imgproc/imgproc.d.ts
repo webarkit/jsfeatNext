@@ -5,7 +5,7 @@ export declare class imgproc {
     box_blur_gray(src: matrix_t, dst: matrix_t, radius: number, options: number): void;
     gaussian_blur(src: matrix_t, dst: matrix_t, kernel_size: number, sigma: number): void;
     hough_transform(img: matrix_t, rho_res: number, theta_res: number, threshold: number): Array<number>;
-    pyrdown(src: matrix_t, dst: matrix_t, sx: number, sy: number): void;
+    pyrdown(src: matrix_t, dst: matrix_t, sx?: number, sy?: number): void;
     scharr_derivatives(src: matrix_t, dst: matrix_t): void;
     sobel_derivatives(src: matrix_t, dst: matrix_t): void;
     compute_integral_image(src: matrix_t, dst_sum: number[], dst_sqsum: number[], dst_tilted: any[]): void;
