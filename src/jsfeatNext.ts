@@ -1024,7 +1024,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         }
         return lines;
     }
-    pyrdown(src: matrix_t, dst: matrix_t, sx: number, sy: number): void {
+    pyrdown(src: matrix_t, dst: matrix_t, sx?: number, sy?: number): void {
         // this is needed for bbf
         if (typeof sx === "undefined") { sx = 0; }
         if (typeof sy === "undefined") { sy = 0; }
