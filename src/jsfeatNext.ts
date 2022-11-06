@@ -582,36 +582,36 @@ jsfeatNext.fast_corners = class fast_corners extends jsfeatNext{
             cornerpos = (m3*(w+1))|0;
             for (j = 0; j < w; ++j) buf[curr+j] = 0;
             ncorners = 0;
-            
+
             if( i < (ey - 1) ) {
                 j = sx;
-                
+
                 for( ; j < ex; ++j, ++ptr ) {
                     v = img[ptr];
                     tab = ( - v + 255 );
                     d = ( thresh_tab[tab+img[ptr+pixel0]] | thresh_tab[tab+img[ptr+pixel8]] );
-                    
+
                     if( d == 0 ) {
                         continue;
                     }
-                    
+
                     d &= ( thresh_tab[tab+img[ptr+pixel2]] | thresh_tab[tab+img[ptr+pixel10]] );
                     d &= ( thresh_tab[tab+img[ptr+pixel4]] | thresh_tab[tab+img[ptr+pixel12]] );
                     d &= ( thresh_tab[tab+img[ptr+pixel6]] | thresh_tab[tab+img[ptr+pixel14]] );
-                    
+
                     if( d == 0 ) {
                         continue;
                     }
-                    
+
                     d &= ( thresh_tab[tab+img[ptr+pixel1]] | thresh_tab[tab+img[ptr+pixel9]] );
                     d &= ( thresh_tab[tab+img[ptr+pixel3]] | thresh_tab[tab+img[ptr+pixel11]] );
                     d &= ( thresh_tab[tab+img[ptr+pixel5]] | thresh_tab[tab+img[ptr+pixel13]] );
                     d &= ( thresh_tab[tab+img[ptr+pixel7]] | thresh_tab[tab+img[ptr+pixel15]] );
-                    
+
                     if( d & 1 ) {
                         vt = (v - threshold);
                         _count = 0;
-                        
+
                         for( k = 0; k < N; ++k ) {
                             x = img[(ptr+pixel[k])];
                             if(x < vt) {
@@ -628,11 +628,11 @@ jsfeatNext.fast_corners = class fast_corners extends jsfeatNext{
                             }
                         }
                     }
-                    
+
                     if( d & 2 ) {
                         vt = (v + threshold);
                         _count = 0;
-                        
+
                         for( k = 0; k < N; ++k ) {
                             x = img[(ptr+pixel[k])];
                             if(x > vt) {
@@ -651,13 +651,13 @@ jsfeatNext.fast_corners = class fast_corners extends jsfeatNext{
                     }
                 }
             }
-            
+
             cpbuf[cornerpos+w] = ncorners;
-    
+
             if ( i == sy ) {
                 continue;
             }
-            
+
             m3 = (i - 4 + 3)%3;
             prev = (m3*w)|0;
             cornerpos = (m3*(w+1))|0;
@@ -665,7 +665,7 @@ jsfeatNext.fast_corners = class fast_corners extends jsfeatNext{
             pprev = (m3*w)|0;
 
             ncorners = cpbuf[cornerpos+w];
-            
+
             for( k = 0; k < ncorners; ++k ) {
                 j = cpbuf[cornerpos+k];
                 jp1 = (j+1)|0;
@@ -703,7 +703,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
     constructor() {
         super();
     };
-    grayscale(src: number[], w: number, h: number, dst: matrix_t, code: number): void {
+    grayscale(src: Uint8Array | Uint8ClampedArray, w: number, h: number, dst: matrix_t, code: number): void {
         // this is default image data representation in browser
         if (typeof code === "undefined") { code = JSFEAT_CONSTANTS.COLOR_RGBA2GRAY; }
         var x = 0, y = 0, i = 0, j = 0, ir = 0, jr = 0;
@@ -764,7 +764,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         dst.resize(w, h, src.channel);
 
         // first pass
-        // no need to scale 
+        // no need to scale
         //data_u8 = src.data;
         //data_i32 = tmp;
         for (y = 0; y < h; ++y) {
@@ -1190,7 +1190,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         this.cache.put_buffer(buf0_node);
         this.cache.put_buffer(buf1_node);
     }
-    // please note: 
+    // please note:
     // dst_(type) size should be cols = src.cols+1, rows = src.rows+1
     compute_integral_image(src: matrix_t, dst_sum: number[], dst_sqsum: number[], dst_tilted: any[]): void {
         var w0 = src.cols | 0, h0 = src.rows | 0, src_d = src.data;
@@ -2447,7 +2447,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
     svd_decompose(A: any, W: matrix_t, U: matrix_t, V: matrix_t, options: number): void {
         if (typeof options === "undefined") { options = 0; };
         var at = 0, i = 0, j = 0, _m = A.rows, _n = A.cols, m = _m, n = _n;
-        var dt = A.type | JSFEAT_CONSTANTS.C1_t; // we only work with single channel 
+        var dt = A.type | JSFEAT_CONSTANTS.C1_t; // we only work with single channel
 
         if (m < n) {
             at = 1;
