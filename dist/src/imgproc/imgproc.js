@@ -1,4 +1,7 @@
 export class imgproc {
+    grayscale(src, w, h, dst, code) {
+        throw new Error('Method not implemented.');
+    }
     pyrdown(src, dst, sx, sy) {
         throw new Error('Method not implemented.');
     }
