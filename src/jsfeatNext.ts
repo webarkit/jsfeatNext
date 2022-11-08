@@ -1984,7 +1984,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         this.matmath = new matmath();
     }
 
-    JacobiImpl(A: Int32Array | Float32Array | Float64Array, astep: number, W: Int32Array | Float32Array | Float64Array, V: Int32Array | Float32Array | Float64Array, vstep: number, n: number) {
+    JacobiImpl(A: Int32Array | Float32Array | Float64Array, astep: number, W: Int32Array | Float32Array | Float64Array, V: Int32Array | Float32Array | Float64Array, vstep: number, n: number): void {
         var eps = JSFEAT_CONSTANTS.EPSILON;
         var i = 0, j = 0, k = 0, m = 0, l = 0, idx = 0, _in = 0, _in2 = 0;
         var iters = 0, max_iter = n * n * 30;
