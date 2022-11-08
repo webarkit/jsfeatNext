@@ -3,6 +3,12 @@ import { data_t } from '../node_utils/data_t'
 import { JSFEAT_CONSTANTS } from '../constants/constants'
 
 export interface IMatrix_T {
+    cols: number;
+    rows: number;
+    type: number;
+    channel: number;
+    data: any;
+    buffer: data_t
     allocate: () => void;
     copy_to: (other: any) => void;
     resize: (c: number, r: number, ch: any) => void;
@@ -37,7 +43,7 @@ export class matrix_t implements IMatrix_T {
         this.buffer = new data_t((this.cols * this.dt._get_data_type_size(this.type) * this.channel) * this.rows);
         this.data = this.type & JSFEAT_CONSTANTS.U8_t ? this.buffer.u8 : (this.type & JSFEAT_CONSTANTS.S32_t ? this.buffer.i32 : (this.type & JSFEAT_CONSTANTS.F32_t ? this.buffer.f32 : this.buffer.f64));
     }
-    copy_to(other: any): void {
+    copy_to(other: IMatrix_T): void {
         var od = other.data, td = this.data;
         var i = 0, n = (this.cols * this.rows * this.channel) | 0;
         for (; i < n - 4; i += 4) {
