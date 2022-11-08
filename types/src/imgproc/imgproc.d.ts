@@ -1,6 +1,6 @@
 import { matrix_t } from '../matrix_t/matrix_t';
 export declare class imgproc {
-    grayscale(src: Uint8Array | Uint8ClampedArray, w: number, h: number, dst: matrix_t, code: number): void;
+    grayscale(src: Uint8Array | Uint8ClampedArray, w: number, h: number, dst: matrix_t, code?: number): void;
     resample(src: matrix_t, dst: matrix_t, nw: number, nh: number): void;
     box_blur_gray(src: matrix_t, dst: matrix_t, radius: number, options: number): void;
     gaussian_blur(src: matrix_t, dst: matrix_t, kernel_size: number, sigma: number): void;

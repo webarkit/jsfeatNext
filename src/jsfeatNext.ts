@@ -703,7 +703,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
     constructor() {
         super();
     };
-    grayscale(src: Uint8Array | Uint8ClampedArray, w: number, h: number, dst: matrix_t, code: number): void {
+    grayscale(src: Uint8Array | Uint8ClampedArray, w: number, h: number, dst: matrix_t, code?: number): void {
         // this is default image data representation in browser
         if (typeof code === "undefined") { code = JSFEAT_CONSTANTS.COLOR_RGBA2GRAY; }
         var x = 0, y = 0, i = 0, j = 0, ir = 0, jr = 0;
