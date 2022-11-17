@@ -12,6 +12,7 @@ import matmath from './matmath/matmath'
 import { matrix_t } from './matrix_t/matrix_t'
 import { pyramid_t } from './pyramid_t/pyramid_t'
 import { point_t } from './point_t/point_t'
+import { transform } from './transform/transform'
 import { keypoint_t } from './keypoint_t/keypoint_t'
 import { orb } from './orb/orb'
 import { bit_pattern_31 } from './orb/bit_pattern_31'
@@ -36,6 +37,7 @@ export default class jsfeatNext {
     static matmath: typeof matmath;
     static matrix_t: typeof matrix_t;
     static pyramid_t: typeof pyramid_t;
+    static transform: typeof transform;
     static keypoint_t: typeof keypoint_t;
     static yape: typeof yape;
     static yape06: typeof yape06;
@@ -501,6 +503,8 @@ jsfeatNext.pyramid_t = class pyramid_t extends jsfeatNext {
         }
     }
 };
+
+jsfeatNext.transform = transform;
 
 jsfeatNext.matrix_t = matrix_t;
 
