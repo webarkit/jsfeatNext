@@ -48,3 +48,11 @@ working = ✔️ not working = ⚠️
 - sample_warp_perspective.html ✔️
 - sample_yape.html ✔️
 - sample_yape06.html ✔️
+
+## Typescript examples
+
+You can find some Typescript examples in this repository [jsfeatNext-examples](https://github.com/webarkit/jsfeatNext-examples). 
+
+## Documentation
+
+There is not yet an official webarkit documentation but you can read the [original jsfeat docs](https://inspirit.github.io/jsfeat/) to have an idea of classes and functions. We tried to be much close as possible to the original code, so if it woks on **jsfeat** it will works on **jsfeatNext**.
