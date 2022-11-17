@@ -6,6 +6,7 @@ import { swap, hypot } from './linalg/linalg_base';
 import { _cmp_score_16 } from './fast_corners/fast_private';
 import matmath from './matmath/matmath';
 import { matrix_t } from './matrix_t/matrix_t';
+import { transform } from './transform/transform';
 import { keypoint_t } from './keypoint_t/keypoint_t';
 import { bit_pattern_31 } from './orb/bit_pattern_31';
 import { rectify_patch } from './orb/rectify_patch';
@@ -25,6 +26,7 @@ export default class jsfeatNext {
     static matmath;
     static matrix_t;
     static pyramid_t;
+    static transform;
     static keypoint_t;
     static yape;
     static yape06;
@@ -418,6 +420,7 @@ jsfeatNext.pyramid_t = class pyramid_t extends jsfeatNext {
         }
     }
 };
+jsfeatNext.transform = transform;
 jsfeatNext.matrix_t = matrix_t;
 jsfeatNext.keypoint_t = keypoint_t;
 jsfeatNext.fast_corners = class fast_corners extends jsfeatNext {
