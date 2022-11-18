@@ -12,6 +12,25 @@ A testing repository to develop a ES6 version of [jsfeat](https://github.com/ins
 
 - npm packages
 
+## Classes
+These public classes were implemented:
+- cache
+- fast_corners
+- homography2d
+- imgproc
+- keypoint_t
+- linalg
+- math
+- matmath
+- matrix_t
+- motion_estimator
+- optical_flow_lk
+- orb
+- pyramid_t
+- transform
+- yape
+- yape06
+
 ## npm package
 You can install the package with:
 
