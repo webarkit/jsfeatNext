@@ -1646,6 +1646,7 @@ jsfeatNext.math = class math extends jsfeatNext {
         src_x1: number, src_y1: number, dst_x1: number, dst_y1: number,
         src_x2: number, src_y2: number, dst_x2: number, dst_y2: number,
         src_x3: number, src_y3: number, dst_x3: number, dst_y3: number): void {
+        console.warn("⚠️⚠️⚠️ This method is deprecated ad will be removed in the next releases, use transform.perspective_4point_transform() instead. ⚠️⚠️⚠️");
         var t1 = src_x0;
         var t2 = src_x2;
         var t4 = src_y1;
