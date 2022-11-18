@@ -1,3 +1,12 @@
+![github releases](https://flat.badgen.net/github/release/webarkit/jsfeatNext)
+![github stars](https://flat.badgen.net/github/stars/webarkit/jsfeatNext)
+![github forks](https://flat.badgen.net/github/forks/webarkit/jsfeatNext)
+![npm package version](https://flat.badgen.net/npm/v/@webarkit/jsfeat-next)
+![Dependabot Badge](https://flat.badgen.net/dependabot/thepracticaldev/dev.to?icon=dependabot)
+[![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square)](https://github.com/prettier/prettier)
+[![CI](https://github.com/webarkit/ARnft/actions/workflows/CI.yml/badge.svg)](https://github.com/webarkit/jsfeatNext/actions/workflows/CI.yml)
+![twitter](https://flat.badgen.net/twitter/follow/WebarkitO)
+
 # jsfeatNext
 
 A testing repository to develop a ES6 version of [jsfeat](https://github.com/inspirit/jsfeat) for the WebARKit project. Consider that this is a test and many things may changes during the development. I will provide some examples for testing.
