@@ -1,4 +1,4 @@
-import _pool_node_t from './../node_utils/_pool_node_t'
+import _pool_node_t from "./../node_utils/_pool_node_t";
 
 export interface ICache {
     allocate: (capacity: any, data_size: number) => void;

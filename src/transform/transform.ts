@@ -1,6 +1,6 @@
-import { matrix_t } from '../matrix_t/matrix_t'
+import { matrix_t } from "../matrix_t/matrix_t";
 export class transform {
-    constructor() { }
+    constructor() {}
 
     /*affine_3point_transform(mat, src_x0, src_y0, dst_x0, dst_y0,
         src_x1, src_y1, dst_x1, dst_y1,
@@ -8,10 +8,25 @@ export class transform {
         // we need linear algebra module first
     };*/
 
-    perspective_4point_transform(model: matrix_t, src_x0: number, src_y0: number, dst_x0: number, dst_y0: number,
-        src_x1: number, src_y1: number, dst_x1: number, dst_y1: number,
-        src_x2: number, src_y2: number, dst_x2: number, dst_y2: number,
-        src_x3: number, src_y3: number, dst_x3: number, dst_y3: number): void {
+    perspective_4point_transform(
+        model: matrix_t,
+        src_x0: number,
+        src_y0: number,
+        dst_x0: number,
+        dst_y0: number,
+        src_x1: number,
+        src_y1: number,
+        dst_x1: number,
+        dst_y1: number,
+        src_x2: number,
+        src_y2: number,
+        dst_x2: number,
+        dst_y2: number,
+        src_x3: number,
+        src_y3: number,
+        dst_x3: number,
+        dst_y3: number
+    ): void {
         var t1 = src_x0;
         var t2 = src_x2;
         var t4 = src_y1;
@@ -122,14 +137,18 @@ export class transform {
         mat[6] = Hl6 * t48 + Hl7 * (t18 * t15) - t23 * t15;
         mat[7] = Hl6 * t49 + Hl7 * (t31 * t15) - t35 * t15;
         mat[8] = -Hl6 * t50 - Hl7 * (t44 * t15) + t47 * t15;
-    };
+    }
 
     invert_affine_transform(src: matrix_t, dst: matrix_t): void {
         var src_d = src.data;
         var dst_d = dst.data;
 
-        var m11 = src_d[0], m12 = src_d[1], m13 = src_d[2];
-        var m21 = src_d[3], m22 = src_d[4], m23 = src_d[5];
+        var m11 = src_d[0],
+            m12 = src_d[1],
+            m13 = src_d[2];
+        var m21 = src_d[3],
+            m22 = src_d[4],
+            m23 = src_d[5];
 
         var det = 1.0 / (m11 * m22 - m12 * m21);
 
@@ -140,14 +159,20 @@ export class transform {
         dst_d[3] = det * -m21;
         dst_d[4] = det * m11;
         dst_d[5] = det * (m13 * m21 - m11 * m23);
-    };
+    }
 
     invert_perspective_transform(src: matrix_t, dst: matrix_t): void {
         var src_d = src.data;
         var dst_d = dst.data;
-        var m11 = src_d[0], m12 = src_d[1], m13 = src_d[2];
-        var m21 = src_d[3], m22 = src_d[4], m23 = src_d[5];
-        var m31 = src_d[6], m32 = src_d[7], m33 = src_d[8];
+        var m11 = src_d[0],
+            m12 = src_d[1],
+            m13 = src_d[2];
+        var m21 = src_d[3],
+            m22 = src_d[4],
+            m23 = src_d[5];
+        var m31 = src_d[6],
+            m32 = src_d[7],
+            m33 = src_d[8];
 
         var det = 1.0 / (m11 * (m22 * m33 - m23 * m32) - m12 * (m21 * m33 - m23 * m31) + m13 * (m21 * m32 - m22 * m31));
 
@@ -162,6 +187,5 @@ export class transform {
         dst_d[6] = det * (m21 * m32 - m22 * m31);
         dst_d[7] = det * (m12 * m31 - m11 * m32);
         dst_d[8] = det * (m11 * m22 - m12 * m21);
-    };
-
+    }
 }

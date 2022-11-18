@@ -109,7 +109,6 @@ export class transform {
         mat[7] = Hl6 * t49 + Hl7 * (t31 * t15) - t35 * t15;
         mat[8] = -Hl6 * t50 - Hl7 * (t44 * t15) + t47 * t15;
     }
-    ;
     invert_affine_transform(src, dst) {
         var src_d = src.data;
         var dst_d = dst.data;
@@ -123,7 +122,6 @@ export class transform {
         dst_d[4] = det * m11;
         dst_d[5] = det * (m13 * m21 - m11 * m23);
     }
-    ;
     invert_perspective_transform(src, dst) {
         var src_d = src.data;
         var dst_d = dst.data;
@@ -141,6 +139,5 @@ export class transform {
         dst_d[7] = det * (m12 * m31 - m11 * m32);
         dst_d[8] = det * (m11 * m22 - m12 * m21);
     }
-    ;
 }
 //# sourceMappingURL=transform.js.map

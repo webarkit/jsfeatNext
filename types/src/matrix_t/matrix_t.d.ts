@@ -1,4 +1,4 @@
-import { data_t } from '../node_utils/data_t';
+import { data_t } from "../node_utils/data_t";
 export interface IMatrix_T {
     cols: number;
     rows: number;

@@ -1,6 +1,6 @@
 export class orb {
     describe(src, corners, count, descriptors) {
-        throw new Error('Method not implemented.');
+        throw new Error("Method not implemented.");
     }
 }
 //# sourceMappingURL=orb.js.map

@@ -1,20 +1,20 @@
-import { data_type } from './data_type/data_type';
-import { cache } from './cache/cache';
-import { _resample, _resample_u8 } from './imgproc/resample';
-import { _convol, _convol_u8 } from './imgproc/convol';
-import { swap, hypot } from './linalg/linalg_base';
-import { _cmp_score_16 } from './fast_corners/fast_private';
-import matmath from './matmath/matmath';
-import { matrix_t } from './matrix_t/matrix_t';
-import { transform } from './transform/transform';
-import { keypoint_t } from './keypoint_t/keypoint_t';
-import { bit_pattern_31 } from './orb/bit_pattern_31';
-import { rectify_patch } from './orb/rectify_patch';
-import { yape } from './yape/yape';
-import { compute_laplacian, hessian_min_eigen_value } from './yape06/yape06_utils';
-import { ransac_params_t } from './motion_estimator/ransac_params_t';
-import { JSFEAT_CONSTANTS } from './constants/constants';
-import pkg from '../package.json';
+import { data_type } from "./data_type/data_type";
+import { cache } from "./cache/cache";
+import { _resample, _resample_u8 } from "./imgproc/resample";
+import { _convol, _convol_u8 } from "./imgproc/convol";
+import { swap, hypot } from "./linalg/linalg_base";
+import { _cmp_score_16 } from "./fast_corners/fast_private";
+import matmath from "./matmath/matmath";
+import { matrix_t } from "./matrix_t/matrix_t";
+import { transform } from "./transform/transform";
+import { keypoint_t } from "./keypoint_t/keypoint_t";
+import { bit_pattern_31 } from "./orb/bit_pattern_31";
+import { rectify_patch } from "./orb/rectify_patch";
+import { yape } from "./yape/yape";
+import { compute_laplacian, hessian_min_eigen_value } from "./yape06/yape06_utils";
+import { ransac_params_t } from "./motion_estimator/ransac_params_t";
+import { JSFEAT_CONSTANTS } from "./constants/constants";
+import pkg from "../package.json";
 export default class jsfeatNext {
     dt;
     cache;
@@ -139,7 +139,8 @@ class motion_model extends jsfeatNext {
             for (k = 0; k < j; ++k) {
                 dx2 = points[k].x - points[i].x;
                 dy2 = points[k].y - points[i].y;
-                if (Math.abs(dx2 * dy1 - dy2 * dx1) <= JSFEAT_CONSTANTS.EPSILON * (Math.abs(dx1) + Math.abs(dy1) + Math.abs(dx2) + Math.abs(dy2)))
+                if (Math.abs(dx2 * dy1 - dy2 * dx1) <=
+                    JSFEAT_CONSTANTS.EPSILON * (Math.abs(dx1) + Math.abs(dy1) + Math.abs(dx2) + Math.abs(dy2)))
                     return true;
             }
         }
@@ -169,18 +170,18 @@ class affine2d extends motion_model {
             px = t0d[0] * pt0.x + t0d[1] * pt0.y + t0d[2];
             py = t0d[3] * pt0.x + t0d[4] * pt0.y + t0d[5];
             j = i * 2 * 6;
-            ad[j] = px, ad[j + 1] = py, ad[j + 2] = 1.0, ad[j + 3] = 0.0, ad[j + 4] = 0.0, ad[j + 5] = 0.0;
+            (ad[j] = px), (ad[j + 1] = py), (ad[j + 2] = 1.0), (ad[j + 3] = 0.0), (ad[j + 4] = 0.0), (ad[j + 5] = 0.0);
             j += 6;
-            ad[j] = 0.0, ad[j + 1] = 0.0, ad[j + 2] = 0.0, ad[j + 3] = px, ad[j + 4] = py, ad[j + 5] = 1.0;
+            (ad[j] = 0.0), (ad[j + 1] = 0.0), (ad[j + 2] = 0.0), (ad[j + 3] = px), (ad[j + 4] = py), (ad[j + 5] = 1.0);
             bd[i << 1] = t1d[0] * pt1.x + t1d[1] * pt1.y + t1d[2];
             bd[(i << 1) + 1] = t1d[3] * pt1.x + t1d[4] * pt1.y + t1d[5];
         }
         _matmath.multiply_AtA(this.AtA, a_mt);
         _matmath.multiply_AtB(this.AtB, a_mt, b_mt);
         _linalg.lu_solve(this.AtA, this.AtB);
-        md[0] = this.AtB.data[0], md[1] = this.AtB.data[1], md[2] = this.AtB.data[2];
-        md[3] = this.AtB.data[3], md[4] = this.AtB.data[4], md[5] = this.AtB.data[5];
-        md[6] = 0.0, md[7] = 0.0, md[8] = 1.0;
+        (md[0] = this.AtB.data[0]), (md[1] = this.AtB.data[1]), (md[2] = this.AtB.data[2]);
+        (md[3] = this.AtB.data[3]), (md[4] = this.AtB.data[4]), (md[5] = this.AtB.data[5]);
+        (md[6] = 0.0), (md[7] = 0.0), (md[8] = 1.0);
         _matmath.invert_3x3(this.T1, this.T1);
         _matmath.multiply_3x3(model, this.T1, model);
         _matmath.multiply_3x3(model, model, this.T0);
@@ -221,10 +222,10 @@ class homography2d extends motion_model {
             sMx += Math.abs(from[i].x - cMx);
             sMy += Math.abs(from[i].y - cMy);
         }
-        if (Math.abs(smx) < JSFEAT_CONSTANTS.EPSILON
-            || Math.abs(smy) < JSFEAT_CONSTANTS.EPSILON
-            || Math.abs(sMx) < JSFEAT_CONSTANTS.EPSILON
-            || Math.abs(sMy) < JSFEAT_CONSTANTS.EPSILON)
+        if (Math.abs(smx) < JSFEAT_CONSTANTS.EPSILON ||
+            Math.abs(smy) < JSFEAT_CONSTANTS.EPSILON ||
+            Math.abs(sMx) < JSFEAT_CONSTANTS.EPSILON ||
+            Math.abs(sMy) < JSFEAT_CONSTANTS.EPSILON)
             return 0;
         smx = count / smx;
         smy = count / smy;
@@ -299,9 +300,9 @@ class homography2d extends motion_model {
                 LtL[i * 9 + j] = LtL[j * 9 + i];
         }
         _linalg.eigenVV(this.mLtL, this.Evec);
-        md[0] = evd[72], md[1] = evd[73], md[2] = evd[74];
-        md[3] = evd[75], md[4] = evd[76], md[5] = evd[77];
-        md[6] = evd[78], md[7] = evd[79], md[8] = evd[80];
+        (md[0] = evd[72]), (md[1] = evd[73]), (md[2] = evd[74]);
+        (md[3] = evd[75]), (md[4] = evd[76]), (md[5] = evd[77]);
+        (md[6] = evd[78]), (md[7] = evd[79]), (md[8] = evd[80]);
         _matmath.multiply_3x3(model, this.T1, model);
         _matmath.multiply_3x3(model, model, this.T0);
         x = 1.0 / md[8];
@@ -326,7 +327,7 @@ class homography2d extends motion_model {
             ww = 1.0 / (m[6] * pt0.x + m[7] * pt0.y + 1.0);
             dx = (m[0] * pt0.x + m[1] * pt0.y + m[2]) * ww - pt1.x;
             dy = (m[3] * pt0.x + m[4] * pt0.y + m[5]) * ww - pt1.y;
-            err[i] = (dx * dx + dy * dy);
+            err[i] = dx * dx + dy * dy;
         }
     }
     check_subset(from, to, count) {
@@ -345,32 +346,32 @@ class homography2d extends motion_model {
             var detB = _matmath.determinant_3x3(B11, B12, B13, B21, B22, B23, B31, B32, B33);
             if (detA * detB < 0)
                 negative++;
-            A11 = fp1.x, A12 = fp1.y;
-            A21 = fp2.x, A22 = fp2.y;
-            A31 = fp3.x, A32 = fp3.y;
-            B11 = tp1.x, B12 = tp1.y;
-            B21 = tp2.x, B22 = tp2.y;
-            B31 = tp3.x, B32 = tp3.y;
+            (A11 = fp1.x), (A12 = fp1.y);
+            (A21 = fp2.x), (A22 = fp2.y);
+            (A31 = fp3.x), (A32 = fp3.y);
+            (B11 = tp1.x), (B12 = tp1.y);
+            (B21 = tp2.x), (B22 = tp2.y);
+            (B31 = tp3.x), (B32 = tp3.y);
             detA = _matmath.determinant_3x3(A11, A12, A13, A21, A22, A23, A31, A32, A33);
             detB = _matmath.determinant_3x3(B11, B12, B13, B21, B22, B23, B31, B32, B33);
             if (detA * detB < 0)
                 negative++;
-            A11 = fp0.x, A12 = fp0.y;
-            A21 = fp2.x, A22 = fp2.y;
-            A31 = fp3.x, A32 = fp3.y;
-            B11 = tp0.x, B12 = tp0.y;
-            B21 = tp2.x, B22 = tp2.y;
-            B31 = tp3.x, B32 = tp3.y;
+            (A11 = fp0.x), (A12 = fp0.y);
+            (A21 = fp2.x), (A22 = fp2.y);
+            (A31 = fp3.x), (A32 = fp3.y);
+            (B11 = tp0.x), (B12 = tp0.y);
+            (B21 = tp2.x), (B22 = tp2.y);
+            (B31 = tp3.x), (B32 = tp3.y);
             detA = _matmath.determinant_3x3(A11, A12, A13, A21, A22, A23, A31, A32, A33);
             detB = _matmath.determinant_3x3(B11, B12, B13, B21, B22, B23, B31, B32, B33);
             if (detA * detB < 0)
                 negative++;
-            A11 = fp0.x, A12 = fp0.y;
-            A21 = fp1.x, A22 = fp1.y;
-            A31 = fp3.x, A32 = fp3.y;
-            B11 = tp0.x, B12 = tp0.y;
-            B21 = tp1.x, B22 = tp1.y;
-            B31 = tp3.x, B32 = tp3.y;
+            (A11 = fp0.x), (A12 = fp0.y);
+            (A21 = fp1.x), (A22 = fp1.y);
+            (A31 = fp3.x), (A32 = fp3.y);
+            (B11 = tp0.x), (B12 = tp0.y);
+            (B21 = tp1.x), (B22 = tp1.y);
+            (B31 = tp3.x), (B32 = tp3.y);
             detA = _matmath.determinant_3x3(A11, A12, A13, A21, A22, A23, A31, A32, A33);
             detB = _matmath.determinant_3x3(B11, B12, B13, B21, B22, B23, B31, B32, B33);
             if (detA * detB < 0)
@@ -431,17 +432,19 @@ jsfeatNext.fast_corners = class fast_corners extends jsfeatNext {
     score_diff;
     constructor() {
         super();
-        this.offsets16 = new Int32Array([0, 3, 1, 3, 2, 2, 3, 1, 3, 0, 3, -1, 2, -2, 1, -3, 0, -3, -1, -3, -2, -2, -3, -1, -3, 0, -3, 1, -2, 2, -1, 3]);
+        this.offsets16 = new Int32Array([
+            0, 3, 1, 3, 2, 2, 3, 1, 3, 0, 3, -1, 2, -2, 1, -3, 0, -3, -1, -3, -2, -2, -3, -1, -3, 0, -3, 1, -2, 2, -1,
+            3,
+        ]);
         this.threshold_tab = new Uint8Array(512);
         this._threshold = 20;
         this.pixel_off = new Int32Array(25);
         this.score_diff = new Int32Array(25);
     }
-    ;
     set_threshold(threshold) {
         this._threshold = Math.min(Math.max(threshold, 0), 255);
         for (var i = -255; i <= 255; ++i) {
-            this.threshold_tab[(i + 255)] = (i < -this._threshold ? 1 : (i > this._threshold ? 2 : 0));
+            this.threshold_tab[i + 255] = i < -this._threshold ? 1 : i > this._threshold ? 2 : 0;
         }
         return this._threshold;
     }
@@ -459,9 +462,9 @@ jsfeatNext.fast_corners = class fast_corners extends jsfeatNext {
         var pixel = this.pixel_off;
         var sd = this.score_diff;
         var sy = Math.max(3, border);
-        var ey = Math.min((h - 2), (h - border));
+        var ey = Math.min(h - 2, h - border);
         var sx = Math.max(3, border);
-        var ex = Math.min((w - 3), (w - border));
+        var ex = Math.min(w - 3, w - border);
         var _count = 0, corners_cnt = 0, pt;
         var score_func = _cmp_score_16;
         var thresh_tab = this.threshold_tab;
@@ -489,37 +492,37 @@ jsfeatNext.fast_corners = class fast_corners extends jsfeatNext {
             buf[i] = 0;
         }
         for (i = sy; i < ey; ++i) {
-            ptr = ((i * w) + sx) | 0;
+            ptr = (i * w + sx) | 0;
             m3 = (i - 3) % 3;
             curr = (m3 * w) | 0;
             cornerpos = (m3 * (w + 1)) | 0;
             for (j = 0; j < w; ++j)
                 buf[curr + j] = 0;
             ncorners = 0;
-            if (i < (ey - 1)) {
+            if (i < ey - 1) {
                 j = sx;
                 for (; j < ex; ++j, ++ptr) {
                     v = img[ptr];
-                    tab = (-v + 255);
-                    d = (thresh_tab[tab + img[ptr + pixel0]] | thresh_tab[tab + img[ptr + pixel8]]);
+                    tab = -v + 255;
+                    d = thresh_tab[tab + img[ptr + pixel0]] | thresh_tab[tab + img[ptr + pixel8]];
                     if (d == 0) {
                         continue;
                     }
-                    d &= (thresh_tab[tab + img[ptr + pixel2]] | thresh_tab[tab + img[ptr + pixel10]]);
-                    d &= (thresh_tab[tab + img[ptr + pixel4]] | thresh_tab[tab + img[ptr + pixel12]]);
-                    d &= (thresh_tab[tab + img[ptr + pixel6]] | thresh_tab[tab + img[ptr + pixel14]]);
+                    d &= thresh_tab[tab + img[ptr + pixel2]] | thresh_tab[tab + img[ptr + pixel10]];
+                    d &= thresh_tab[tab + img[ptr + pixel4]] | thresh_tab[tab + img[ptr + pixel12]];
+                    d &= thresh_tab[tab + img[ptr + pixel6]] | thresh_tab[tab + img[ptr + pixel14]];
                     if (d == 0) {
                         continue;
                     }
-                    d &= (thresh_tab[tab + img[ptr + pixel1]] | thresh_tab[tab + img[ptr + pixel9]]);
-                    d &= (thresh_tab[tab + img[ptr + pixel3]] | thresh_tab[tab + img[ptr + pixel11]]);
-                    d &= (thresh_tab[tab + img[ptr + pixel5]] | thresh_tab[tab + img[ptr + pixel13]]);
-                    d &= (thresh_tab[tab + img[ptr + pixel7]] | thresh_tab[tab + img[ptr + pixel15]]);
+                    d &= thresh_tab[tab + img[ptr + pixel1]] | thresh_tab[tab + img[ptr + pixel9]];
+                    d &= thresh_tab[tab + img[ptr + pixel3]] | thresh_tab[tab + img[ptr + pixel11]];
+                    d &= thresh_tab[tab + img[ptr + pixel5]] | thresh_tab[tab + img[ptr + pixel13]];
+                    d &= thresh_tab[tab + img[ptr + pixel7]] | thresh_tab[tab + img[ptr + pixel15]];
                     if (d & 1) {
-                        vt = (v - threshold);
+                        vt = v - threshold;
                         _count = 0;
                         for (k = 0; k < N; ++k) {
-                            x = img[(ptr + pixel[k])];
+                            x = img[ptr + pixel[k]];
                             if (x < vt) {
                                 ++_count;
                                 if (_count > K) {
@@ -535,10 +538,10 @@ jsfeatNext.fast_corners = class fast_corners extends jsfeatNext {
                         }
                     }
                     if (d & 2) {
-                        vt = (v + threshold);
+                        vt = v + threshold;
                         _count = 0;
                         for (k = 0; k < N; ++k) {
-                            x = img[(ptr + pixel[k])];
+                            x = img[ptr + pixel[k]];
                             if (x > vt) {
                                 ++_count;
                                 if (_count > K) {
@@ -570,11 +573,16 @@ jsfeatNext.fast_corners = class fast_corners extends jsfeatNext {
                 jp1 = (j + 1) | 0;
                 jm1 = (j - 1) | 0;
                 score = buf[prev + j];
-                if ((score > buf[prev + jp1] && score > buf[prev + jm1] &&
-                    score > buf[pprev + jm1] && score > buf[pprev + j] && score > buf[pprev + jp1] &&
-                    score > buf[curr + jm1] && score > buf[curr + j] && score > buf[curr + jp1])) {
+                if (score > buf[prev + jp1] &&
+                    score > buf[prev + jm1] &&
+                    score > buf[pprev + jm1] &&
+                    score > buf[pprev + j] &&
+                    score > buf[pprev + jp1] &&
+                    score > buf[curr + jm1] &&
+                    score > buf[curr + j] &&
+                    score > buf[curr + jp1]) {
                     pt = corners[corners_cnt];
-                    pt.x = j, pt.y = (i - 1), pt.score = score;
+                    (pt.x = j), (pt.y = i - 1), (pt.score = score);
                     corners_cnt++;
                 }
             }
@@ -598,7 +606,6 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
     constructor() {
         super();
     }
-    ;
     grayscale(src, w, h, dst, code) {
         if (typeof code === "undefined") {
             code = JSFEAT_CONSTANTS.COLOR_RGBA2GRAY;
@@ -618,9 +625,12 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         for (y = 0; y < h; ++y, j += w, i += w * cn) {
             for (x = 0, ir = i, jr = j; x <= w - 4; x += 4, ir += cn << 2, jr += 4) {
                 dst_u8[jr] = (src[ir] * coeff_r + src[ir + 1] * coeff_g + src[ir + 2] * coeff_b + 8192) >> 14;
-                dst_u8[jr + 1] = (src[ir + cn] * coeff_r + src[ir + cn + 1] * coeff_g + src[ir + cn + 2] * coeff_b + 8192) >> 14;
-                dst_u8[jr + 2] = (src[ir + cn2] * coeff_r + src[ir + cn2 + 1] * coeff_g + src[ir + cn2 + 2] * coeff_b + 8192) >> 14;
-                dst_u8[jr + 3] = (src[ir + cn3] * coeff_r + src[ir + cn3 + 1] * coeff_g + src[ir + cn3 + 2] * coeff_b + 8192) >> 14;
+                dst_u8[jr + 1] =
+                    (src[ir + cn] * coeff_r + src[ir + cn + 1] * coeff_g + src[ir + cn + 2] * coeff_b + 8192) >> 14;
+                dst_u8[jr + 2] =
+                    (src[ir + cn2] * coeff_r + src[ir + cn2 + 1] * coeff_g + src[ir + cn2 + 2] * coeff_b + 8192) >> 14;
+                dst_u8[jr + 3] =
+                    (src[ir + cn3] * coeff_r + src[ir + cn3 + 1] * coeff_g + src[ir + cn3 + 2] * coeff_b + 8192) >> 14;
             }
             for (; x < w; ++x, ++jr, ir += cn) {
                 dst_u8[jr] = (src[ir] * coeff_r + src[ir + 1] * coeff_g + src[ir + 2] * coeff_b + 8192) >> 14;
@@ -631,7 +641,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         var h = src.rows, w = src.cols;
         if (h > nh && w > nw) {
             dst.resize(nw, nh, src.channel);
-            if (src.type & JSFEAT_CONSTANTS.U8_t && dst.type & JSFEAT_CONSTANTS.U8_t && h * w / (nh * nw) < 0x100) {
+            if (src.type & JSFEAT_CONSTANTS.U8_t && dst.type & JSFEAT_CONSTANTS.U8_t && (h * w) / (nh * nw) < 0x100) {
                 _resample_u8(src, dst, this.cache, nw, nh);
             }
             else {
@@ -647,7 +657,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         var i = 0, x = 0, y = 0, end = 0;
         var windowSize = ((radius << 1) + 1) | 0;
         var radiusPlusOne = (radius + 1) | 0, radiusPlus2 = (radiusPlusOne + 1) | 0;
-        var scale = options & JSFEAT_CONSTANTS.BOX_BLUR_NOSCALE ? 1 : (1.0 / (windowSize * windowSize));
+        var scale = options & JSFEAT_CONSTANTS.BOX_BLUR_NOSCALE ? 1 : 1.0 / (windowSize * windowSize);
         var tmp_buff = this.cache.get_buffer((w * h) << 2);
         var sum = 0, dstIndex = 0, srcIndex = 0, nextPixelIndex = 0, previousPixelIndex = 0;
         var data_i32 = tmp_buff.i32;
@@ -778,7 +788,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         if (typeof kernel_size === "undefined") {
             kernel_size = 0;
         }
-        kernel_size = kernel_size == 0 ? (Math.max(1, (4.0 * sigma + 1.0 - 1e-8)) * 2 + 1) | 0 : kernel_size;
+        kernel_size = kernel_size == 0 ? (Math.max(1, 4.0 * sigma + 1.0 - 1e-8) * 2 + 1) | 0 : kernel_size;
         var half_kernel = kernel_size >> 1;
         var w = src.cols, h = src.rows;
         var data_type = src.type, is_u8 = data_type & JSFEAT_CONSTANTS.U8_t;
@@ -845,8 +855,10 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
             for (var n = 0; n < numangle; n++) {
                 var base = (n + 1) * (numrho + 2) + r + 1;
                 if (accum[base] > threshold &&
-                    accum[base] > accum[base - 1] && accum[base] >= accum[base + 1] &&
-                    accum[base] > accum[base - numrho - 2] && accum[base] >= accum[base + numrho + 2]) {
+                    accum[base] > accum[base - 1] &&
+                    accum[base] >= accum[base + 1] &&
+                    accum[base] > accum[base - numrho - 2] &&
+                    accum[base] >= accum[base + numrho + 2]) {
                     _sort_buf.push(base);
                 }
             }
@@ -884,14 +896,12 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
             sline = sptr;
             dline = dptr;
             for (x = 0; x <= _w2 - 2; x += 2, dline += 2, sline += 4) {
-                dst_d[dline] = (src_d[sline] + src_d[sline + 1] +
-                    src_d[sline + w] + src_d[sline + w + 1] + 2) >> 2;
-                dst_d[dline + 1] = (src_d[sline + 2] + src_d[sline + 3] +
-                    src_d[sline + w + 2] + src_d[sline + w + 3] + 2) >> 2;
+                dst_d[dline] = (src_d[sline] + src_d[sline + 1] + src_d[sline + w] + src_d[sline + w + 1] + 2) >> 2;
+                dst_d[dline + 1] =
+                    (src_d[sline + 2] + src_d[sline + 3] + src_d[sline + w + 2] + src_d[sline + w + 3] + 2) >> 2;
             }
             for (; x < _w2; ++x, ++dline, sline += 2) {
-                dst_d[dline] = (src_d[sline] + src_d[sline + 1] +
-                    src_d[sline + w] + src_d[sline + w + 1] + 2) >> 2;
+                dst_d[dline] = (src_d[sline] + src_d[sline + 1] + src_d[sline + w] + src_d[sline + w + 1] + 2) >> 2;
             }
             sptr += w << 1;
             dptr += w2;
@@ -919,17 +929,17 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
             srow2 = ((y < h - 1 ? y + 1 : h - 2) * w) | 0;
             drow = (y * dstep) | 0;
             for (x = 0, x1 = 1; x <= w - 2; x += 2, x1 += 2) {
-                a = img[srow0 + x], b = img[srow2 + x];
-                trow0[x1] = ((a + b) * 3 + (img[srow1 + x]) * 10);
-                trow1[x1] = (b - a);
-                a = img[srow0 + x + 1], b = img[srow2 + x + 1];
-                trow0[x1 + 1] = ((a + b) * 3 + (img[srow1 + x + 1]) * 10);
-                trow1[x1 + 1] = (b - a);
+                (a = img[srow0 + x]), (b = img[srow2 + x]);
+                trow0[x1] = (a + b) * 3 + img[srow1 + x] * 10;
+                trow1[x1] = b - a;
+                (a = img[srow0 + x + 1]), (b = img[srow2 + x + 1]);
+                trow0[x1 + 1] = (a + b) * 3 + img[srow1 + x + 1] * 10;
+                trow1[x1 + 1] = b - a;
             }
             for (; x < w; ++x, ++x1) {
-                a = img[srow0 + x], b = img[srow2 + x];
-                trow0[x1] = ((a + b) * 3 + (img[srow1 + x]) * 10);
-                trow1[x1] = (b - a);
+                (a = img[srow0 + x]), (b = img[srow2 + x]);
+                trow0[x1] = (a + b) * 3 + img[srow1 + x] * 10;
+                trow1[x1] = b - a;
             }
             x = (w + 1) | 0;
             trow0[0] = trow0[1];
@@ -937,20 +947,24 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
             trow1[0] = trow1[1];
             trow1[x] = trow1[w];
             for (x = 0; x <= w - 4; x += 4) {
-                a = trow1[x + 2], b = trow1[x + 1], c = trow1[x + 3], d = trow1[x + 4],
-                    e = trow0[x + 2], f = trow0[x + 3];
-                gxgy[drow++] = (e - trow0[x]);
-                gxgy[drow++] = ((a + trow1[x]) * 3 + b * 10);
-                gxgy[drow++] = (f - trow0[x + 1]);
-                gxgy[drow++] = ((c + b) * 3 + a * 10);
-                gxgy[drow++] = ((trow0[x + 4] - e));
-                gxgy[drow++] = (((d + a) * 3 + c * 10));
-                gxgy[drow++] = ((trow0[x + 5] - f));
-                gxgy[drow++] = (((trow1[x + 5] + c) * 3 + d * 10));
+                (a = trow1[x + 2]),
+                    (b = trow1[x + 1]),
+                    (c = trow1[x + 3]),
+                    (d = trow1[x + 4]),
+                    (e = trow0[x + 2]),
+                    (f = trow0[x + 3]);
+                gxgy[drow++] = e - trow0[x];
+                gxgy[drow++] = (a + trow1[x]) * 3 + b * 10;
+                gxgy[drow++] = f - trow0[x + 1];
+                gxgy[drow++] = (c + b) * 3 + a * 10;
+                gxgy[drow++] = trow0[x + 4] - e;
+                gxgy[drow++] = (d + a) * 3 + c * 10;
+                gxgy[drow++] = trow0[x + 5] - f;
+                gxgy[drow++] = (trow1[x + 5] + c) * 3 + d * 10;
             }
             for (; x < w; ++x) {
-                gxgy[drow++] = ((trow0[x + 2] - trow0[x]));
-                gxgy[drow++] = (((trow1[x + 2] + trow1[x]) * 3 + trow1[x + 1] * 10));
+                gxgy[drow++] = trow0[x + 2] - trow0[x];
+                gxgy[drow++] = (trow1[x + 2] + trow1[x]) * 3 + trow1[x + 1] * 10;
             }
         }
         this.cache.put_buffer(buf0_node);
@@ -978,17 +992,17 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
             srow2 = ((y < h - 1 ? y + 1 : h - 2) * w) | 0;
             drow = (y * dstep) | 0;
             for (x = 0, x1 = 1; x <= w - 2; x += 2, x1 += 2) {
-                a = img[srow0 + x], b = img[srow2 + x];
-                trow0[x1] = ((a + b) + (img[srow1 + x] * 2));
-                trow1[x1] = (b - a);
-                a = img[srow0 + x + 1], b = img[srow2 + x + 1];
-                trow0[x1 + 1] = ((a + b) + (img[srow1 + x + 1] * 2));
-                trow1[x1 + 1] = (b - a);
+                (a = img[srow0 + x]), (b = img[srow2 + x]);
+                trow0[x1] = a + b + img[srow1 + x] * 2;
+                trow1[x1] = b - a;
+                (a = img[srow0 + x + 1]), (b = img[srow2 + x + 1]);
+                trow0[x1 + 1] = a + b + img[srow1 + x + 1] * 2;
+                trow1[x1 + 1] = b - a;
             }
             for (; x < w; ++x, ++x1) {
-                a = img[srow0 + x], b = img[srow2 + x];
-                trow0[x1] = ((a + b) + (img[srow1 + x] * 2));
-                trow1[x1] = (b - a);
+                (a = img[srow0 + x]), (b = img[srow2 + x]);
+                trow0[x1] = a + b + img[srow1 + x] * 2;
+                trow1[x1] = b - a;
             }
             x = (w + 1) | 0;
             trow0[0] = trow0[1];
@@ -996,20 +1010,24 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
             trow1[0] = trow1[1];
             trow1[x] = trow1[w];
             for (x = 0; x <= w - 4; x += 4) {
-                a = trow1[x + 2], b = trow1[x + 1], c = trow1[x + 3], d = trow1[x + 4],
-                    e = trow0[x + 2], f = trow0[x + 3];
-                gxgy[drow++] = (e - trow0[x]);
-                gxgy[drow++] = (a + trow1[x] + b * 2);
-                gxgy[drow++] = (f - trow0[x + 1]);
-                gxgy[drow++] = (c + b + a * 2);
-                gxgy[drow++] = (trow0[x + 4] - e);
-                gxgy[drow++] = (d + a + c * 2);
-                gxgy[drow++] = (trow0[x + 5] - f);
-                gxgy[drow++] = (trow1[x + 5] + c + d * 2);
+                (a = trow1[x + 2]),
+                    (b = trow1[x + 1]),
+                    (c = trow1[x + 3]),
+                    (d = trow1[x + 4]),
+                    (e = trow0[x + 2]),
+                    (f = trow0[x + 3]);
+                gxgy[drow++] = e - trow0[x];
+                gxgy[drow++] = a + trow1[x] + b * 2;
+                gxgy[drow++] = f - trow0[x + 1];
+                gxgy[drow++] = c + b + a * 2;
+                gxgy[drow++] = trow0[x + 4] - e;
+                gxgy[drow++] = d + a + c * 2;
+                gxgy[drow++] = trow0[x + 5] - f;
+                gxgy[drow++] = trow1[x + 5] + c + d * 2;
             }
             for (; x < w; ++x) {
-                gxgy[drow++] = (trow0[x + 2] - trow0[x]);
-                gxgy[drow++] = (trow1[x + 2] + trow1[x] + trow1[x + 1] * 2);
+                gxgy[drow++] = trow0[x + 2] - trow0[x];
+                gxgy[drow++] = trow1[x + 2] + trow1[x] + trow1[x + 1] * 2;
             }
         }
         this.cache.put_buffer(buf0_node);
@@ -1021,24 +1039,24 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         var s = 0, s2 = 0, p = 0, pup = 0, i = 0, j = 0, v = 0, k = 0;
         if (dst_sum && dst_sqsum) {
             for (; i < w1; ++i) {
-                dst_sum[i] = 0, dst_sqsum[i] = 0;
+                (dst_sum[i] = 0), (dst_sqsum[i] = 0);
             }
-            p = (w1 + 1) | 0, pup = 1;
+            (p = (w1 + 1) | 0), (pup = 1);
             for (i = 0, k = 0; i < h0; ++i, ++p, ++pup) {
                 s = s2 = 0;
                 for (j = 0; j <= w0 - 2; j += 2, k += 2, p += 2, pup += 2) {
                     v = src_d[k];
-                    s += v, s2 += v * v;
+                    (s += v), (s2 += v * v);
                     dst_sum[p] = dst_sum[pup] + s;
                     dst_sqsum[p] = dst_sqsum[pup] + s2;
                     v = src_d[k + 1];
-                    s += v, s2 += v * v;
+                    (s += v), (s2 += v * v);
                     dst_sum[p + 1] = dst_sum[pup + 1] + s;
                     dst_sqsum[p + 1] = dst_sqsum[pup + 1] + s2;
                 }
                 for (; j < w0; ++j, ++k, ++p, ++pup) {
                     v = src_d[k];
-                    s += v, s2 += v * v;
+                    (s += v), (s2 += v * v);
                     dst_sum[p] = dst_sum[pup] + s;
                     dst_sqsum[p] = dst_sqsum[pup] + s2;
                 }
@@ -1048,7 +1066,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
             for (; i < w1; ++i) {
                 dst_sum[i] = 0;
             }
-            p = (w1 + 1) | 0, pup = 1;
+            (p = (w1 + 1) | 0), (pup = 1);
             for (i = 0, k = 0; i < h0; ++i, ++p, ++pup) {
                 s = 0;
                 for (j = 0; j <= w0 - 2; j += 2, k += 2, p += 2, pup += 2) {
@@ -1067,7 +1085,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
             for (; i < w1; ++i) {
                 dst_sqsum[i] = 0;
             }
-            p = (w1 + 1) | 0, pup = 1;
+            (p = (w1 + 1) | 0), (pup = 1);
             for (i = 0, k = 0; i < h0; ++i, ++p, ++pup) {
                 s2 = 0;
                 for (j = 0; j <= w0 - 2; j += 2, k += 2, p += 2, pup += 2) {
@@ -1089,7 +1107,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
             for (i = 0; i < w1; ++i) {
                 dst_tilted[i] = 0;
             }
-            p = (w1 + 1) | 0, pup = 0;
+            (p = (w1 + 1) | 0), (pup = 0);
             for (i = 0, k = 0; i < h0; ++i, ++p, ++pup) {
                 for (j = 0; j <= w0 - 2; j += 2, k += 2, p += 2, pup += 2) {
                     dst_tilted[p] = src_d[k] + dst_tilted[pup];
@@ -1099,12 +1117,12 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
                     dst_tilted[p] = src_d[k] + dst_tilted[pup];
                 }
             }
-            p = (w1 + w0) | 0, pup = w0;
+            (p = (w1 + w0) | 0), (pup = w0);
             for (i = 0; i < h0; ++i, p += w1, pup += w1) {
                 dst_tilted[p] += dst_tilted[pup];
             }
             for (j = w0 - 1; j > 0; --j) {
-                p = j + h0 * w1, pup = p - w1;
+                (p = j + h0 * w1), (pup = p - w1);
                 for (i = h0; i > 0; --i, p -= w1, pup -= w1) {
                     dst_tilted[p] += dst_tilted[pup] + dst_tilted[pup + 1];
                 }
@@ -1164,8 +1182,8 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
             map[i] = 0;
         }
         for (; j < w; ++j, grad += 2) {
-            x = dxdy[grad], y = dxdy[grad + 1];
-            buf[row1 + j] = ((x ^ (x >> 31)) - (x >> 31)) + ((y ^ (y >> 31)) - (y >> 31));
+            (x = dxdy[grad]), (y = dxdy[grad + 1]);
+            buf[row1 + j] = (x ^ (x >> 31)) - (x >> 31) + ((y ^ (y >> 31)) - (y >> 31));
         }
         for (i = 1; i <= h; ++i, grad += w2) {
             if (i == h) {
@@ -1176,8 +1194,8 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
             }
             else {
                 for (j = 0; j < w; j++) {
-                    x = dxdy[grad + (j << 1)], y = dxdy[grad + (j << 1) + 1];
-                    buf[row2 + j] = ((x ^ (x >> 31)) - (x >> 31)) + ((y ^ (y >> 31)) - (y >> 31));
+                    (x = dxdy[grad + (j << 1)]), (y = dxdy[grad + (j << 1) + 1]);
+                    buf[row2 + j] = (x ^ (x >> 31)) - (x >> 31) + ((y ^ (y >> 31)) - (y >> 31));
                 }
             }
             _grad = (grad - w2) | 0;
@@ -1253,34 +1271,34 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
             map_i = stack[--stack_i];
             map_i -= map_w + 1;
             if (map[map_i] == 1)
-                map[map_i] = 2, stack[stack_i++] = map_i;
+                (map[map_i] = 2), (stack[stack_i++] = map_i);
             map_i += 1;
             if (map[map_i] == 1)
-                map[map_i] = 2, stack[stack_i++] = map_i;
+                (map[map_i] = 2), (stack[stack_i++] = map_i);
             map_i += 1;
             if (map[map_i] == 1)
-                map[map_i] = 2, stack[stack_i++] = map_i;
+                (map[map_i] = 2), (stack[stack_i++] = map_i);
             map_i += map_w;
             if (map[map_i] == 1)
-                map[map_i] = 2, stack[stack_i++] = map_i;
+                (map[map_i] = 2), (stack[stack_i++] = map_i);
             map_i -= 2;
             if (map[map_i] == 1)
-                map[map_i] = 2, stack[stack_i++] = map_i;
+                (map[map_i] = 2), (stack[stack_i++] = map_i);
             map_i += map_w;
             if (map[map_i] == 1)
-                map[map_i] = 2, stack[stack_i++] = map_i;
+                (map[map_i] = 2), (stack[stack_i++] = map_i);
             map_i += 1;
             if (map[map_i] == 1)
-                map[map_i] = 2, stack[stack_i++] = map_i;
+                (map[map_i] = 2), (stack[stack_i++] = map_i);
             map_i += 1;
             if (map[map_i] == 1)
-                map[map_i] = 2, stack[stack_i++] = map_i;
+                (map[map_i] = 2), (stack[stack_i++] = map_i);
         }
         map_i = map_w + 1;
         row0 = 0;
         for (i = 0; i < h; ++i, map_i += map_w) {
             for (j = 0; j < w; ++j) {
-                dst_d[row0++] = (Number(map[map_i + j] == 2) * 0xff);
+                dst_d[row0++] = Number(map[map_i + j] == 2) * 0xff;
             }
         }
         this.cache.put_buffer(dxdy_node);
@@ -1298,14 +1316,12 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         var td = transform.data;
         var m00 = td[0], m01 = td[1], m02 = td[2], m10 = td[3], m11 = td[4], m12 = td[5], m20 = td[6], m21 = td[7], m22 = td[8];
         for (var dptr = 0; y < dst_height; ++y) {
-            xs0 = m01 * y + m02,
-                ys0 = m11 * y + m12,
-                ws = m21 * y + m22;
+            (xs0 = m01 * y + m02), (ys0 = m11 * y + m12), (ws = m21 * y + m22);
             for (x = 0; x < dst_width; ++x, ++dptr, xs0 += m00, ys0 += m10, ws += m20) {
                 sc = 1.0 / ws;
-                xs = xs0 * sc, ys = ys0 * sc;
-                ixs = xs | 0, iys = ys | 0;
-                if (xs > 0 && ys > 0 && ixs < (src_width - 1) && iys < (src_height - 1)) {
+                (xs = xs0 * sc), (ys = ys0 * sc);
+                (ixs = xs | 0), (iys = ys | 0);
+                if (xs > 0 && ys > 0 && ixs < src_width - 1 && iys < src_height - 1) {
                     a = Math.max(xs - ixs, 0.0);
                     b = Math.max(ys - iys, 0.0);
                     off = (src_width * iys + ixs) | 0;
@@ -1333,7 +1349,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
             for (x = 0; x < dst_width; ++x, ++dptr, xs += m00, ys += m10) {
                 ixs = xs | 0;
                 iys = ys | 0;
-                if (ixs >= 0 && iys >= 0 && ixs < (src_width - 1) && iys < (src_height - 1)) {
+                if (ixs >= 0 && iys >= 0 && ixs < src_width - 1 && iys < src_height - 1) {
                     a = xs - ixs;
                     b = ys - iys;
                     off = src_width * iys + ixs;
@@ -1354,10 +1370,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
             r = src.data[j];
             g = src.data[j + 1];
             b = src.data[j + 2];
-            if ((r > 95) && (g > 40) && (b > 20)
-                && (r > g) && (r > b)
-                && (r - Math.min(g, b) > 15)
-                && (Math.abs(r - g) > 15)) {
+            if (r > 95 && g > 40 && b > 20 && r > g && r > b && r - Math.min(g, b) > 15 && Math.abs(r - g) > 15) {
                 dst[i] = 255;
             }
             else {
@@ -1384,17 +1397,25 @@ jsfeatNext.math = class math extends jsfeatNext {
                     sum = 1.0;
                     break;
                 case 1:
-                    _kernel[0] = 0.25, _kernel[1] = 0.5, _kernel[2] = 0.25;
+                    (_kernel[0] = 0.25), (_kernel[1] = 0.5), (_kernel[2] = 0.25);
                     sum = 0.25 + 0.5 + 0.25;
                     break;
                 case 2:
-                    _kernel[0] = 0.0625, _kernel[1] = 0.25, _kernel[2] = 0.375,
-                        _kernel[3] = 0.25, _kernel[4] = 0.0625;
+                    (_kernel[0] = 0.0625),
+                        (_kernel[1] = 0.25),
+                        (_kernel[2] = 0.375),
+                        (_kernel[3] = 0.25),
+                        (_kernel[4] = 0.0625);
                     sum = 0.0625 + 0.25 + 0.375 + 0.25 + 0.0625;
                     break;
                 case 3:
-                    _kernel[0] = 0.03125, _kernel[1] = 0.109375, _kernel[2] = 0.21875,
-                        _kernel[3] = 0.28125, _kernel[4] = 0.21875, _kernel[5] = 0.109375, _kernel[6] = 0.03125;
+                    (_kernel[0] = 0.03125),
+                        (_kernel[1] = 0.109375),
+                        (_kernel[2] = 0.21875),
+                        (_kernel[3] = 0.28125),
+                        (_kernel[4] = 0.21875),
+                        (_kernel[5] = 0.109375),
+                        (_kernel[6] = 0.03125);
                     sum = 0.03125 + 0.109375 + 0.21875 + 0.28125 + 0.21875 + 0.109375 + 0.03125;
                     break;
             }
@@ -1539,7 +1560,7 @@ jsfeatNext.math = class math extends jsfeatNext {
         var sp = 0, left = 0, right = 0, i = 0, n = 0, m = 0, ptr = 0, ptr2 = 0, d = 0;
         var left0 = 0, left1 = 0, right0 = 0, right1 = 0, pivot = 0, a = 0, b = 0, c = 0, swap_cnt = 0;
         var stack = this.qsort_stack;
-        if ((high - low + 1) <= 1)
+        if (high - low + 1 <= 1)
             return;
         stack[0] = low;
         stack[1] = high;
@@ -1548,7 +1569,7 @@ jsfeatNext.math = class math extends jsfeatNext {
             right = stack[(sp << 1) + 1];
             sp--;
             for (;;) {
-                n = (right - left) + 1;
+                n = right - left + 1;
                 if (n <= isort_thresh) {
                     for (ptr = left + 1; ptr <= right; ptr++) {
                         for (ptr2 = ptr; ptr2 > left && cmp(array[ptr2], array[ptr2 - 1]); ptr2--) {
@@ -1566,23 +1587,59 @@ jsfeatNext.math = class math extends jsfeatNext {
                     pivot = left + (n >> 1);
                     if (n > 40) {
                         d = n >> 3;
-                        a = left, b = left + d, c = left + (d << 1);
-                        ta = array[a], tb = array[b], tc = array[c];
-                        left = cmp(ta, tb) ? (cmp(tb, tc) ? b : (cmp(ta, tc) ? c : a))
-                            : (cmp(tc, tb) ? b : (cmp(ta, tc) ? a : c));
-                        a = pivot - d, b = pivot, c = pivot + d;
-                        ta = array[a], tb = array[b], tc = array[c];
-                        pivot = cmp(ta, tb) ? (cmp(tb, tc) ? b : (cmp(ta, tc) ? c : a))
-                            : (cmp(tc, tb) ? b : (cmp(ta, tc) ? a : c));
-                        a = right - (d << 1), b = right - d, c = right;
-                        ta = array[a], tb = array[b], tc = array[c];
-                        right = cmp(ta, tb) ? (cmp(tb, tc) ? b : (cmp(ta, tc) ? c : a))
-                            : (cmp(tc, tb) ? b : (cmp(ta, tc) ? a : c));
+                        (a = left), (b = left + d), (c = left + (d << 1));
+                        (ta = array[a]), (tb = array[b]), (tc = array[c]);
+                        left = cmp(ta, tb)
+                            ? cmp(tb, tc)
+                                ? b
+                                : cmp(ta, tc)
+                                    ? c
+                                    : a
+                            : cmp(tc, tb)
+                                ? b
+                                : cmp(ta, tc)
+                                    ? a
+                                    : c;
+                        (a = pivot - d), (b = pivot), (c = pivot + d);
+                        (ta = array[a]), (tb = array[b]), (tc = array[c]);
+                        pivot = cmp(ta, tb)
+                            ? cmp(tb, tc)
+                                ? b
+                                : cmp(ta, tc)
+                                    ? c
+                                    : a
+                            : cmp(tc, tb)
+                                ? b
+                                : cmp(ta, tc)
+                                    ? a
+                                    : c;
+                        (a = right - (d << 1)), (b = right - d), (c = right);
+                        (ta = array[a]), (tb = array[b]), (tc = array[c]);
+                        right = cmp(ta, tb)
+                            ? cmp(tb, tc)
+                                ? b
+                                : cmp(ta, tc)
+                                    ? c
+                                    : a
+                            : cmp(tc, tb)
+                                ? b
+                                : cmp(ta, tc)
+                                    ? a
+                                    : c;
                     }
-                    a = left, b = pivot, c = right;
-                    ta = array[a], tb = array[b], tc = array[c];
-                    pivot = cmp(ta, tb) ? (cmp(tb, tc) ? b : (cmp(ta, tc) ? c : a))
-                        : (cmp(tc, tb) ? b : (cmp(ta, tc) ? a : c));
+                    (a = left), (b = pivot), (c = right);
+                    (ta = array[a]), (tb = array[b]), (tc = array[c]);
+                    pivot = cmp(ta, tb)
+                        ? cmp(tb, tc)
+                            ? b
+                            : cmp(ta, tc)
+                                ? c
+                                : a
+                        : cmp(tc, tb)
+                            ? b
+                            : cmp(ta, tc)
+                                ? a
+                                : c;
                     if (pivot != left0) {
                         t = array[pivot];
                         array[pivot] = array[left0];
@@ -1627,7 +1684,7 @@ jsfeatNext.math = class math extends jsfeatNext {
                         right--;
                     }
                     if (swap_cnt == 0) {
-                        left = left0, right = right0;
+                        (left = left0), (right = right0);
                         for (ptr = left + 1; ptr <= right; ptr++) {
                             for (ptr2 = ptr; ptr2 > left && cmp(array[ptr2], array[ptr2 - 1]); ptr2--) {
                                 t = array[ptr2];
@@ -1637,43 +1694,43 @@ jsfeatNext.math = class math extends jsfeatNext {
                         }
                         break;
                     }
-                    n = Math.min((left1 - left0), (left - left1));
+                    n = Math.min(left1 - left0, left - left1);
                     m = (left - n) | 0;
                     for (i = 0; i < n; ++i, ++m) {
                         t = array[left0 + i];
                         array[left0 + i] = array[m];
                         array[m] = t;
                     }
-                    n = Math.min((right0 - right1), (right1 - right));
+                    n = Math.min(right0 - right1, right1 - right);
                     m = (right0 - n + 1) | 0;
                     for (i = 0; i < n; ++i, ++m) {
                         t = array[left + i];
                         array[left + i] = array[m];
                         array[m] = t;
                     }
-                    n = (left - left1);
-                    m = (right1 - right);
+                    n = left - left1;
+                    m = right1 - right;
                     if (n > 1) {
                         if (m > 1) {
                             if (n > m) {
                                 ++sp;
                                 stack[sp << 1] = left0;
                                 stack[(sp << 1) + 1] = left0 + n - 1;
-                                left = right0 - m + 1, right = right0;
+                                (left = right0 - m + 1), (right = right0);
                             }
                             else {
                                 ++sp;
                                 stack[sp << 1] = right0 - m + 1;
                                 stack[(sp << 1) + 1] = right0;
-                                left = left0, right = left0 + n - 1;
+                                (left = left0), (right = left0 + n - 1);
                             }
                         }
                         else {
-                            left = left0, right = left0 + n - 1;
+                            (left = left0), (right = left0 + n - 1);
                         }
                     }
                     else if (m > 1)
-                        left = right0 - m + 1, right = right0;
+                        (left = right0 - m + 1), (right = right0);
                     else
                         break;
                 }
@@ -1686,7 +1743,7 @@ jsfeatNext.math = class math extends jsfeatNext {
         for (;;) {
             if (high <= low)
                 return array[median];
-            if (high == (low + 1)) {
+            if (high == low + 1) {
                 if (array[low] > array[high]) {
                     w = array[low];
                     array[low] = array[high];
@@ -1694,7 +1751,7 @@ jsfeatNext.math = class math extends jsfeatNext {
                 }
                 return array[median];
             }
-            middle = ((low + high) >> 1);
+            middle = (low + high) >> 1;
             if (array[middle] > array[high]) {
                 w = array[middle];
                 array[middle] = array[high];
@@ -1710,7 +1767,7 @@ jsfeatNext.math = class math extends jsfeatNext {
                 array[middle] = array[low];
                 array[low] = w;
             }
-            ll = (low + 1);
+            ll = low + 1;
             w = array[middle];
             array[middle] = array[ll];
             array[ll] = w;
@@ -1734,7 +1791,7 @@ jsfeatNext.math = class math extends jsfeatNext {
             if (hh <= median)
                 low = ll;
             else if (hh >= median)
-                high = (hh - 1);
+                high = hh - 1;
         }
         return 0;
     }
@@ -1770,7 +1827,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
                 for (m = k + 1, mv = Math.abs(A[astep * k + m]), i = k + 2; i < n; i++) {
                     val = Math.abs(A[astep * k + i]);
                     if (mv < val)
-                        mv = val, m = i;
+                        (mv = val), (m = i);
                 }
                 indR[k] = m;
             }
@@ -1778,7 +1835,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
                 for (m = 0, mv = Math.abs(A[k]), i = 1; i < k; i++) {
                     val = Math.abs(A[astep * i + k]);
                     if (mv < val)
-                        mv = val, m = i;
+                        (mv = val), (m = i);
                 }
                 indC[k] = m;
             }
@@ -1788,13 +1845,13 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
                 for (k = 0, mv = Math.abs(A[indR[0]]), i = 1; i < n - 1; i++) {
                     val = Math.abs(A[astep * i + indR[i]]);
                     if (mv < val)
-                        mv = val, k = i;
+                        (mv = val), (k = i);
                 }
                 l = indR[k];
                 for (i = 1; i < n; i++) {
                     val = Math.abs(A[astep * indC[i] + i]);
                     if (mv < val)
-                        mv = val, k = indC[i], l = i;
+                        (mv = val), (k = indC[i]), (l = i);
                 }
                 p = A[astep * k + l];
                 if (Math.abs(p) <= eps)
@@ -1806,29 +1863,29 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
                 s = p / s;
                 t = (p / t) * p;
                 if (y < 0)
-                    s = -s, t = -t;
+                    (s = -s), (t = -t);
                 A[astep * k + l] = 0;
                 W[k] -= t;
                 W[l] += t;
                 for (i = 0; i < k; i++) {
-                    _in = (astep * i + k);
-                    _in2 = (astep * i + l);
+                    _in = astep * i + k;
+                    _in2 = astep * i + l;
                     a0 = A[_in];
                     b0 = A[_in2];
                     A[_in] = a0 * c - b0 * s;
                     A[_in2] = a0 * s + b0 * c;
                 }
-                for (i = (k + 1); i < l; i++) {
-                    _in = (astep * k + i);
-                    _in2 = (astep * i + l);
+                for (i = k + 1; i < l; i++) {
+                    _in = astep * k + i;
+                    _in2 = astep * i + l;
                     a0 = A[_in];
                     b0 = A[_in2];
                     A[_in] = a0 * c - b0 * s;
                     A[_in2] = a0 * s + b0 * c;
                 }
                 i = l + 1;
-                _in = (astep * k + i);
-                _in2 = (astep * l + i);
+                _in = astep * k + i;
+                _in2 = astep * l + i;
                 for (; i < n; i++, _in++, _in2++) {
                     a0 = A[_in];
                     b0 = A[_in2];
@@ -1851,7 +1908,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
                         for (m = idx + 1, mv = Math.abs(A[astep * idx + m]), i = idx + 2; i < n; i++) {
                             val = Math.abs(A[astep * idx + i]);
                             if (mv < val)
-                                mv = val, m = i;
+                                (mv = val), (m = i);
                         }
                         indR[idx] = m;
                     }
@@ -1859,7 +1916,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
                         for (m = 0, mv = Math.abs(A[idx]), i = 1; i < idx; i++) {
                             val = Math.abs(A[astep * i + idx]);
                             if (mv < val)
-                                mv = val, m = i;
+                                (mv = val), (m = i);
                         }
                         indC[idx] = m;
                     }
@@ -1911,8 +1968,8 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
             changed = 0;
             for (i = 0; i < n - 1; i++) {
                 for (j = i + 1; j < n; j++) {
-                    Ai = (i * astep) | 0, Aj = (j * astep) | 0;
-                    a = W[i], p = 0, b = W[j];
+                    (Ai = (i * astep) | 0), (Aj = (j * astep) | 0);
+                    (a = W[i]), (p = 0), (b = W[j]);
                     k = 2;
                     p += At[Ai] * At[Aj];
                     p += At[Ai + 1] * At[Aj + 1];
@@ -1921,17 +1978,17 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
                     if (Math.abs(p) <= eps * Math.sqrt(a * b))
                         continue;
                     p *= 2.0;
-                    beta = a - b, gamma = hypot(p, beta);
+                    (beta = a - b), (gamma = hypot(p, beta));
                     if (beta < 0) {
                         delta = (gamma - beta) * 0.5;
                         s = Math.sqrt(delta / gamma);
-                        c = (p / (gamma * s * 2.0));
+                        c = p / (gamma * s * 2.0);
                     }
                     else {
                         c = Math.sqrt((gamma + beta) / (gamma * 2.0));
-                        s = (p / (gamma * c * 2.0));
+                        s = p / (gamma * c * 2.0);
                     }
-                    a = 0.0, b = 0.0;
+                    (a = 0.0), (b = 0.0);
                     k = 2;
                     t0 = c * At[Ai] + s * At[Aj];
                     t1 = -s * At[Ai] + c * At[Aj];
@@ -1957,7 +2014,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
                     W[j] = b;
                     changed = 1;
                     if (Vt) {
-                        Vi = (i * vstep) | 0, Vj = (j * vstep) | 0;
+                        (Vi = (i * vstep) | 0), (Vj = (j * vstep) | 0);
                         k = 2;
                         t0 = c * Vt[Vi] + s * Vt[Vj];
                         t1 = -s * Vt[Vi] + c * Vt[Vj];
@@ -2014,10 +2071,10 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         for (i = 0; i < n1; i++) {
             sd = i < n ? W[i] : 0;
             while (sd <= minval) {
-                val0 = (1.0 / m);
+                val0 = 1.0 / m;
                 for (k = 0; k < m; k++) {
-                    seed = (seed * 214013 + 2531011);
-                    val = (((seed >> 16) & 0x7fff) & 256) != 0 ? val0 : -val0;
+                    seed = seed * 214013 + 2531011;
+                    val = ((seed >> 16) & 0x7fff & 256) != 0 ? val0 : -val0;
                     At[i * astep + k] = val;
                 }
                 for (iter = 0; iter < 2; iter++) {
@@ -2028,7 +2085,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
                         }
                         asum = 0.0;
                         for (k = 0; k < m; k++) {
-                            t = (At[i * astep + k] - sd * At[j * astep + k]);
+                            t = At[i * astep + k] - sd * At[j * astep + k];
                             At[i * astep + k] = t;
                             asum += Math.abs(t);
                         }
@@ -2045,7 +2102,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
                 }
                 sd = Math.sqrt(sd);
             }
-            s = (1.0 / sd);
+            s = 1.0 / sd;
             for (k = 0; k < m; k++) {
                 At[i * astep + k] *= s;
             }
@@ -2099,49 +2156,49 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         var val, inv_diag;
         for (col = 0; col < size; col++) {
             inv_diag = 1.0;
-            cs = (col * size);
+            cs = col * size;
             rs = cs;
             for (row = col; row < size; row++) {
-                val = ad[(rs + col)];
+                val = ad[rs + col];
                 for (col2 = 0; col2 < col; col2++) {
-                    val -= ad[(col2 * size + col)] * ad[(rs + col2)];
+                    val -= ad[col2 * size + col] * ad[rs + col2];
                 }
                 if (row == col) {
-                    ad[(rs + col)] = val;
+                    ad[rs + col] = val;
                     if (val == 0) {
                         return 0;
                     }
                     inv_diag = 1.0 / val;
                 }
                 else {
-                    ad[(cs + row)] = val;
-                    ad[(rs + col)] = val * inv_diag;
+                    ad[cs + row] = val;
+                    ad[rs + col] = val * inv_diag;
                 }
-                rs = (rs + size);
+                rs = rs + size;
             }
         }
         cs = 0;
         for (i = 0; i < size; i++) {
             val = bd[i];
             for (j = 0; j < i; j++) {
-                val -= ad[(cs + j)] * bd[j];
+                val -= ad[cs + j] * bd[j];
             }
             bd[i] = val;
-            cs = (cs + size);
+            cs = cs + size;
         }
         cs = 0;
         for (i = 0; i < size; i++) {
-            bd[i] /= ad[(cs + i)];
-            cs = (cs + size);
+            bd[i] /= ad[cs + i];
+            cs = cs + size;
         }
-        i = (size - 1);
+        i = size - 1;
         for (; i >= 0; i--) {
             val = bd[i];
-            j = (i + 1);
-            cs = (j * size);
+            j = i + 1;
+            cs = j * size;
             for (; j < size; j++) {
-                val -= ad[(cs + i)] * bd[j];
-                cs = (cs + size);
+                val -= ad[cs + i] * bd[j];
+                cs = cs + size;
             }
             bd[i] = val;
         }
@@ -2151,7 +2208,6 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         if (typeof options === "undefined") {
             options = 0;
         }
-        ;
         var at = 0, i = 0, j = 0, _m = A.rows, _n = A.cols, m = _m, n = _n;
         var dt = A.type | JSFEAT_CONSTANTS.C1_t;
         if (m < n) {
@@ -2187,7 +2243,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
             }
         }
         if (at == 0) {
-            if (U && (options & JSFEAT_CONSTANTS.SVD_U_T)) {
+            if (U && options & JSFEAT_CONSTANTS.SVD_U_T) {
                 i = m * m;
                 while (--i >= 0) {
                     U.data[i] = a_mt.data[i];
@@ -2196,7 +2252,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
             else if (U) {
                 this.matmath.transpose(U, a_mt);
             }
-            if (V && (options & JSFEAT_CONSTANTS.SVD_V_T)) {
+            if (V && options & JSFEAT_CONSTANTS.SVD_V_T) {
                 i = n * n;
                 while (--i >= 0) {
                     V.data[i] = v_mt.data[i];
@@ -2207,7 +2263,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
             }
         }
         else {
-            if (U && (options & JSFEAT_CONSTANTS.SVD_U_T)) {
+            if (U && options & JSFEAT_CONSTANTS.SVD_U_T) {
                 i = n * n;
                 while (--i >= 0) {
                     U.data[i] = v_mt.data[i];
@@ -2216,7 +2272,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
             else if (U) {
                 this.matmath.transpose(U, v_mt);
             }
-            if (V && (options & JSFEAT_CONSTANTS.SVD_V_T)) {
+            if (V && options & JSFEAT_CONSTANTS.SVD_V_T) {
                 i = m * m;
                 while (--i >= 0) {
                     V.data[i] = a_mt.data[i];
@@ -2252,7 +2308,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
                     for (k = 0, sum = 0.0, pu = 0; k < nrows; k++, pu += ncols) {
                         sum += ud[pu + j] * bd[k];
                     }
-                    xsum += sum * vd[pv + j] / wd[j];
+                    xsum += (sum * vd[pv + j]) / wd[j];
                 }
             }
             X.data[i] = xsum;
@@ -2280,7 +2336,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
             for (j = 0, pu = 0; j < nrows; j++, pa++) {
                 for (k = 0, sum = 0.0; k < ncols; k++, pu++) {
                     if (wd[k] > tol)
-                        sum += vd[pv + k] * ud[pu] / wd[k];
+                        sum += (vd[pv + k] * ud[pu]) / wd[k];
                 }
                 id[pa] = sum;
             }
@@ -2430,20 +2486,27 @@ jsfeatNext.yape06 = class yape06 extends jsfeatNext {
             for (x = sx, rowx = row; x < ex; ++x, ++rowx) {
                 lv = laplacian[rowx];
                 if ((lv < -lap_thresh &&
-                    lv < laplacian[rowx - 1] && lv < laplacian[rowx + 1] &&
-                    lv < laplacian[rowx - w] && lv < laplacian[rowx + w] &&
-                    lv < laplacian[rowx - w - 1] && lv < laplacian[rowx + w - 1] &&
-                    lv < laplacian[rowx - w + 1] && lv < laplacian[rowx + w + 1])
-                    ||
-                        (lv > lap_thresh &&
-                            lv > laplacian[rowx - 1] && lv > laplacian[rowx + 1] &&
-                            lv > laplacian[rowx - w] && lv > laplacian[rowx + w] &&
-                            lv > laplacian[rowx - w - 1] && lv > laplacian[rowx + w - 1] &&
-                            lv > laplacian[rowx - w + 1] && lv > laplacian[rowx + w + 1])) {
+                    lv < laplacian[rowx - 1] &&
+                    lv < laplacian[rowx + 1] &&
+                    lv < laplacian[rowx - w] &&
+                    lv < laplacian[rowx + w] &&
+                    lv < laplacian[rowx - w - 1] &&
+                    lv < laplacian[rowx + w - 1] &&
+                    lv < laplacian[rowx - w + 1] &&
+                    lv < laplacian[rowx + w + 1]) ||
+                    (lv > lap_thresh &&
+                        lv > laplacian[rowx - 1] &&
+                        lv > laplacian[rowx + 1] &&
+                        lv > laplacian[rowx - w] &&
+                        lv > laplacian[rowx + w] &&
+                        lv > laplacian[rowx - w - 1] &&
+                        lv > laplacian[rowx + w - 1] &&
+                        lv > laplacian[rowx - w + 1] &&
+                        lv > laplacian[rowx + w + 1])) {
                     min_eigen_value = hessian_min_eigen_value(srd_d, rowx, lv, Dxx, Dyy, Dxy, Dyx);
                     if (min_eigen_value > eigen_thresh) {
                         pt = points[number_of_points];
-                        pt.x = x, pt.y = y, pt.score = min_eigen_value;
+                        (pt.x = x), (pt.y = y), (pt.score = min_eigen_value);
                         ++number_of_points;
                         ++x, ++rowx;
                     }
@@ -2487,7 +2550,7 @@ jsfeatNext.motion_estimator = class motion_estimator extends jsfeatNext {
             }
             break;
         }
-        return (i == need_cnt && ssiter < max_try);
+        return i == need_cnt && ssiter < max_try;
     }
     find_inliers(kernel, model, from, to, count, thresh, err, mask) {
         var numinliers = 0, i = 0, f = 0;
@@ -2695,9 +2758,9 @@ jsfeatNext.optical_flow_lk = class optical_flow_lk extends jsfeatNext {
         var W_BITS14 = 14;
         var W_BITS4 = 14;
         var W_BITS1m5 = W_BITS4 - 5;
-        var W_BITS1m51 = (1 << ((W_BITS1m5) - 1));
-        var W_BITS14_ = (1 << W_BITS14);
-        var W_BITS41 = (1 << ((W_BITS4) - 1));
+        var W_BITS1m51 = 1 << (W_BITS1m5 - 1);
+        var W_BITS14_ = 1 << W_BITS14;
+        var W_BITS41 = 1 << (W_BITS4 - 1);
         var FLT_SCALE = 1.0 / (1 << 20);
         var iw00 = 0, iw01 = 0, iw10 = 0, iw11 = 0, ival = 0, ixval = 0, iyval = 0;
         var A11 = 0.0, A12 = 0.0, A22 = 0.0, D = 0.0, min_eig = 0.0;
@@ -2709,7 +2772,7 @@ jsfeatNext.optical_flow_lk = class optical_flow_lk extends jsfeatNext {
         var max_level = (prev_pyr.levels - 1) | 0;
         level = max_level;
         for (; level >= 0; --level) {
-            lev_sc = (1.0 / (1 << level));
+            lev_sc = 1.0 / (1 << level);
             lw = w0 >> level;
             lh = h0 >> level;
             dstep = lw << 1;
@@ -2737,7 +2800,7 @@ jsfeatNext.optical_flow_lk = class optical_flow_lk extends jsfeatNext {
                 prev_y -= half_win;
                 iprev_x = prev_x | 0;
                 iprev_y = prev_y | 0;
-                x = ((iprev_x <= brd_tl) || (iprev_x >= brd_r) || (iprev_y <= brd_tl) || (iprev_y >= brd_b));
+                x = (iprev_x <= brd_tl || iprev_x >= brd_r || iprev_y <= brd_tl || iprev_y >= brd_b);
                 if (x != 0) {
                     if (level == 0) {
                         status[ptid] = 0;
@@ -2746,26 +2809,35 @@ jsfeatNext.optical_flow_lk = class optical_flow_lk extends jsfeatNext {
                 }
                 a = prev_x - iprev_x;
                 b = prev_y - iprev_y;
-                iw00 = (((1.0 - a) * (1.0 - b) * W_BITS14_) + 0.5) | 0;
-                iw01 = ((a * (1.0 - b) * W_BITS14_) + 0.5) | 0;
-                iw10 = (((1.0 - a) * b * W_BITS14_) + 0.5) | 0;
-                iw11 = (W_BITS14_ - iw00 - iw01 - iw10);
-                A11 = 0.0, A12 = 0.0, A22 = 0.0;
+                iw00 = ((1.0 - a) * (1.0 - b) * W_BITS14_ + 0.5) | 0;
+                iw01 = (a * (1.0 - b) * W_BITS14_ + 0.5) | 0;
+                iw10 = ((1.0 - a) * b * W_BITS14_ + 0.5) | 0;
+                iw11 = W_BITS14_ - iw00 - iw01 - iw10;
+                (A11 = 0.0), (A12 = 0.0), (A22 = 0.0);
                 for (y = 0; y < win_size; ++y) {
                     src = ((y + iprev_y) * lw + iprev_x) | 0;
                     dsrc = src << 1;
                     iptr = (y * win_size) | 0;
                     diptr = iptr << 1;
                     for (x = 0; x < win_size; ++x, ++src, ++iptr, dsrc += 2) {
-                        ival = ((img_prev[src]) * iw00 + (img_prev[src + 1]) * iw01 +
-                            (img_prev[src + lw]) * iw10 + (img_prev[src + lw + 1]) * iw11);
-                        ival = (((ival) + W_BITS1m51) >> (W_BITS1m5));
-                        ixval = (deriv_lev[dsrc] * iw00 + deriv_lev[dsrc + 2] * iw01 +
-                            deriv_lev[dsrc + dstep] * iw10 + deriv_lev[dsrc + dstep + 2] * iw11);
-                        ixval = (((ixval) + W_BITS41) >> (W_BITS4));
-                        iyval = (deriv_lev[dsrc + 1] * iw00 + deriv_lev[dsrc + 3] * iw01 + deriv_lev[dsrc + dstep + 1] * iw10 +
-                            deriv_lev[dsrc + dstep + 3] * iw11);
-                        iyval = (((iyval) + W_BITS41) >> (W_BITS4));
+                        ival =
+                            img_prev[src] * iw00 +
+                                img_prev[src + 1] * iw01 +
+                                img_prev[src + lw] * iw10 +
+                                img_prev[src + lw + 1] * iw11;
+                        ival = (ival + W_BITS1m51) >> W_BITS1m5;
+                        ixval =
+                            deriv_lev[dsrc] * iw00 +
+                                deriv_lev[dsrc + 2] * iw01 +
+                                deriv_lev[dsrc + dstep] * iw10 +
+                                deriv_lev[dsrc + dstep + 2] * iw11;
+                        ixval = (ixval + W_BITS41) >> W_BITS4;
+                        iyval =
+                            deriv_lev[dsrc + 1] * iw00 +
+                                deriv_lev[dsrc + 3] * iw01 +
+                                deriv_lev[dsrc + dstep + 1] * iw10 +
+                                deriv_lev[dsrc + dstep + 3] * iw11;
+                        iyval = (iyval + W_BITS41) >> W_BITS4;
                         iwin_buf[iptr] = ival;
                         deriv_iwin[diptr++] = ixval;
                         deriv_iwin[diptr++] = iyval;
@@ -2793,7 +2865,7 @@ jsfeatNext.optical_flow_lk = class optical_flow_lk extends jsfeatNext {
                 for (iter = 0; iter < max_iter; ++iter) {
                     inext_x = next_x | 0;
                     inext_y = next_y | 0;
-                    x = ((inext_x <= brd_tl) || (inext_x >= brd_r) || (inext_y <= brd_tl) || (inext_y >= brd_b));
+                    x = (inext_x <= brd_tl || inext_x >= brd_r || inext_y <= brd_tl || inext_y >= brd_b);
                     if (x != 0) {
                         if (level == 0) {
                             status[ptid] = 0;
@@ -2802,28 +2874,31 @@ jsfeatNext.optical_flow_lk = class optical_flow_lk extends jsfeatNext {
                     }
                     a = next_x - inext_x;
                     b = next_y - inext_y;
-                    iw00 = (((1.0 - a) * (1.0 - b) * W_BITS14_) + 0.5) | 0;
-                    iw01 = ((a * (1.0 - b) * W_BITS14_) + 0.5) | 0;
-                    iw10 = (((1.0 - a) * b * W_BITS14_) + 0.5) | 0;
-                    iw11 = (W_BITS14_ - iw00 - iw01 - iw10);
-                    b1 = 0.0, b2 = 0.0;
+                    iw00 = ((1.0 - a) * (1.0 - b) * W_BITS14_ + 0.5) | 0;
+                    iw01 = (a * (1.0 - b) * W_BITS14_ + 0.5) | 0;
+                    iw10 = ((1.0 - a) * b * W_BITS14_ + 0.5) | 0;
+                    iw11 = W_BITS14_ - iw00 - iw01 - iw10;
+                    (b1 = 0.0), (b2 = 0.0);
                     for (y = 0; y < win_size; ++y) {
                         jptr = ((y + inext_y) * lw + inext_x) | 0;
                         iptr = (y * win_size) | 0;
                         diptr = iptr << 1;
                         for (x = 0; x < win_size; ++x, ++jptr, ++iptr) {
-                            ival = ((img_next[jptr]) * iw00 + (img_next[jptr + 1]) * iw01 +
-                                (img_next[jptr + lw]) * iw10 + (img_next[jptr + lw + 1]) * iw11);
-                            ival = (((ival) + W_BITS1m51) >> (W_BITS1m5));
-                            ival = (ival - iwin_buf[iptr]);
+                            ival =
+                                img_next[jptr] * iw00 +
+                                    img_next[jptr + 1] * iw01 +
+                                    img_next[jptr + lw] * iw10 +
+                                    img_next[jptr + lw + 1] * iw11;
+                            ival = (ival + W_BITS1m51) >> W_BITS1m5;
+                            ival = ival - iwin_buf[iptr];
                             b1 += ival * deriv_iwin[diptr++];
                             b2 += ival * deriv_iwin[diptr++];
                         }
                     }
                     b1 *= FLT_SCALE;
                     b2 *= FLT_SCALE;
-                    delta_x = ((A12 * b2 - A22 * b1) * D);
-                    delta_y = ((A12 * b1 - A11 * b2) * D);
+                    delta_x = (A12 * b2 - A22 * b1) * D;
+                    delta_y = (A12 * b1 - A11 * b2) * D;
                     next_x += delta_x;
                     next_y += delta_y;
                     curr_xy[i] = next_x + half_win;
@@ -2831,7 +2906,8 @@ jsfeatNext.optical_flow_lk = class optical_flow_lk extends jsfeatNext {
                     if (delta_x * delta_x + delta_y * delta_y <= eps) {
                         break;
                     }
-                    if (iter > 0 && Math.abs(delta_x + prev_delta_x) < 0.01 &&
+                    if (iter > 0 &&
+                        Math.abs(delta_x + prev_delta_x) < 0.01 &&
                         Math.abs(delta_y + prev_delta_y) < 0.01) {
                         curr_xy[i] -= delta_x * 0.5;
                         curr_xy[j] -= delta_y * 0.5;

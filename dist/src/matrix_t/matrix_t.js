@@ -1,6 +1,6 @@
-import { data_type } from '../data_type/data_type';
-import { data_t } from '../node_utils/data_t';
-import { JSFEAT_CONSTANTS } from '../constants/constants';
+import { data_type } from "../data_type/data_type";
+import { data_t } from "../node_utils/data_t";
+import { JSFEAT_CONSTANTS } from "../constants/constants";
 export class matrix_t {
     dt;
     type;
@@ -20,14 +20,28 @@ export class matrix_t {
         }
         else {
             this.buffer = _data_buffer;
-            this.data = this.type & JSFEAT_CONSTANTS.U8_t ? this.buffer.u8 : (this.type & JSFEAT_CONSTANTS.S32_t ? this.buffer.i32 : (this.type & JSFEAT_CONSTANTS.F32_t ? this.buffer.f32 : this.buffer.f64));
+            this.data =
+                this.type & JSFEAT_CONSTANTS.U8_t
+                    ? this.buffer.u8
+                    : this.type & JSFEAT_CONSTANTS.S32_t
+                        ? this.buffer.i32
+                        : this.type & JSFEAT_CONSTANTS.F32_t
+                            ? this.buffer.f32
+                            : this.buffer.f64;
         }
     }
     allocate() {
         delete this.data;
         delete this.buffer;
-        this.buffer = new data_t((this.cols * this.dt._get_data_type_size(this.type) * this.channel) * this.rows);
-        this.data = this.type & JSFEAT_CONSTANTS.U8_t ? this.buffer.u8 : (this.type & JSFEAT_CONSTANTS.S32_t ? this.buffer.i32 : (this.type & JSFEAT_CONSTANTS.F32_t ? this.buffer.f32 : this.buffer.f64));
+        this.buffer = new data_t(this.cols * this.dt._get_data_type_size(this.type) * this.channel * this.rows);
+        this.data =
+            this.type & JSFEAT_CONSTANTS.U8_t
+                ? this.buffer.u8
+                : this.type & JSFEAT_CONSTANTS.S32_t
+                    ? this.buffer.i32
+                    : this.type & JSFEAT_CONSTANTS.F32_t
+                        ? this.buffer.f32
+                        : this.buffer.f64;
     }
     copy_to(other) {
         var od = other.data, td = this.data;
@@ -46,7 +60,7 @@ export class matrix_t {
         if (typeof ch === "undefined") {
             ch = this.channel;
         }
-        var new_size = (c * this.dt._get_data_type_size(this.type) * ch) * r;
+        var new_size = c * this.dt._get_data_type_size(this.type) * ch * r;
         if (new_size > this.buffer.size) {
             this.cols = c;
             this.rows = r;

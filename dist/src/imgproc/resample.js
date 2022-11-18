@@ -13,8 +13,8 @@ export function _resample_u8(src, dst, cache, nw, nh) {
     var sum = sum_node.i32;
     var xofs = xofs_node.i32;
     for (; dx < nw; dx++) {
-        fsx1 = dx * scale_x, fsx2 = fsx1 + scale_x;
-        sx1 = (fsx1 + 1.0 - 1e-6) | 0, sx2 = fsx2 | 0;
+        (fsx1 = dx * scale_x), (fsx2 = fsx1 + scale_x);
+        (sx1 = (fsx1 + 1.0 - 1e-6) | 0), (sx2 = fsx2 | 0);
         sx1 = Math.min(sx1, w - 1);
         sx2 = Math.min(sx2, w - 1);
         if (sx1 > fsx1) {
@@ -95,8 +95,8 @@ export function _resample(src, dst, cache, nw, nh) {
     var sum = sum_node.f32;
     var xofs = xofs_node.f32;
     for (; dx < nw; dx++) {
-        fsx1 = dx * scale_x, fsx2 = fsx1 + scale_x;
-        sx1 = (fsx1 + 1.0 - 1e-6) | 0, sx2 = fsx2 | 0;
+        (fsx1 = dx * scale_x), (fsx2 = fsx1 + scale_x);
+        (sx1 = (fsx1 + 1.0 - 1e-6) | 0), (sx2 = fsx2 | 0);
         sx1 = Math.min(sx1, w - 1);
         sx2 = Math.min(sx2, w - 1);
         if (sx1 > fsx1) {

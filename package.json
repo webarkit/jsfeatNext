@@ -6,7 +6,9 @@
   "types": "types/src/index.d.ts",
   "scripts": {
     "build-ts": "rimraf ./build && tsc && webpack --mode production",
-    "dev-ts": "rimraf ./build && tsc && webpack --mode development --progress --watch"
+    "dev-ts": "rimraf ./build && tsc && webpack --mode development --progress --watch",
+    "format-check": "prettier --check .",
+    "format": "prettier --write ."
   },
   "repository": {
     "type": "git",
@@ -39,6 +41,7 @@
   },
   "dependencies": {
     "@babel/runtime": "^7.20.1",
+    "prettier": "^2.7.1",
     "ts-loader": "^9.4.1"
   }
 }

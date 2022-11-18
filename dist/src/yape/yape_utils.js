@@ -3,36 +3,36 @@ export function precompute_directions(step, dirs, R) {
     var x, y;
     x = R;
     for (y = 0; y < x; y++, i++) {
-        x = (Math.sqrt((R * R - y * y)) + 0.5) | 0;
-        dirs[i] = (x + step * y);
+        x = (Math.sqrt(R * R - y * y) + 0.5) | 0;
+        dirs[i] = x + step * y;
     }
     for (x--; x < y && x >= 0; x--, i++) {
-        y = (Math.sqrt((R * R - x * x)) + 0.5) | 0;
-        dirs[i] = (x + step * y);
+        y = (Math.sqrt(R * R - x * x) + 0.5) | 0;
+        dirs[i] = x + step * y;
     }
     for (; -x < y; x--, i++) {
-        y = (Math.sqrt((R * R - x * x)) + 0.5) | 0;
-        dirs[i] = (x + step * y);
+        y = (Math.sqrt(R * R - x * x) + 0.5) | 0;
+        dirs[i] = x + step * y;
     }
     for (y--; y >= 0; y--, i++) {
-        x = (-Math.sqrt((R * R - y * y)) - 0.5) | 0;
-        dirs[i] = (x + step * y);
+        x = (-Math.sqrt(R * R - y * y) - 0.5) | 0;
+        dirs[i] = x + step * y;
     }
     for (; y > x; y--, i++) {
-        x = (-Math.sqrt((R * R - y * y)) - 0.5) | 0;
-        dirs[i] = (x + step * y);
+        x = (-Math.sqrt(R * R - y * y) - 0.5) | 0;
+        dirs[i] = x + step * y;
     }
     for (x++; x <= 0; x++, i++) {
-        y = (-Math.sqrt((R * R - x * x)) - 0.5) | 0;
-        dirs[i] = (x + step * y);
+        y = (-Math.sqrt(R * R - x * x) - 0.5) | 0;
+        dirs[i] = x + step * y;
     }
     for (; x < -y; x++, i++) {
-        y = (-Math.sqrt((R * R - x * x)) - 0.5) | 0;
-        dirs[i] = (x + step * y);
+        y = (-Math.sqrt(R * R - x * x) - 0.5) | 0;
+        dirs[i] = x + step * y;
     }
     for (y++; y < 0; y++, i++) {
-        x = (Math.sqrt((R * R - y * y)) + 0.5) | 0;
-        dirs[i] = (x + step * y);
+        x = (Math.sqrt(R * R - y * y) + 0.5) | 0;
+        dirs[i] = x + step * y;
     }
     dirs[i] = dirs[0];
     dirs[i + 1] = dirs[1];
@@ -88,23 +88,23 @@ export function perform_one_point(I, x, Scores, Im, Ip, dirs, opposite, dirs_nb)
     var A = 0, B0 = 0, B1 = 0, B2 = 0;
     var state = 0;
     A = I[x + dirs[a]];
-    if ((A <= Ip)) {
-        if ((A >= Im)) {
+    if (A <= Ip) {
+        if (A >= Im) {
             B0 = I[x + dirs[b]];
-            if ((B0 <= Ip)) {
-                if ((B0 >= Im)) {
+            if (B0 <= Ip) {
+                if (B0 >= Im) {
                     Scores[x] = 0;
                     return;
                 }
                 else {
                     b++;
                     B1 = I[x + dirs[b]];
-                    if ((B1 > Ip)) {
+                    if (B1 > Ip) {
                         b++;
                         B2 = I[x + dirs[b]];
-                        if ((B2 > Ip))
+                        if (B2 > Ip)
                             state = 3;
-                        else if ((B2 < Im))
+                        else if (B2 < Im)
                             state = 6;
                         else {
                             Scores[x] = 0;
@@ -114,9 +114,9 @@ export function perform_one_point(I, x, Scores, Im, Ip, dirs, opposite, dirs_nb)
                     else {
                         b++;
                         B2 = I[x + dirs[b]];
-                        if ((B2 > Ip))
+                        if (B2 > Ip)
                             state = 7;
-                        else if ((B2 < Im))
+                        else if (B2 < Im)
                             state = 2;
                         else {
                             Scores[x] = 0;
@@ -128,24 +128,24 @@ export function perform_one_point(I, x, Scores, Im, Ip, dirs, opposite, dirs_nb)
             else {
                 b++;
                 B1 = I[x + dirs[b]];
-                if ((B1 > Ip)) {
+                if (B1 > Ip) {
                     b++;
                     B2 = I[x + dirs[b]];
-                    if ((B2 > Ip))
+                    if (B2 > Ip)
                         state = 3;
-                    else if ((B2 < Im))
+                    else if (B2 < Im)
                         state = 6;
                     else {
                         Scores[x] = 0;
                         return;
                     }
                 }
-                else if ((B1 < Im)) {
+                else if (B1 < Im) {
                     b++;
                     B2 = I[x + dirs[b]];
-                    if ((B2 > Ip))
+                    if (B2 > Ip)
                         state = 7;
-                    else if ((B2 < Im))
+                    else if (B2 < Im)
                         state = 2;
                     else {
                         Scores[x] = 0;
@@ -160,19 +160,19 @@ export function perform_one_point(I, x, Scores, Im, Ip, dirs, opposite, dirs_nb)
         }
         else {
             B0 = I[x + dirs[b]];
-            if ((B0 > Ip)) {
+            if (B0 > Ip) {
                 Scores[x] = 0;
                 return;
             }
             b++;
             B1 = I[x + dirs[b]];
-            if ((B1 > Ip)) {
+            if (B1 > Ip) {
                 Scores[x] = 0;
                 return;
             }
             b++;
             B2 = I[x + dirs[b]];
-            if ((B2 > Ip)) {
+            if (B2 > Ip) {
                 Scores[x] = 0;
                 return;
             }
@@ -181,19 +181,19 @@ export function perform_one_point(I, x, Scores, Im, Ip, dirs, opposite, dirs_nb)
     }
     else {
         B0 = I[x + dirs[b]];
-        if ((B0 < Im)) {
+        if (B0 < Im) {
             Scores[x] = 0;
             return;
         }
         b++;
         B1 = I[x + dirs[b]];
-        if ((B1 < Im)) {
+        if (B1 < Im) {
             Scores[x] = 0;
             return;
         }
         b++;
         B2 = I[x + dirs[b]];
-        if ((B2 < Im)) {
+        if (B2 < Im) {
             Scores[x] = 0;
             return;
         }
@@ -203,11 +203,11 @@ export function perform_one_point(I, x, Scores, Im, Ip, dirs, opposite, dirs_nb)
         A = I[x + dirs[a]];
         switch (state) {
             case 0:
-                if ((A > Ip)) {
+                if (A > Ip) {
                     B1 = B2;
                     b++;
                     B2 = I[x + dirs[b]];
-                    if ((B2 < Im)) {
+                    if (B2 < Im) {
                         Scores[x] = 0;
                         return;
                     }
@@ -216,21 +216,20 @@ export function perform_one_point(I, x, Scores, Im, Ip, dirs, opposite, dirs_nb)
                         state = 0;
                         break;
                     }
-                    ;
                 }
-                if ((A < Im)) {
-                    if ((B1 > Ip)) {
+                if (A < Im) {
+                    if (B1 > Ip) {
                         Scores[x] = 0;
                         return;
                     }
-                    if ((B2 > Ip)) {
+                    if (B2 > Ip) {
                         Scores[x] = 0;
                         return;
                     }
                     B1 = B2;
                     b++;
                     B2 = I[x + dirs[b]];
-                    if ((B2 > Ip)) {
+                    if (B2 > Ip) {
                         Scores[x] = 0;
                         return;
                     }
@@ -239,41 +238,38 @@ export function perform_one_point(I, x, Scores, Im, Ip, dirs, opposite, dirs_nb)
                         state = 8;
                         break;
                     }
-                    ;
                 }
-                if ((B1 <= Ip)) {
+                if (B1 <= Ip) {
                     Scores[x] = 0;
                     return;
                 }
-                if ((B2 <= Ip)) {
+                if (B2 <= Ip) {
                     Scores[x] = 0;
                     return;
                 }
                 B1 = B2;
                 b++;
                 B2 = I[x + dirs[b]];
-                if ((B2 > Ip)) {
+                if (B2 > Ip) {
                     score -= A + B1;
                     state = 3;
                     break;
                 }
-                ;
-                if ((B2 < Im)) {
+                if (B2 < Im) {
                     score -= A + B1;
                     state = 6;
                     break;
                 }
-                ;
                 {
                     Scores[x] = 0;
                     return;
                 }
             case 1:
-                if ((A < Im)) {
+                if (A < Im) {
                     B1 = B2;
                     b++;
                     B2 = I[x + dirs[b]];
-                    if ((B2 > Ip)) {
+                    if (B2 > Ip) {
                         Scores[x] = 0;
                         return;
                     }
@@ -282,21 +278,20 @@ export function perform_one_point(I, x, Scores, Im, Ip, dirs, opposite, dirs_nb)
                         state = 1;
                         break;
                     }
-                    ;
                 }
-                if ((A > Ip)) {
-                    if ((B1 < Im)) {
+                if (A > Ip) {
+                    if (B1 < Im) {
                         Scores[x] = 0;
                         return;
                     }
-                    if ((B2 < Im)) {
+                    if (B2 < Im) {
                         Scores[x] = 0;
                         return;
                     }
                     B1 = B2;
                     b++;
                     B2 = I[x + dirs[b]];
-                    if ((B2 < Im)) {
+                    if (B2 < Im) {
                         Scores[x] = 0;
                         return;
                     }
@@ -305,45 +300,42 @@ export function perform_one_point(I, x, Scores, Im, Ip, dirs, opposite, dirs_nb)
                         state = 9;
                         break;
                     }
-                    ;
                 }
-                if ((B1 >= Im)) {
+                if (B1 >= Im) {
                     Scores[x] = 0;
                     return;
                 }
-                if ((B2 >= Im)) {
+                if (B2 >= Im) {
                     Scores[x] = 0;
                     return;
                 }
                 B1 = B2;
                 b++;
                 B2 = I[x + dirs[b]];
-                if ((B2 < Im)) {
+                if (B2 < Im) {
                     score -= A + B1;
                     state = 2;
                     break;
                 }
-                ;
-                if ((B2 > Ip)) {
+                if (B2 > Ip) {
                     score -= A + B1;
                     state = 7;
                     break;
                 }
-                ;
                 {
                     Scores[x] = 0;
                     return;
                 }
             case 2:
-                if ((A > Ip)) {
+                if (A > Ip) {
                     Scores[x] = 0;
                     return;
                 }
                 B1 = B2;
                 b++;
                 B2 = I[x + dirs[b]];
-                if ((A < Im)) {
-                    if ((B2 > Ip)) {
+                if (A < Im) {
+                    if (B2 > Ip) {
                         Scores[x] = 0;
                         return;
                     }
@@ -352,34 +344,31 @@ export function perform_one_point(I, x, Scores, Im, Ip, dirs, opposite, dirs_nb)
                         state = 4;
                         break;
                     }
-                    ;
                 }
-                if ((B2 > Ip)) {
+                if (B2 > Ip) {
                     score -= A + B1;
                     state = 7;
                     break;
                 }
-                ;
-                if ((B2 < Im)) {
+                if (B2 < Im) {
                     score -= A + B1;
                     state = 2;
                     break;
                 }
-                ;
                 {
                     Scores[x] = 0;
                     return;
                 }
             case 3:
-                if ((A < Im)) {
+                if (A < Im) {
                     Scores[x] = 0;
                     return;
                 }
                 B1 = B2;
                 b++;
                 B2 = I[x + dirs[b]];
-                if ((A > Ip)) {
-                    if ((B2 < Im)) {
+                if (A > Ip) {
+                    if (B2 < Im) {
                         Scores[x] = 0;
                         return;
                     }
@@ -388,34 +377,31 @@ export function perform_one_point(I, x, Scores, Im, Ip, dirs, opposite, dirs_nb)
                         state = 5;
                         break;
                     }
-                    ;
                 }
-                if ((B2 > Ip)) {
+                if (B2 > Ip) {
                     score -= A + B1;
                     state = 3;
                     break;
                 }
-                ;
-                if ((B2 < Im)) {
+                if (B2 < Im) {
                     score -= A + B1;
                     state = 6;
                     break;
                 }
-                ;
                 {
                     Scores[x] = 0;
                     return;
                 }
             case 4:
-                if ((A > Ip)) {
+                if (A > Ip) {
                     Scores[x] = 0;
                     return;
                 }
-                if ((A < Im)) {
+                if (A < Im) {
                     B1 = B2;
                     b++;
                     B2 = I[x + dirs[b]];
-                    if ((B2 > Ip)) {
+                    if (B2 > Ip) {
                         Scores[x] = 0;
                         return;
                     }
@@ -424,41 +410,38 @@ export function perform_one_point(I, x, Scores, Im, Ip, dirs, opposite, dirs_nb)
                         state = 1;
                         break;
                     }
-                    ;
                 }
-                if ((B2 >= Im)) {
+                if (B2 >= Im) {
                     Scores[x] = 0;
                     return;
                 }
                 B1 = B2;
                 b++;
                 B2 = I[x + dirs[b]];
-                if ((B2 < Im)) {
+                if (B2 < Im) {
                     score -= A + B1;
                     state = 2;
                     break;
                 }
-                ;
-                if ((B2 > Ip)) {
+                if (B2 > Ip) {
                     score -= A + B1;
                     state = 7;
                     break;
                 }
-                ;
                 {
                     Scores[x] = 0;
                     return;
                 }
             case 5:
-                if ((A < Im)) {
+                if (A < Im) {
                     Scores[x] = 0;
                     return;
                 }
-                if ((A > Ip)) {
+                if (A > Ip) {
                     B1 = B2;
                     b++;
                     B2 = I[x + dirs[b]];
-                    if ((B2 < Im)) {
+                    if (B2 < Im) {
                         Scores[x] = 0;
                         return;
                     }
@@ -467,97 +450,90 @@ export function perform_one_point(I, x, Scores, Im, Ip, dirs, opposite, dirs_nb)
                         state = 0;
                         break;
                     }
-                    ;
                 }
-                if ((B2 <= Ip)) {
+                if (B2 <= Ip) {
                     Scores[x] = 0;
                     return;
                 }
                 B1 = B2;
                 b++;
                 B2 = I[x + dirs[b]];
-                if ((B2 > Ip)) {
+                if (B2 > Ip) {
                     score -= A + B1;
                     state = 3;
                     break;
                 }
-                ;
-                if ((B2 < Im)) {
+                if (B2 < Im) {
                     score -= A + B1;
                     state = 6;
                     break;
                 }
-                ;
                 {
                     Scores[x] = 0;
                     return;
                 }
             case 7:
-                if ((A > Ip)) {
+                if (A > Ip) {
                     Scores[x] = 0;
                     return;
                 }
-                if ((A < Im)) {
+                if (A < Im) {
                     Scores[x] = 0;
                     return;
                 }
                 B1 = B2;
                 b++;
                 B2 = I[x + dirs[b]];
-                if ((B2 > Ip)) {
+                if (B2 > Ip) {
                     score -= A + B1;
                     state = 3;
                     break;
                 }
-                ;
-                if ((B2 < Im)) {
+                if (B2 < Im) {
                     score -= A + B1;
                     state = 6;
                     break;
                 }
-                ;
                 {
                     Scores[x] = 0;
                     return;
                 }
             case 6:
-                if ((A > Ip)) {
+                if (A > Ip) {
                     Scores[x] = 0;
                     return;
                 }
-                if ((A < Im)) {
+                if (A < Im) {
                     Scores[x] = 0;
                     return;
                 }
                 B1 = B2;
                 b++;
                 B2 = I[x + dirs[b]];
-                if ((B2 < Im)) {
+                if (B2 < Im) {
                     score -= A + B1;
                     state = 2;
                     break;
                 }
-                ;
-                if ((B2 > Ip)) {
+                if (B2 > Ip) {
                     score -= A + B1;
                     state = 7;
                     break;
                 }
-                ;
                 {
                     Scores[x] = 0;
                     return;
                 }
             case 8:
-                if ((A > Ip)) {
-                    if ((B2 < Im)) {
+                if (A > Ip) {
+                    if (B2 < Im) {
                         Scores[x] = 0;
                         return;
                     }
                     B1 = B2;
                     b++;
                     B2 = I[x + dirs[b]];
-                    if ((B2 < Im)) {
+                    if (B2 < Im) {
                         Scores[x] = 0;
                         return;
                     }
@@ -566,13 +542,12 @@ export function perform_one_point(I, x, Scores, Im, Ip, dirs, opposite, dirs_nb)
                         state = 9;
                         break;
                     }
-                    ;
                 }
-                if ((A < Im)) {
+                if (A < Im) {
                     B1 = B2;
                     b++;
                     B2 = I[x + dirs[b]];
-                    if ((B2 > Ip)) {
+                    if (B2 > Ip) {
                         Scores[x] = 0;
                         return;
                     }
@@ -581,22 +556,21 @@ export function perform_one_point(I, x, Scores, Im, Ip, dirs, opposite, dirs_nb)
                         state = 1;
                         break;
                     }
-                    ;
                 }
                 {
                     Scores[x] = 0;
                     return;
                 }
             case 9:
-                if ((A < Im)) {
-                    if ((B2 > Ip)) {
+                if (A < Im) {
+                    if (B2 > Ip) {
                         Scores[x] = 0;
                         return;
                     }
                     B1 = B2;
                     b++;
                     B2 = I[x + dirs[b]];
-                    if ((B2 > Ip)) {
+                    if (B2 > Ip) {
                         Scores[x] = 0;
                         return;
                     }
@@ -605,13 +579,12 @@ export function perform_one_point(I, x, Scores, Im, Ip, dirs, opposite, dirs_nb)
                         state = 8;
                         break;
                     }
-                    ;
                 }
-                if ((A > Ip)) {
+                if (A > Ip) {
                     B1 = B2;
                     b++;
                     B2 = I[x + dirs[b]];
-                    if ((B2 < Im)) {
+                    if (B2 < Im) {
                         Scores[x] = 0;
                         return;
                     }
@@ -620,7 +593,6 @@ export function perform_one_point(I, x, Scores, Im, Ip, dirs, opposite, dirs_nb)
                         state = 0;
                         break;
                     }
-                    ;
                 }
                 {
                     Scores[x] = 0;
@@ -630,7 +602,7 @@ export function perform_one_point(I, x, Scores, Im, Ip, dirs, opposite, dirs_nb)
                 break;
         }
     }
-    Scores[x] = (score + dirs_nb * I[x]);
+    Scores[x] = score + dirs_nb * I[x];
 }
 export class lev_table_t {
     dirs;

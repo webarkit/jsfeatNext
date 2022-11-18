@@ -180,17 +180,15 @@ export default class matmath {
     }
     mat3x3_determinant(M) {
         var md = M.data;
-        return md[0] * md[4] * md[8] -
+        return (md[0] * md[4] * md[8] -
             md[0] * md[5] * md[7] -
             md[3] * md[1] * md[8] +
             md[3] * md[2] * md[7] +
             md[6] * md[1] * md[5] -
-            md[6] * md[2] * md[4];
+            md[6] * md[2] * md[4]);
     }
     determinant_3x3(M11, M12, M13, M21, M22, M23, M31, M32, M33) {
-        return M11 * M22 * M33 - M11 * M23 * M32 -
-            M21 * M12 * M33 + M21 * M13 * M32 +
-            M31 * M12 * M23 - M31 * M13 * M22;
+        return (M11 * M22 * M33 - M11 * M23 * M32 - M21 * M12 * M33 + M21 * M13 * M32 + M31 * M12 * M23 - M31 * M13 * M22);
     }
 }
 //# sourceMappingURL=matmath.js.map

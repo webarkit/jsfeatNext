@@ -1,6 +1,6 @@
 export const JSFEAT_CONSTANTS = {
     EPSILON: 0.0000001192092896,
-    FLT_MIN: 1E-37,
+    FLT_MIN: 1e-37,
     U8_t: 0x0100,
     S32_t: 0x0200,
     F32_t: 0x0400,
@@ -23,6 +23,6 @@ export const JSFEAT_CONSTANTS = {
     F32C1_t: 0x0400 | 0x01,
     F32C2_t: 0x0400 | 0x02,
     S32C1_t: 0x0200 | 0x01,
-    S32C2_t: 0x0200 | 0x02
+    S32C2_t: 0x0200 | 0x02,
 };
 //# sourceMappingURL=constants.js.map

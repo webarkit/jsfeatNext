@@ -1,4 +1,4 @@
-import { matrix_t } from '../matrix_t/matrix_t'
+import { matrix_t } from "../matrix_t/matrix_t";
 export class pyramid_t {
     data: any;
     levels: number;

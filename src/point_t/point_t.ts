@@ -1,4 +1,4 @@
-interface IPoint_t{
+interface IPoint_t {
     x: number;
     y: number;
     level: number;
@@ -12,5 +12,5 @@ export class point_t implements IPoint_t {
     level: number;
     score: number;
     angle: number;
-    constructor(){}
+    constructor() {}
 }
