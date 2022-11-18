@@ -28,8 +28,8 @@ jobs:
 
             - name: Install
               run: |
-                  yarn
+                  npm install
 
             - name: Tests
               run: |
-                  yarn format-check
+                  npm run format-check
