@@ -1424,6 +1424,7 @@ jsfeatNext.math = class math extends jsfeatNext {
         this.cache.put_buffer(kern_node);
     }
     perspective_4point_transform(model, src_x0, src_y0, dst_x0, dst_y0, src_x1, src_y1, dst_x1, dst_y1, src_x2, src_y2, dst_x2, dst_y2, src_x3, src_y3, dst_x3, dst_y3) {
+        console.warn("⚠️⚠️⚠️ This method is deprecated ad will be removed in the next releases, use transform.perspective_4point_transform() instead. ⚠️⚠️⚠️");
         var t1 = src_x0;
         var t2 = src_x2;
         var t4 = src_y1;

@@ -34,7 +34,7 @@
             var canvas = document.getElementById('canvas');
             var jsfeat = jsfeatNext.jsfeatNext;
             var imgproc = new jsfeat.imgproc();
-            var math = new jsfeat.math();
+            var transform_c = new jsfeat.transform();
             var matmath = new jsfeat.matmath();
             try {
                 var attempts = 0;
@@ -104,7 +104,7 @@
                 img_u8_warp = new jsfeat.matrix_t(640, 480, jsfeat.U8_t | jsfeat.C1_t);
                 transform = new jsfeat.matrix_t(3, 3, jsfeat.F32_t | jsfeat.C1_t);
 
-                math.perspective_4point_transform(transform, 0,   0,   50,  50,
+                transform_c.perspective_4point_transform(transform, 0,   0,   50,  50,
                                                                     640, 0,   550, 100,
                                                                     640, 480, 300, 400,
                                                                     0,   480, 100, 400);
