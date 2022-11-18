@@ -1,4 +1,4 @@
-import { data_t } from './data_t';
+import { data_t } from "./data_t";
 export default class _pool_node_t {
     next;
     data;

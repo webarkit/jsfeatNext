@@ -1,7 +1,7 @@
-import { IHomography2d } from '../homography2d/homography2d';
-import { matrix_t } from '../matrix_t/matrix_t';
-import { point_t } from '../point_t/point_t';
-import { ransac_params_t } from './ransac_params_t';
+import { IHomography2d } from "../homography2d/homography2d";
+import { matrix_t } from "../matrix_t/matrix_t";
+import { point_t } from "../point_t/point_t";
+import { ransac_params_t } from "./ransac_params_t";
 export declare class motion_estimator {
     get_subset(kernel: IHomography2d, from: point_t[], to: point_t[], need_cnt: number, max_cnt: number, from_sub: point_t[], to_sub: point_t[]): boolean;
     find_inliers(kernel: IHomography2d, model: matrix_t, from: point_t[], to: point_t[], count: number, thresh: number, err: Int32Array | Float32Array, mask: number[]): number;

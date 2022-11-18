@@ -1,4 +1,4 @@
-import { IData_T, data_t } from './data_t'
+import { IData_T, data_t } from "./data_t";
 
 export interface IPool_Node_T {
     resize: (size_in_bytes: number) => void;

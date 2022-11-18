@@ -10,7 +10,7 @@ export function hessian_min_eigen_value(src, off, tr, Dxx, Dyy, Dxy, Dyx) {
     var Ixx = -2 * src[off] + src[off + Dxx] + src[off - Dxx];
     var Iyy = -2 * src[off] + src[off + Dyy] + src[off - Dyy];
     var Ixy = src[off + Dxy] + src[off - Dxy] - src[off + Dyx] - src[off - Dyx];
-    var sqrt_delta = (Math.sqrt(((Ixx - Iyy) * (Ixx - Iyy) + 4 * Ixy * Ixy))) | 0;
+    var sqrt_delta = Math.sqrt((Ixx - Iyy) * (Ixx - Iyy) + 4 * Ixy * Ixy) | 0;
     return Math.min(Math.abs(tr - sqrt_delta), Math.abs(-(tr + sqrt_delta)));
 }
 //# sourceMappingURL=yape06_utils.js.map

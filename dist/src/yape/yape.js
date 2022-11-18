@@ -1,4 +1,4 @@
-import { third_check, is_local_maxima, perform_one_point, lev_table_t } from './yape_utils';
+import { third_check, is_local_maxima, perform_one_point, lev_table_t } from "./yape_utils";
 export class yape {
     level_tables;
     tau;
@@ -38,7 +38,7 @@ export class yape {
         row = (sy * w + sx) | 0;
         for (y = sy; y < ey; ++y, row += w) {
             for (x = sx, rowx = row; x < ex; ++x, ++rowx) {
-                ip = img[rowx] + tau, im = img[rowx] - tau;
+                (ip = img[rowx] + tau), (im = img[rowx] - tau);
                 if (im < img[rowx + R] && img[rowx + R] < ip && im < img[rowx - R] && img[rowx - R] < ip) {
                     scores[rowx] = 0;
                 }
@@ -58,9 +58,9 @@ export class yape {
                 else {
                     if (third_check(scores, rowx, w) >= 3 && is_local_maxima(scores, rowx, score, hw, R)) {
                         pt = points[number_of_points];
-                        pt.x = x, pt.y = y, pt.score = abs_score;
+                        (pt.x = x), (pt.y = y), (pt.score = abs_score);
                         ++number_of_points;
-                        x += Rm1, rowx += Rm1;
+                        (x += Rm1), (rowx += Rm1);
                     }
                 }
             }

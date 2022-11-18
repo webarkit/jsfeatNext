@@ -1,14 +1,32 @@
-import { matrix_t } from '../matrix_t/matrix_t'
-import { cache } from '../cache/cache'
+import { matrix_t } from "../matrix_t/matrix_t";
+import { cache } from "../cache/cache";
 
 export function _resample_u8(src: matrix_t, dst: matrix_t, cache: cache, nw: number, nh: number) {
     var xofs_count = 0;
-    var ch = src.channel, w = src.cols, h = src.rows;
-    var src_d = src.data, dst_d = dst.data;
-    var scale_x = w / nw, scale_y = h / nh;
+    var ch = src.channel,
+        w = src.cols,
+        h = src.rows;
+    var src_d = src.data,
+        dst_d = dst.data;
+    var scale_x = w / nw,
+        scale_y = h / nh;
     var inv_scale_256 = (scale_x * scale_y * 0x10000) | 0;
-    var dx = 0, dy = 0, sx = 0, sy = 0, sx1 = 0, sx2 = 0, i = 0, k = 0, fsx1 = 0.0, fsx2 = 0.0;
-    var a = 0, b = 0, dxn = 0, alpha = 0, beta = 0, beta1 = 0;
+    var dx = 0,
+        dy = 0,
+        sx = 0,
+        sy = 0,
+        sx1 = 0,
+        sx2 = 0,
+        i = 0,
+        k = 0,
+        fsx1 = 0.0,
+        fsx2 = 0.0;
+    var a = 0,
+        b = 0,
+        dxn = 0,
+        alpha = 0,
+        beta = 0,
+        beta1 = 0;
 
     var buf_node = cache.get_buffer((nw * ch) << 2);
     var sum_node = cache.get_buffer((nw * ch) << 2);
@@ -19,8 +37,8 @@ export function _resample_u8(src: matrix_t, dst: matrix_t, cache: cache, nw: num
     var xofs = xofs_node.i32;
 
     for (; dx < nw; dx++) {
-        fsx1 = dx * scale_x, fsx2 = fsx1 + scale_x;
-        sx1 = (fsx1 + 1.0 - 1e-6) | 0, sx2 = fsx2 | 0;
+        (fsx1 = dx * scale_x), (fsx2 = fsx1 + scale_x);
+        (sx1 = (fsx1 + 1.0 - 1e-6) | 0), (sx2 = fsx2 | 0);
         sx1 = Math.min(sx1, w - 1);
         sx2 = Math.min(sx2, w - 1);
 
@@ -90,12 +108,30 @@ export function _resample_u8(src: matrix_t, dst: matrix_t, cache: cache, nw: num
 
 export function _resample(src: matrix_t, dst: matrix_t, cache: cache, nw: number, nh: number) {
     var xofs_count = 0;
-    var ch = src.channel, w = src.cols, h = src.rows;
-    var src_d = src.data, dst_d = dst.data;
-    var scale_x = w / nw, scale_y = h / nh;
+    var ch = src.channel,
+        w = src.cols,
+        h = src.rows;
+    var src_d = src.data,
+        dst_d = dst.data;
+    var scale_x = w / nw,
+        scale_y = h / nh;
     var scale = 1.0 / (scale_x * scale_y);
-    var dx = 0, dy = 0, sx = 0, sy = 0, sx1 = 0, sx2 = 0, i = 0, k = 0, fsx1 = 0.0, fsx2 = 0.0;
-    var a = 0, b = 0, dxn = 0, alpha = 0.0, beta = 0.0, beta1 = 0.0;
+    var dx = 0,
+        dy = 0,
+        sx = 0,
+        sy = 0,
+        sx1 = 0,
+        sx2 = 0,
+        i = 0,
+        k = 0,
+        fsx1 = 0.0,
+        fsx2 = 0.0;
+    var a = 0,
+        b = 0,
+        dxn = 0,
+        alpha = 0.0,
+        beta = 0.0,
+        beta1 = 0.0;
 
     var buf_node = cache.get_buffer((nw * ch) << 2);
     var sum_node = cache.get_buffer((nw * ch) << 2);
@@ -106,8 +142,8 @@ export function _resample(src: matrix_t, dst: matrix_t, cache: cache, nw: number
     var xofs = xofs_node.f32;
 
     for (; dx < nw; dx++) {
-        fsx1 = dx * scale_x, fsx2 = fsx1 + scale_x;
-        sx1 = (fsx1 + 1.0 - 1e-6) | 0, sx2 = fsx2 | 0;
+        (fsx1 = dx * scale_x), (fsx2 = fsx1 + scale_x);
+        (sx1 = (fsx1 + 1.0 - 1e-6) | 0), (sx2 = fsx2 | 0);
         sx1 = Math.min(sx1, w - 1);
         sx2 = Math.min(sx2, w - 1);
 

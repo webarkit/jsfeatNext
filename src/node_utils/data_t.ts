@@ -7,7 +7,7 @@ export interface IData_T {
     f64: Float64Array;
 }
 
-export class data_t implements IData_T  {
+export class data_t implements IData_T {
     public size: number;
     public buffer: ArrayBuffer;
     public u8: Uint8Array;

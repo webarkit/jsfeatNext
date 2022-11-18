@@ -33,5 +33,4 @@ export function _cmp_score_16(src, off, pixel, d, threshold) {
     }
     return -b0 - 1;
 }
-;
 //# sourceMappingURL=fast_private.js.map

@@ -1,4 +1,4 @@
-import { matrix_t } from '../matrix_t/matrix_t';
+import { matrix_t } from "../matrix_t/matrix_t";
 export default class matmath {
     constructor();
     identity(M: matrix_t, value: number): void;

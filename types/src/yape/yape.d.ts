@@ -1,5 +1,5 @@
-import { matrix_t } from '../matrix_t/matrix_t';
-import { keypoint_t } from '../keypoint_t/keypoint_t';
+import { matrix_t } from "../matrix_t/matrix_t";
+import { keypoint_t } from "../keypoint_t/keypoint_t";
 export declare class yape {
     private level_tables;
     private tau;

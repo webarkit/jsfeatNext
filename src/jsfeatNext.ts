@@ -1,30 +1,30 @@
-import { IData_Type, data_type } from './data_type/data_type'
-import { cache } from './cache/cache'
-import { imgproc } from './imgproc/imgproc'
-import { _resample, _resample_u8 } from './imgproc/resample'
-import { _convol, _convol_u8 } from './imgproc/convol'
-import { linalg } from './linalg/linalg'
-import { swap, hypot } from './linalg/linalg_base'
-import { fast_corners } from './fast_corners/fast_corners'
-import { _cmp_score_16 } from './fast_corners/fast_private'
-import { math } from './math/math'
-import matmath from './matmath/matmath'
-import { matrix_t } from './matrix_t/matrix_t'
-import { pyramid_t } from './pyramid_t/pyramid_t'
-import { point_t } from './point_t/point_t'
-import { transform } from './transform/transform'
-import { keypoint_t } from './keypoint_t/keypoint_t'
-import { orb } from './orb/orb'
-import { bit_pattern_31 } from './orb/bit_pattern_31'
-import { rectify_patch } from './orb/rectify_patch'
-import { yape } from './yape/yape'
-import { compute_laplacian, hessian_min_eigen_value } from './yape06/yape06_utils'
-import { yape06 } from './yape06/yape06'
-import { ransac_params_t } from './motion_estimator/ransac_params_t'
-import { motion_estimator } from './motion_estimator/motion_estimator'
-import { optical_flow_lk } from './optical_flow_lk/optical_flow_lk'
-import { JSFEAT_CONSTANTS } from './constants/constants'
-import pkg from '../package.json'
+import { IData_Type, data_type } from "./data_type/data_type";
+import { cache } from "./cache/cache";
+import { imgproc } from "./imgproc/imgproc";
+import { _resample, _resample_u8 } from "./imgproc/resample";
+import { _convol, _convol_u8 } from "./imgproc/convol";
+import { linalg } from "./linalg/linalg";
+import { swap, hypot } from "./linalg/linalg_base";
+import { fast_corners } from "./fast_corners/fast_corners";
+import { _cmp_score_16 } from "./fast_corners/fast_private";
+import { math } from "./math/math";
+import matmath from "./matmath/matmath";
+import { matrix_t } from "./matrix_t/matrix_t";
+import { pyramid_t } from "./pyramid_t/pyramid_t";
+import { point_t } from "./point_t/point_t";
+import { transform } from "./transform/transform";
+import { keypoint_t } from "./keypoint_t/keypoint_t";
+import { orb } from "./orb/orb";
+import { bit_pattern_31 } from "./orb/bit_pattern_31";
+import { rectify_patch } from "./orb/rectify_patch";
+import { yape } from "./yape/yape";
+import { compute_laplacian, hessian_min_eigen_value } from "./yape06/yape06_utils";
+import { yape06 } from "./yape06/yape06";
+import { ransac_params_t } from "./motion_estimator/ransac_params_t";
+import { motion_estimator } from "./motion_estimator/motion_estimator";
+import { optical_flow_lk } from "./optical_flow_lk/optical_flow_lk";
+import { JSFEAT_CONSTANTS } from "./constants/constants";
+import pkg from "../package.json";
 
 export default class jsfeatNext {
     private dt: IData_Type;
@@ -124,9 +124,16 @@ class motion_model extends jsfeatNext {
     // does isotropic normalization
     iso_normalize_points(from: point_t[], to: point_t[], T0: number[], T1: number[], count: number): void {
         var i = 0;
-        var cx0 = 0.0, cy0 = 0.0, d0 = 0.0, s0 = 0.0;
-        var cx1 = 0.0, cy1 = 0.0, d1 = 0.0, s1 = 0.0;
-        var dx = 0.0, dy = 0.0;
+        var cx0 = 0.0,
+            cy0 = 0.0,
+            d0 = 0.0,
+            s0 = 0.0;
+        var cx1 = 0.0,
+            cy1 = 0.0,
+            d1 = 0.0,
+            s1 = 0.0;
+        var dx = 0.0,
+            dy = 0.0;
 
         for (; i < count; ++i) {
             cx0 += from[i].x;
@@ -135,8 +142,10 @@ class motion_model extends jsfeatNext {
             cy1 += to[i].y;
         }
 
-        cx0 /= count; cy0 /= count;
-        cx1 /= count; cy1 /= count;
+        cx0 /= count;
+        cy0 /= count;
+        cx1 /= count;
+        cy1 /= count;
 
         for (i = 0; i < count; ++i) {
             dx = from[i].x - cx0;
@@ -147,9 +156,11 @@ class motion_model extends jsfeatNext {
             d1 += Math.sqrt(dx * dx + dy * dy);
         }
 
-        d0 /= count; d1 /= count;
+        d0 /= count;
+        d1 /= count;
 
-        s0 = Math.SQRT2 / d0; s1 = Math.SQRT2 / d1;
+        s0 = Math.SQRT2 / d0;
+        s1 = Math.SQRT2 / d1;
 
         T0[0] = T0[4] = s0;
         T0[2] = -cx0 * s0;
@@ -165,8 +176,13 @@ class motion_model extends jsfeatNext {
     }
 
     have_collinear_points(points: point_t[], count: number): boolean {
-        var j = 0, k = 0, i = (count - 1) | 0;
-        var dx1 = 0.0, dy1 = 0.0, dx2 = 0.0, dy2 = 0.0;
+        var j = 0,
+            k = 0,
+            i = (count - 1) | 0;
+        var dx1 = 0.0,
+            dy1 = 0.0,
+            dx2 = 0.0,
+            dy2 = 0.0;
 
         // check that the i-th selected point does not belong
         // to a line connecting some previously selected points
@@ -176,7 +192,10 @@ class motion_model extends jsfeatNext {
             for (k = 0; k < j; ++k) {
                 dx2 = points[k].x - points[i].x;
                 dy2 = points[k].y - points[i].y;
-                if (Math.abs(dx2 * dy1 - dy2 * dx1) <= JSFEAT_CONSTANTS.EPSILON * (Math.abs(dx1) + Math.abs(dy1) + Math.abs(dx2) + Math.abs(dy2)))
+                if (
+                    Math.abs(dx2 * dy1 - dy2 * dx1) <=
+                    JSFEAT_CONSTANTS.EPSILON * (Math.abs(dx1) + Math.abs(dy1) + Math.abs(dx2) + Math.abs(dy2))
+                )
                     return true;
             }
         }
@@ -189,10 +208,16 @@ class affine2d extends motion_model {
         super();
     }
     run(from: point_t[], to: point_t[], model: matrix_t, count: number): number {
-        var i = 0, j = 0;
+        var i = 0,
+            j = 0;
         var dt = model.type | JSFEAT_CONSTANTS.C1_t;
-        var md = model.data, t0d = this.T0.data, t1d = this.T1.data;
-        var pt0, pt1, px = 0.0, py = 0.0;
+        var md = model.data,
+            t0d = this.T0.data,
+            t1d = this.T1.data;
+        var pt0,
+            pt1,
+            px = 0.0,
+            py = 0.0;
         var _matmath = new matmath();
         var _linalg = new jsfeatNext.linalg();
 
@@ -203,7 +228,8 @@ class affine2d extends motion_model {
 
         var a_mt = new matrix_t(6, 2 * count, dt, a_buff.data);
         var b_mt = new matrix_t(1, 2 * count, dt, b_buff.data);
-        var ad = a_mt.data, bd = b_mt.data;
+        var ad = a_mt.data,
+            bd = b_mt.data;
 
         for (; i < count; ++i) {
             pt0 = from[i];
@@ -213,10 +239,10 @@ class affine2d extends motion_model {
             py = t0d[3] * pt0.x + t0d[4] * pt0.y + t0d[5];
 
             j = i * 2 * 6;
-            ad[j] = px, ad[j + 1] = py, ad[j + 2] = 1.0, ad[j + 3] = 0.0, ad[j + 4] = 0.0, ad[j + 5] = 0.0;
+            (ad[j] = px), (ad[j + 1] = py), (ad[j + 2] = 1.0), (ad[j + 3] = 0.0), (ad[j + 4] = 0.0), (ad[j + 5] = 0.0);
 
             j += 6;
-            ad[j] = 0.0, ad[j + 1] = 0.0, ad[j + 2] = 0.0, ad[j + 3] = px, ad[j + 4] = py, ad[j + 5] = 1.0;
+            (ad[j] = 0.0), (ad[j + 1] = 0.0), (ad[j + 2] = 0.0), (ad[j + 3] = px), (ad[j + 4] = py), (ad[j + 5] = 1.0);
 
             bd[i << 1] = t1d[0] * pt1.x + t1d[1] * pt1.y + t1d[2];
             bd[(i << 1) + 1] = t1d[3] * pt1.x + t1d[4] * pt1.y + t1d[5];
@@ -227,9 +253,9 @@ class affine2d extends motion_model {
 
         _linalg.lu_solve(this.AtA, this.AtB);
 
-        md[0] = this.AtB.data[0], md[1] = this.AtB.data[1], md[2] = this.AtB.data[2];
-        md[3] = this.AtB.data[3], md[4] = this.AtB.data[4], md[5] = this.AtB.data[5];
-        md[6] = 0.0, md[7] = 0.0, md[8] = 1.0; // fill last row
+        (md[0] = this.AtB.data[0]), (md[1] = this.AtB.data[1]), (md[2] = this.AtB.data[2]);
+        (md[3] = this.AtB.data[3]), (md[4] = this.AtB.data[4]), (md[5] = this.AtB.data[5]);
+        (md[6] = 0.0), (md[7] = 0.0), (md[8] = 1.0); // fill last row
 
         // denormalize
         _matmath.invert_3x3(this.T1, this.T1);
@@ -253,15 +279,29 @@ class homography2d extends motion_model {
         this.Evec = new matrix_t(9, 9, JSFEAT_CONSTANTS.F32_t | JSFEAT_CONSTANTS.C1_t);
     }
     run(from: point_t[], to: point_t[], model: matrix_t, count: number): number {
-        var i = 0, j = 0;
-        var md = model.data, t0d = this.T0.data, t1d = this.T1.data;
-        var LtL = this.mLtL.data, evd = this.Evec.data;
-        var x = 0.0, y = 0.0, X = 0.0, Y = 0.0;
+        var i = 0,
+            j = 0;
+        var md = model.data,
+            t0d = this.T0.data,
+            t1d = this.T1.data;
+        var LtL = this.mLtL.data,
+            evd = this.Evec.data;
+        var x = 0.0,
+            y = 0.0,
+            X = 0.0,
+            Y = 0.0;
         var _linalg = new jsfeatNext.linalg();
         var _matmath = new matmath();
 
         // norm
-        var smx = 0.0, smy = 0.0, cmx = 0.0, cmy = 0.0, sMx = 0.0, sMy = 0.0, cMx = 0.0, cMy = 0.0;
+        var smx = 0.0,
+            smy = 0.0,
+            cmx = 0.0,
+            cmy = 0.0,
+            sMx = 0.0,
+            sMy = 0.0,
+            cMx = 0.0,
+            cMy = 0.0;
 
         for (; i < count; ++i) {
             cmx += to[i].x;
@@ -270,8 +310,10 @@ class homography2d extends motion_model {
             cMy += from[i].y;
         }
 
-        cmx /= count; cmy /= count;
-        cMx /= count; cMy /= count;
+        cmx /= count;
+        cmy /= count;
+        cMx /= count;
+        cMy /= count;
 
         for (i = 0; i < count; ++i) {
             smx += Math.abs(to[i].x - cmx);
@@ -280,21 +322,38 @@ class homography2d extends motion_model {
             sMy += Math.abs(from[i].y - cMy);
         }
 
-        if (Math.abs(smx) < JSFEAT_CONSTANTS.EPSILON
-            || Math.abs(smy) < JSFEAT_CONSTANTS.EPSILON
-            || Math.abs(sMx) < JSFEAT_CONSTANTS.EPSILON
-            || Math.abs(sMy) < JSFEAT_CONSTANTS.EPSILON) return 0;
+        if (
+            Math.abs(smx) < JSFEAT_CONSTANTS.EPSILON ||
+            Math.abs(smy) < JSFEAT_CONSTANTS.EPSILON ||
+            Math.abs(sMx) < JSFEAT_CONSTANTS.EPSILON ||
+            Math.abs(sMy) < JSFEAT_CONSTANTS.EPSILON
+        )
+            return 0;
 
-        smx = count / smx; smy = count / smy;
-        sMx = count / sMx; sMy = count / sMy;
+        smx = count / smx;
+        smy = count / smy;
+        sMx = count / sMx;
+        sMy = count / sMy;
 
-        t0d[0] = sMx; t0d[1] = 0; t0d[2] = -cMx * sMx;
-        t0d[3] = 0; t0d[4] = sMy; t0d[5] = -cMy * sMy;
-        t0d[6] = 0; t0d[7] = 0; t0d[8] = 1;
+        t0d[0] = sMx;
+        t0d[1] = 0;
+        t0d[2] = -cMx * sMx;
+        t0d[3] = 0;
+        t0d[4] = sMy;
+        t0d[5] = -cMy * sMy;
+        t0d[6] = 0;
+        t0d[7] = 0;
+        t0d[8] = 1;
 
-        t1d[0] = 1.0 / smx; t1d[1] = 0; t1d[2] = cmx;
-        t1d[3] = 0; t1d[4] = 1.0 / smy; t1d[5] = cmy;
-        t1d[6] = 0; t1d[7] = 0; t1d[8] = 1;
+        t1d[0] = 1.0 / smx;
+        t1d[1] = 0;
+        t1d[2] = cmx;
+        t1d[3] = 0;
+        t1d[4] = 1.0 / smy;
+        t1d[5] = cmy;
+        t1d[6] = 0;
+        t1d[7] = 0;
+        t1d[8] = 1;
         //
 
         // construct system
@@ -352,15 +411,14 @@ class homography2d extends motion_model {
 
         // symmetry
         for (i = 0; i < 9; ++i) {
-            for (j = 0; j < i; ++j)
-                LtL[i * 9 + j] = LtL[j * 9 + i];
+            for (j = 0; j < i; ++j) LtL[i * 9 + j] = LtL[j * 9 + i];
         }
 
         _linalg.eigenVV(this.mLtL, this.Evec);
 
-        md[0] = evd[72], md[1] = evd[73], md[2] = evd[74];
-        md[3] = evd[75], md[4] = evd[76], md[5] = evd[77];
-        md[6] = evd[78], md[7] = evd[79], md[8] = evd[80];
+        (md[0] = evd[72]), (md[1] = evd[73]), (md[2] = evd[74]);
+        (md[3] = evd[75]), (md[4] = evd[76]), (md[5] = evd[77]);
+        (md[6] = evd[78]), (md[7] = evd[79]), (md[8] = evd[80]);
 
         // denormalize
         _matmath.multiply_3x3(model, this.T1, model);
@@ -368,15 +426,25 @@ class homography2d extends motion_model {
 
         // set bottom right to 1.0
         x = 1.0 / md[8];
-        md[0] *= x; md[1] *= x; md[2] *= x;
-        md[3] *= x; md[4] *= x; md[5] *= x;
-        md[6] *= x; md[7] *= x; md[8] = 1.0;
+        md[0] *= x;
+        md[1] *= x;
+        md[2] *= x;
+        md[3] *= x;
+        md[4] *= x;
+        md[5] *= x;
+        md[6] *= x;
+        md[7] *= x;
+        md[8] = 1.0;
 
         return 1;
     }
     error(from: point_t[], to: point_t[], model: matrix_t, err: Int32Array | Float32Array, count: number): void {
         var i = 0;
-        var pt0, pt1, ww = 0.0, dx = 0.0, dy = 0.0;
+        var pt0,
+            pt1,
+            ww = 0.0,
+            dx = 0.0,
+            dy = 0.0;
         var m = model.data;
 
         for (; i < count; ++i) {
@@ -386,7 +454,7 @@ class homography2d extends motion_model {
             ww = 1.0 / (m[6] * pt0.x + m[7] * pt0.y + 1.0);
             dx = (m[0] * pt0.x + m[1] * pt0.y + m[2]) * ww - pt1.x;
             dy = (m[3] * pt0.x + m[4] * pt0.y + m[5]) * ww - pt1.y;
-            err[i] = (dx * dx + dy * dy);
+            err[i] = dx * dx + dy * dy;
         }
     }
     check_subset(from: point_t[], to: point_t[], count: number): boolean {
@@ -398,17 +466,35 @@ class homography2d extends motion_model {
         if (count == 4) {
             var negative = 0;
 
-            var fp0 = from[0], fp1 = from[1], fp2 = from[2], fp3 = from[3];
-            var tp0 = to[0], tp1 = to[1], tp2 = to[2], tp3 = to[3];
+            var fp0 = from[0],
+                fp1 = from[1],
+                fp2 = from[2],
+                fp3 = from[3];
+            var tp0 = to[0],
+                tp1 = to[1],
+                tp2 = to[2],
+                tp3 = to[3];
 
             // set1
-            var A11 = fp0.x, A12 = fp0.y, A13 = 1.0;
-            var A21 = fp1.x, A22 = fp1.y, A23 = 1.0;
-            var A31 = fp2.x, A32 = fp2.y, A33 = 1.0;
+            var A11 = fp0.x,
+                A12 = fp0.y,
+                A13 = 1.0;
+            var A21 = fp1.x,
+                A22 = fp1.y,
+                A23 = 1.0;
+            var A31 = fp2.x,
+                A32 = fp2.y,
+                A33 = 1.0;
 
-            var B11 = tp0.x, B12 = tp0.y, B13 = 1.0;
-            var B21 = tp1.x, B22 = tp1.y, B23 = 1.0;
-            var B31 = tp2.x, B32 = tp2.y, B33 = 1.0;
+            var B11 = tp0.x,
+                B12 = tp0.y,
+                B13 = 1.0;
+            var B21 = tp1.x,
+                B22 = tp1.y,
+                B23 = 1.0;
+            var B31 = tp2.x,
+                B32 = tp2.y,
+                B33 = 1.0;
 
             var detA = _matmath.determinant_3x3(A11, A12, A13, A21, A22, A23, A31, A32, A33);
             var detB = _matmath.determinant_3x3(B11, B12, B13, B21, B22, B23, B31, B32, B33);
@@ -416,13 +502,13 @@ class homography2d extends motion_model {
             if (detA * detB < 0) negative++;
 
             // set2
-            A11 = fp1.x, A12 = fp1.y;
-            A21 = fp2.x, A22 = fp2.y;
-            A31 = fp3.x, A32 = fp3.y;
+            (A11 = fp1.x), (A12 = fp1.y);
+            (A21 = fp2.x), (A22 = fp2.y);
+            (A31 = fp3.x), (A32 = fp3.y);
 
-            B11 = tp1.x, B12 = tp1.y;
-            B21 = tp2.x, B22 = tp2.y;
-            B31 = tp3.x, B32 = tp3.y;
+            (B11 = tp1.x), (B12 = tp1.y);
+            (B21 = tp2.x), (B22 = tp2.y);
+            (B31 = tp3.x), (B32 = tp3.y);
 
             detA = _matmath.determinant_3x3(A11, A12, A13, A21, A22, A23, A31, A32, A33);
             detB = _matmath.determinant_3x3(B11, B12, B13, B21, B22, B23, B31, B32, B33);
@@ -430,13 +516,13 @@ class homography2d extends motion_model {
             if (detA * detB < 0) negative++;
 
             // set3
-            A11 = fp0.x, A12 = fp0.y;
-            A21 = fp2.x, A22 = fp2.y;
-            A31 = fp3.x, A32 = fp3.y;
+            (A11 = fp0.x), (A12 = fp0.y);
+            (A21 = fp2.x), (A22 = fp2.y);
+            (A31 = fp3.x), (A32 = fp3.y);
 
-            B11 = tp0.x, B12 = tp0.y;
-            B21 = tp2.x, B22 = tp2.y;
-            B31 = tp3.x, B32 = tp3.y;
+            (B11 = tp0.x), (B12 = tp0.y);
+            (B21 = tp2.x), (B22 = tp2.y);
+            (B31 = tp3.x), (B32 = tp3.y);
 
             detA = _matmath.determinant_3x3(A11, A12, A13, A21, A22, A23, A31, A32, A33);
             detB = _matmath.determinant_3x3(B11, B12, B13, B21, B22, B23, B31, B32, B33);
@@ -444,13 +530,13 @@ class homography2d extends motion_model {
             if (detA * detB < 0) negative++;
 
             // set4
-            A11 = fp0.x, A12 = fp0.y;
-            A21 = fp1.x, A22 = fp1.y;
-            A31 = fp3.x, A32 = fp3.y;
+            (A11 = fp0.x), (A12 = fp0.y);
+            (A21 = fp1.x), (A22 = fp1.y);
+            (A31 = fp3.x), (A32 = fp3.y);
 
-            B11 = tp0.x, B12 = tp0.y;
-            B21 = tp1.x, B22 = tp1.y;
-            B31 = tp3.x, B32 = tp3.y;
+            (B11 = tp0.x), (B12 = tp0.y);
+            (B21 = tp1.x), (B22 = tp1.y);
+            (B31 = tp3.x), (B32 = tp3.y);
 
             detA = _matmath.determinant_3x3(A11, A12, A13, A21, A22, A23, A31, A32, A33);
             detB = _matmath.determinant_3x3(B11, B12, B13, B21, B22, B23, B31, B32, B33);
@@ -485,9 +571,13 @@ jsfeatNext.pyramid_t = class pyramid_t extends jsfeatNext {
         }
     }
     build(input: matrix_t, skip_first_level: boolean): void {
-        if (typeof skip_first_level === "undefined") { skip_first_level = true; }
+        if (typeof skip_first_level === "undefined") {
+            skip_first_level = true;
+        }
         // just copy data to first level
-        var i = 2, a = input, b: any = this.data[0];
+        var i = 2,
+            a = input,
+            b: any = this.data[0];
         if (!skip_first_level) {
             var j = input.cols * input.rows;
             while (--j >= 0) {
@@ -510,50 +600,75 @@ jsfeatNext.matrix_t = matrix_t;
 
 jsfeatNext.keypoint_t = keypoint_t;
 
-jsfeatNext.fast_corners = class fast_corners extends jsfeatNext{
-    private offsets16:  Int32Array;
+jsfeatNext.fast_corners = class fast_corners extends jsfeatNext {
+    private offsets16: Int32Array;
     public _threshold: number;
     public threshold_tab: Uint8Array;
     public pixel_off: Int32Array;
     public score_diff: Int32Array;
     constructor() {
         super();
-        this.offsets16 = new Int32Array([0, 3, 1, 3, 2, 2, 3, 1, 3, 0, 3, -1, 2, -2, 1, -3, 0, -3, -1, -3, -2, -2, -3, -1, -3, 0, -3, 1, -2, 2, -1, 3]);
+        this.offsets16 = new Int32Array([
+            0, 3, 1, 3, 2, 2, 3, 1, 3, 0, 3, -1, 2, -2, 1, -3, 0, -3, -1, -3, -2, -2, -3, -1, -3, 0, -3, 1, -2, 2, -1,
+            3,
+        ]);
         this.threshold_tab = new Uint8Array(512);
         this._threshold = 20;
         this.pixel_off = new Int32Array(25);
         this.score_diff = new Int32Array(25);
-    };
+    }
     set_threshold(threshold: number): number {
         this._threshold = Math.min(Math.max(threshold, 0), 255);
         for (var i = -255; i <= 255; ++i) {
-            this.threshold_tab[(i + 255)] = (i < -this._threshold ? 1 : (i > this._threshold ? 2 : 0));
+            this.threshold_tab[i + 255] = i < -this._threshold ? 1 : i > this._threshold ? 2 : 0;
         }
         return this._threshold;
     }
     detect(src: matrix_t, corners: point_t[], border: number): number {
-        if (typeof border === "undefined") { border = 3; }
+        if (typeof border === "undefined") {
+            border = 3;
+        }
 
-        var K = 8, N = 25;
-        var img = src.data, w = src.cols, h = src.rows;
-        var i=0, j=0, k=0, vt=0, x=0, m3=0;
+        var K = 8,
+            N = 25;
+        var img = src.data,
+            w = src.cols,
+            h = src.rows;
+        var i = 0,
+            j = 0,
+            k = 0,
+            vt = 0,
+            x = 0,
+            m3 = 0;
         var buf_node = this.cache.get_buffer(3 * w);
-        var cpbuf_node = this.cache.get_buffer(((w+1)*3)<<2);
+        var cpbuf_node = this.cache.get_buffer(((w + 1) * 3) << 2);
         var buf = buf_node.u8;
         var cpbuf = cpbuf_node.i32;
         var pixel = this.pixel_off;
         var sd = this.score_diff;
         var sy = Math.max(3, border);
-        var ey = Math.min((h-2), (h-border));
+        var ey = Math.min(h - 2, h - border);
         var sx = Math.max(3, border);
-        var ex = Math.min((w - 3), (w - border));
-        var _count = 0, corners_cnt = 0, pt;
+        var ex = Math.min(w - 3, w - border);
+        var _count = 0,
+            corners_cnt = 0,
+            pt;
         var score_func = _cmp_score_16;
         var thresh_tab = this.threshold_tab;
         var threshold = this._threshold;
 
-        var v=0,tab=0,d=0,ncorners=0,cornerpos=0,curr=0,ptr=0,prev=0,pprev=0;
-        var jp1=0,jm1=0,score=0;
+        var v = 0,
+            tab = 0,
+            d = 0,
+            ncorners = 0,
+            cornerpos = 0,
+            curr = 0,
+            ptr = 0,
+            prev = 0,
+            pprev = 0;
+        var jp1 = 0,
+            jm1 = 0,
+            score = 0;
 
         this._cmp_offsets(pixel, w, 16);
 
@@ -575,80 +690,78 @@ jsfeatNext.fast_corners = class fast_corners extends jsfeatNext{
         var pixel14 = pixel[14];
         var pixel15 = pixel[15];
 
-        for(i = 0; i < w*3; ++i) {
+        for (i = 0; i < w * 3; ++i) {
             buf[i] = 0;
         }
 
-        for(i = sy; i < ey; ++i) {
-            ptr = ((i * w) + sx)|0;
-            m3 = (i - 3)%3;
-            curr = (m3*w)|0;
-            cornerpos = (m3*(w+1))|0;
-            for (j = 0; j < w; ++j) buf[curr+j] = 0;
+        for (i = sy; i < ey; ++i) {
+            ptr = (i * w + sx) | 0;
+            m3 = (i - 3) % 3;
+            curr = (m3 * w) | 0;
+            cornerpos = (m3 * (w + 1)) | 0;
+            for (j = 0; j < w; ++j) buf[curr + j] = 0;
             ncorners = 0;
 
-            if( i < (ey - 1) ) {
+            if (i < ey - 1) {
                 j = sx;
 
-                for( ; j < ex; ++j, ++ptr ) {
+                for (; j < ex; ++j, ++ptr) {
                     v = img[ptr];
-                    tab = ( - v + 255 );
-                    d = ( thresh_tab[tab+img[ptr+pixel0]] | thresh_tab[tab+img[ptr+pixel8]] );
+                    tab = -v + 255;
+                    d = thresh_tab[tab + img[ptr + pixel0]] | thresh_tab[tab + img[ptr + pixel8]];
 
-                    if( d == 0 ) {
+                    if (d == 0) {
                         continue;
                     }
 
-                    d &= ( thresh_tab[tab+img[ptr+pixel2]] | thresh_tab[tab+img[ptr+pixel10]] );
-                    d &= ( thresh_tab[tab+img[ptr+pixel4]] | thresh_tab[tab+img[ptr+pixel12]] );
-                    d &= ( thresh_tab[tab+img[ptr+pixel6]] | thresh_tab[tab+img[ptr+pixel14]] );
+                    d &= thresh_tab[tab + img[ptr + pixel2]] | thresh_tab[tab + img[ptr + pixel10]];
+                    d &= thresh_tab[tab + img[ptr + pixel4]] | thresh_tab[tab + img[ptr + pixel12]];
+                    d &= thresh_tab[tab + img[ptr + pixel6]] | thresh_tab[tab + img[ptr + pixel14]];
 
-                    if( d == 0 ) {
+                    if (d == 0) {
                         continue;
                     }
 
-                    d &= ( thresh_tab[tab+img[ptr+pixel1]] | thresh_tab[tab+img[ptr+pixel9]] );
-                    d &= ( thresh_tab[tab+img[ptr+pixel3]] | thresh_tab[tab+img[ptr+pixel11]] );
-                    d &= ( thresh_tab[tab+img[ptr+pixel5]] | thresh_tab[tab+img[ptr+pixel13]] );
-                    d &= ( thresh_tab[tab+img[ptr+pixel7]] | thresh_tab[tab+img[ptr+pixel15]] );
+                    d &= thresh_tab[tab + img[ptr + pixel1]] | thresh_tab[tab + img[ptr + pixel9]];
+                    d &= thresh_tab[tab + img[ptr + pixel3]] | thresh_tab[tab + img[ptr + pixel11]];
+                    d &= thresh_tab[tab + img[ptr + pixel5]] | thresh_tab[tab + img[ptr + pixel13]];
+                    d &= thresh_tab[tab + img[ptr + pixel7]] | thresh_tab[tab + img[ptr + pixel15]];
 
-                    if( d & 1 ) {
-                        vt = (v - threshold);
+                    if (d & 1) {
+                        vt = v - threshold;
                         _count = 0;
 
-                        for( k = 0; k < N; ++k ) {
-                            x = img[(ptr+pixel[k])];
-                            if(x < vt) {
+                        for (k = 0; k < N; ++k) {
+                            x = img[ptr + pixel[k]];
+                            if (x < vt) {
                                 ++_count;
-                                if( _count > K ) {
+                                if (_count > K) {
                                     ++ncorners;
-                                    cpbuf[cornerpos+ncorners] = j;
-                                    buf[curr+j] = score_func(img, ptr, pixel, sd, threshold);
+                                    cpbuf[cornerpos + ncorners] = j;
+                                    buf[curr + j] = score_func(img, ptr, pixel, sd, threshold);
                                     break;
                                 }
-                            }
-                            else {
+                            } else {
                                 _count = 0;
                             }
                         }
                     }
 
-                    if( d & 2 ) {
-                        vt = (v + threshold);
+                    if (d & 2) {
+                        vt = v + threshold;
                         _count = 0;
 
-                        for( k = 0; k < N; ++k ) {
-                            x = img[(ptr+pixel[k])];
-                            if(x > vt) {
+                        for (k = 0; k < N; ++k) {
+                            x = img[ptr + pixel[k]];
+                            if (x > vt) {
                                 ++_count;
-                                if( _count > K ) {
+                                if (_count > K) {
                                     ++ncorners;
-                                    cpbuf[cornerpos+ncorners] = j;
-                                    buf[curr+j] = score_func(img, ptr, pixel, sd, threshold);
+                                    cpbuf[cornerpos + ncorners] = j;
+                                    buf[curr + j] = score_func(img, ptr, pixel, sd, threshold);
                                     break;
                                 }
-                            }
-                            else {
+                            } else {
                                 _count = 0;
                             }
                         }
@@ -656,31 +769,38 @@ jsfeatNext.fast_corners = class fast_corners extends jsfeatNext{
                 }
             }
 
-            cpbuf[cornerpos+w] = ncorners;
+            cpbuf[cornerpos + w] = ncorners;
 
-            if ( i == sy ) {
+            if (i == sy) {
                 continue;
             }
 
-            m3 = (i - 4 + 3)%3;
-            prev = (m3*w)|0;
-            cornerpos = (m3*(w+1))|0;
-            m3 = (i - 5 + 3)%3;
-            pprev = (m3*w)|0;
+            m3 = (i - 4 + 3) % 3;
+            prev = (m3 * w) | 0;
+            cornerpos = (m3 * (w + 1)) | 0;
+            m3 = (i - 5 + 3) % 3;
+            pprev = (m3 * w) | 0;
 
-            ncorners = cpbuf[cornerpos+w];
+            ncorners = cpbuf[cornerpos + w];
 
-            for( k = 0; k < ncorners; ++k ) {
-                j = cpbuf[cornerpos+k];
-                jp1 = (j+1)|0;
-                jm1 = (j-1)|0;
-                score = buf[prev+j];
-                if( (score > buf[prev+jp1] && score > buf[prev+jm1] &&
-                    score > buf[pprev+jm1] && score > buf[pprev+j] && score > buf[pprev+jp1] &&
-                    score > buf[curr+jm1] && score > buf[curr+j] && score > buf[curr+jp1]) ) {
+            for (k = 0; k < ncorners; ++k) {
+                j = cpbuf[cornerpos + k];
+                jp1 = (j + 1) | 0;
+                jm1 = (j - 1) | 0;
+                score = buf[prev + j];
+                if (
+                    score > buf[prev + jp1] &&
+                    score > buf[prev + jm1] &&
+                    score > buf[pprev + jm1] &&
+                    score > buf[pprev + j] &&
+                    score > buf[pprev + jp1] &&
+                    score > buf[curr + jm1] &&
+                    score > buf[curr + j] &&
+                    score > buf[curr + jp1]
+                ) {
                     // save corner
                     pt = corners[corners_cnt];
-                    pt.x = j, pt.y = (i-1), pt.score = score;
+                    (pt.x = j), (pt.y = i - 1), (pt.score = score);
                     corners_cnt++;
                 }
             }
@@ -690,28 +810,37 @@ jsfeatNext.fast_corners = class fast_corners extends jsfeatNext{
         return corners_cnt;
     }
 
-    private _cmp_offsets(pixel: Uint8Array |Int32Array, step: number, pattern_size: number): void {
+    private _cmp_offsets(pixel: Uint8Array | Int32Array, step: number, pattern_size: number): void {
         var k = 0;
         var offsets = this.offsets16;
-        for( ; k < pattern_size; ++k ) {
-            pixel[k] = offsets[k<<1] + offsets[(k<<1)+1] * step;
+        for (; k < pattern_size; ++k) {
+            pixel[k] = offsets[k << 1] + offsets[(k << 1) + 1] * step;
         }
-        for( ; k < 25; ++k ) {
+        for (; k < 25; ++k) {
             pixel[k] = pixel[k - pattern_size];
         }
     }
-
 };
 
 jsfeatNext.imgproc = class imgproc extends jsfeatNext {
     constructor() {
         super();
-    };
+    }
     grayscale(src: Uint8Array | Uint8ClampedArray, w: number, h: number, dst: matrix_t, code?: number): void {
         // this is default image data representation in browser
-        if (typeof code === "undefined") { code = JSFEAT_CONSTANTS.COLOR_RGBA2GRAY; }
-        var x = 0, y = 0, i = 0, j = 0, ir = 0, jr = 0;
-        var coeff_r = 4899, coeff_g = 9617, coeff_b = 1868, cn = 4;
+        if (typeof code === "undefined") {
+            code = JSFEAT_CONSTANTS.COLOR_RGBA2GRAY;
+        }
+        var x = 0,
+            y = 0,
+            i = 0,
+            j = 0,
+            ir = 0,
+            jr = 0;
+        var coeff_r = 4899,
+            coeff_g = 9617,
+            coeff_b = 1868,
+            cn = 4;
 
         if (code == JSFEAT_CONSTANTS.COLOR_BGRA2GRAY || code == JSFEAT_CONSTANTS.COLOR_BGR2GRAY) {
             coeff_r = 1868;
@@ -720,7 +849,8 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         if (code == JSFEAT_CONSTANTS.COLOR_RGB2GRAY || code == JSFEAT_CONSTANTS.COLOR_BGR2GRAY) {
             cn = 3;
         }
-        var cn2 = cn << 1, cn3 = (cn * 3) | 0;
+        var cn2 = cn << 1,
+            cn3 = (cn * 3) | 0;
 
         dst.resize(w, h, 1);
         var dst_u8 = dst.data;
@@ -728,9 +858,12 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         for (y = 0; y < h; ++y, j += w, i += w * cn) {
             for (x = 0, ir = i, jr = j; x <= w - 4; x += 4, ir += cn << 2, jr += 4) {
                 dst_u8[jr] = (src[ir] * coeff_r + src[ir + 1] * coeff_g + src[ir + 2] * coeff_b + 8192) >> 14;
-                dst_u8[jr + 1] = (src[ir + cn] * coeff_r + src[ir + cn + 1] * coeff_g + src[ir + cn + 2] * coeff_b + 8192) >> 14;
-                dst_u8[jr + 2] = (src[ir + cn2] * coeff_r + src[ir + cn2 + 1] * coeff_g + src[ir + cn2 + 2] * coeff_b + 8192) >> 14;
-                dst_u8[jr + 3] = (src[ir + cn3] * coeff_r + src[ir + cn3 + 1] * coeff_g + src[ir + cn3 + 2] * coeff_b + 8192) >> 14;
+                dst_u8[jr + 1] =
+                    (src[ir + cn] * coeff_r + src[ir + cn + 1] * coeff_g + src[ir + cn + 2] * coeff_b + 8192) >> 14;
+                dst_u8[jr + 2] =
+                    (src[ir + cn2] * coeff_r + src[ir + cn2 + 1] * coeff_g + src[ir + cn2 + 2] * coeff_b + 8192) >> 14;
+                dst_u8[jr + 3] =
+                    (src[ir + cn3] * coeff_r + src[ir + cn3 + 1] * coeff_g + src[ir + cn3 + 2] * coeff_b + 8192) >> 14;
             }
             for (; x < w; ++x, ++jr, ir += cn) {
                 dst_u8[jr] = (src[ir] * coeff_r + src[ir + 1] * coeff_g + src[ir + 2] * coeff_b + 8192) >> 14;
@@ -739,11 +872,12 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
     }
     // derived from CCV library
     resample(src: matrix_t, dst: matrix_t, nw: number, nh: number): void {
-        var h = src.rows, w = src.cols;
+        var h = src.rows,
+            w = src.cols;
         if (h > nh && w > nw) {
             dst.resize(nw, nh, src.channel);
             // using the fast alternative (fix point scale, 0x100 to avoid overflow)
-            if (src.type & JSFEAT_CONSTANTS.U8_t && dst.type & JSFEAT_CONSTANTS.U8_t && h * w / (nh * nw) < 0x100) {
+            if (src.type & JSFEAT_CONSTANTS.U8_t && dst.type & JSFEAT_CONSTANTS.U8_t && (h * w) / (nh * nw) < 0x100) {
                 _resample_u8(src, dst, this.cache, nw, nh);
             } else {
                 _resample(src, dst, this.cache, nw, nh);
@@ -751,16 +885,29 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         }
     }
     box_blur_gray(src: matrix_t, dst: matrix_t, radius: number, options: number): void {
-        if (typeof options === "undefined") { options = 0; }
-        var w = src.cols, h = src.rows, h2 = h << 1, w2 = w << 1;
-        var i = 0, x = 0, y = 0, end = 0;
+        if (typeof options === "undefined") {
+            options = 0;
+        }
+        var w = src.cols,
+            h = src.rows,
+            h2 = h << 1,
+            w2 = w << 1;
+        var i = 0,
+            x = 0,
+            y = 0,
+            end = 0;
         var windowSize = ((radius << 1) + 1) | 0;
-        var radiusPlusOne = (radius + 1) | 0, radiusPlus2 = (radiusPlusOne + 1) | 0;
-        var scale = options & JSFEAT_CONSTANTS.BOX_BLUR_NOSCALE ? 1 : (1.0 / (windowSize * windowSize));
+        var radiusPlusOne = (radius + 1) | 0,
+            radiusPlus2 = (radiusPlusOne + 1) | 0;
+        var scale = options & JSFEAT_CONSTANTS.BOX_BLUR_NOSCALE ? 1 : 1.0 / (windowSize * windowSize);
 
         var tmp_buff = this.cache.get_buffer((w * h) << 2);
 
-        var sum = 0, dstIndex = 0, srcIndex = 0, nextPixelIndex = 0, previousPixelIndex = 0;
+        var sum = 0,
+            dstIndex = 0,
+            srcIndex = 0,
+            nextPixelIndex = 0,
+            previousPixelIndex = 0;
         var data_i32 = tmp_buff.i32; // to prevent overflow
         var data_u8 = src.data;
         var hold = 0;
@@ -918,17 +1065,26 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
     }
     gaussian_blur(src: matrix_t, dst: matrix_t, kernel_size: number, sigma: number): void {
         var jsfeatmath = new jsfeatNext.math();
-        if (typeof sigma === "undefined") { sigma = 0.0; }
-        if (typeof kernel_size === "undefined") { kernel_size = 0; }
-        kernel_size = kernel_size == 0 ? (Math.max(1, (4.0 * sigma + 1.0 - 1e-8)) * 2 + 1) | 0 : kernel_size;
+        if (typeof sigma === "undefined") {
+            sigma = 0.0;
+        }
+        if (typeof kernel_size === "undefined") {
+            kernel_size = 0;
+        }
+        kernel_size = kernel_size == 0 ? (Math.max(1, 4.0 * sigma + 1.0 - 1e-8) * 2 + 1) | 0 : kernel_size;
         var half_kernel = kernel_size >> 1;
-        var w = src.cols, h = src.rows;
-        var data_type = src.type, is_u8 = data_type & JSFEAT_CONSTANTS.U8_t;
+        var w = src.cols,
+            h = src.rows;
+        var data_type = src.type,
+            is_u8 = data_type & JSFEAT_CONSTANTS.U8_t;
 
         dst.resize(w, h, src.channel);
 
-        var src_d = src.data, dst_d = dst.data;
-        var buf, filter, buf_sz = (kernel_size + Math.max(h, w)) | 0;
+        var src_d = src.data,
+            dst_d = dst.data;
+        var buf,
+            filter,
+            buf_sz = (kernel_size + Math.max(h, w)) | 0;
 
         var buf_node = this.cache.get_buffer(buf_sz << 2);
         var filt_node = this.cache.get_buffer(kernel_size << 2);
@@ -978,7 +1134,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         for (; n < numangle; n++) {
             tabSin[n] = Math.sin(ang) * irho;
             tabCos[n] = Math.cos(ang) * irho;
-            ang += theta_res
+            ang += theta_res;
         }
 
         // stage 1. fill accumulator
@@ -1001,9 +1157,13 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         for (var r = 0; r < numrho; r++) {
             for (var n = 0; n < numangle; n++) {
                 var base = (n + 1) * (numrho + 2) + r + 1;
-                if (accum[base] > threshold &&
-                    accum[base] > accum[base - 1] && accum[base] >= accum[base + 1] &&
-                    accum[base] > accum[base - numrho - 2] && accum[base] >= accum[base + numrho + 2]) {
+                if (
+                    accum[base] > threshold &&
+                    accum[base] > accum[base - 1] &&
+                    accum[base] >= accum[base + 1] &&
+                    accum[base] > accum[base - numrho - 2] &&
+                    accum[base] >= accum[base + numrho + 2]
+                ) {
                     _sort_buf.push(base);
                 }
             }
@@ -1011,7 +1171,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
 
         // stage 3. sort the detected lines by accumulator value
         _sort_buf.sort(function (l1, l2) {
-            return <number><unknown>(accum[l1] > accum[l2] || (accum[l1] == accum[l2] && l1 < l2));
+            return <number>(<unknown>(accum[l1] > accum[l2] || (accum[l1] == accum[l2] && l1 < l2)));
         });
 
         // stage 4. store the first min(total,linesMax) lines to the output buffer
@@ -1030,30 +1190,41 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
     }
     pyrdown(src: matrix_t, dst: matrix_t, sx?: number, sy?: number): void {
         // this is needed for bbf
-        if (typeof sx === "undefined") { sx = 0; }
-        if (typeof sy === "undefined") { sy = 0; }
+        if (typeof sx === "undefined") {
+            sx = 0;
+        }
+        if (typeof sy === "undefined") {
+            sy = 0;
+        }
 
-        var w = src.cols, h = src.rows;
-        var w2 = w >> 1, h2 = h >> 1;
-        var _w2 = w2 - (sx << 1), _h2 = h2 - (sy << 1);
-        var x = 0, y = 0, sptr = sx + sy * w, sline = 0, dptr = 0, dline = 0;
+        var w = src.cols,
+            h = src.rows;
+        var w2 = w >> 1,
+            h2 = h >> 1;
+        var _w2 = w2 - (sx << 1),
+            _h2 = h2 - (sy << 1);
+        var x = 0,
+            y = 0,
+            sptr = sx + sy * w,
+            sline = 0,
+            dptr = 0,
+            dline = 0;
 
         dst.resize(w2, h2, src.channel);
 
-        var src_d = src.data, dst_d = dst.data;
+        var src_d = src.data,
+            dst_d = dst.data;
 
         for (y = 0; y < _h2; ++y) {
             sline = sptr;
             dline = dptr;
             for (x = 0; x <= _w2 - 2; x += 2, dline += 2, sline += 4) {
-                dst_d[dline] = (src_d[sline] + src_d[sline + 1] +
-                    src_d[sline + w] + src_d[sline + w + 1] + 2) >> 2;
-                dst_d[dline + 1] = (src_d[sline + 2] + src_d[sline + 3] +
-                    src_d[sline + w + 2] + src_d[sline + w + 3] + 2) >> 2;
+                dst_d[dline] = (src_d[sline] + src_d[sline + 1] + src_d[sline + w] + src_d[sline + w + 1] + 2) >> 2;
+                dst_d[dline + 1] =
+                    (src_d[sline + 2] + src_d[sline + 3] + src_d[sline + w + 2] + src_d[sline + w + 3] + 2) >> 2;
             }
             for (; x < _w2; ++x, ++dline, sline += 2) {
-                dst_d[dline] = (src_d[sline] + src_d[sline + 1] +
-                    src_d[sline + w] + src_d[sline + w + 1] + 2) >> 2;
+                dst_d[dline] = (src_d[sline] + src_d[sline + 1] + src_d[sline + w] + src_d[sline + w + 1] + 2) >> 2;
             }
             sptr += w << 1;
             dptr += w2;
@@ -1061,14 +1232,28 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
     }
     // dst: [gx,gy,...]
     scharr_derivatives(src: matrix_t, dst: matrix_t): void {
-        var w = src.cols, h = src.rows;
-        var dstep = w << 1, x = 0, y = 0, x1 = 0, a, b, c, d, e, f;
-        var srow0 = 0, srow1 = 0, srow2 = 0, drow = 0;
+        var w = src.cols,
+            h = src.rows;
+        var dstep = w << 1,
+            x = 0,
+            y = 0,
+            x1 = 0,
+            a,
+            b,
+            c,
+            d,
+            e,
+            f;
+        var srow0 = 0,
+            srow1 = 0,
+            srow2 = 0,
+            drow = 0;
         var trow0, trow1;
 
         dst.resize(w, h, 2); // 2 channel output gx, gy
 
-        var img = src.data, gxgy = dst.data;
+        var img = src.data,
+            gxgy = dst.data;
 
         var buf0_node = this.cache.get_buffer((w + 2) << 2);
         var buf1_node = this.cache.get_buffer((w + 2) << 2);
@@ -1087,40 +1272,46 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
             drow = (y * dstep) | 0;
             // do vertical convolution
             for (x = 0, x1 = 1; x <= w - 2; x += 2, x1 += 2) {
-                a = img[srow0 + x], b = img[srow2 + x];
-                trow0[x1] = ((a + b) * 3 + (img[srow1 + x]) * 10);
-                trow1[x1] = (b - a);
+                (a = img[srow0 + x]), (b = img[srow2 + x]);
+                trow0[x1] = (a + b) * 3 + img[srow1 + x] * 10;
+                trow1[x1] = b - a;
                 //
-                a = img[srow0 + x + 1], b = img[srow2 + x + 1];
-                trow0[x1 + 1] = ((a + b) * 3 + (img[srow1 + x + 1]) * 10);
-                trow1[x1 + 1] = (b - a);
+                (a = img[srow0 + x + 1]), (b = img[srow2 + x + 1]);
+                trow0[x1 + 1] = (a + b) * 3 + img[srow1 + x + 1] * 10;
+                trow1[x1 + 1] = b - a;
             }
             for (; x < w; ++x, ++x1) {
-                a = img[srow0 + x], b = img[srow2 + x];
-                trow0[x1] = ((a + b) * 3 + (img[srow1 + x]) * 10);
-                trow1[x1] = (b - a);
+                (a = img[srow0 + x]), (b = img[srow2 + x]);
+                trow0[x1] = (a + b) * 3 + img[srow1 + x] * 10;
+                trow1[x1] = b - a;
             }
             // make border
             x = (w + 1) | 0;
-            trow0[0] = trow0[1]; trow0[x] = trow0[w];
-            trow1[0] = trow1[1]; trow1[x] = trow1[w];
+            trow0[0] = trow0[1];
+            trow0[x] = trow0[w];
+            trow1[0] = trow1[1];
+            trow1[x] = trow1[w];
             // do horizontal convolution, interleave the results and store them
             for (x = 0; x <= w - 4; x += 4) {
-                a = trow1[x + 2], b = trow1[x + 1], c = trow1[x + 3], d = trow1[x + 4],
-                    e = trow0[x + 2], f = trow0[x + 3];
-                gxgy[drow++] = (e - trow0[x]);
-                gxgy[drow++] = ((a + trow1[x]) * 3 + b * 10);
-                gxgy[drow++] = (f - trow0[x + 1]);
-                gxgy[drow++] = ((c + b) * 3 + a * 10);
+                (a = trow1[x + 2]),
+                    (b = trow1[x + 1]),
+                    (c = trow1[x + 3]),
+                    (d = trow1[x + 4]),
+                    (e = trow0[x + 2]),
+                    (f = trow0[x + 3]);
+                gxgy[drow++] = e - trow0[x];
+                gxgy[drow++] = (a + trow1[x]) * 3 + b * 10;
+                gxgy[drow++] = f - trow0[x + 1];
+                gxgy[drow++] = (c + b) * 3 + a * 10;
 
-                gxgy[drow++] = ((trow0[x + 4] - e));
-                gxgy[drow++] = (((d + a) * 3 + c * 10));
-                gxgy[drow++] = ((trow0[x + 5] - f));
-                gxgy[drow++] = (((trow1[x + 5] + c) * 3 + d * 10));
+                gxgy[drow++] = trow0[x + 4] - e;
+                gxgy[drow++] = (d + a) * 3 + c * 10;
+                gxgy[drow++] = trow0[x + 5] - f;
+                gxgy[drow++] = (trow1[x + 5] + c) * 3 + d * 10;
             }
             for (; x < w; ++x) {
-                gxgy[drow++] = ((trow0[x + 2] - trow0[x]));
-                gxgy[drow++] = (((trow1[x + 2] + trow1[x]) * 3 + trow1[x + 1] * 10));
+                gxgy[drow++] = trow0[x + 2] - trow0[x];
+                gxgy[drow++] = (trow1[x + 2] + trow1[x]) * 3 + trow1[x + 1] * 10;
             }
         }
         this.cache.put_buffer(buf0_node);
@@ -1129,14 +1320,28 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
     // compute gradient using Sobel kernel [1 2 1] * [-1 0 1]^T
     // dst: [gx,gy,...]
     sobel_derivatives(src: matrix_t, dst: matrix_t): void {
-        var w = src.cols, h = src.rows;
-        var dstep = w << 1, x = 0, y = 0, x1 = 0, a, b, c, d, e, f;
-        var srow0 = 0, srow1 = 0, srow2 = 0, drow = 0;
+        var w = src.cols,
+            h = src.rows;
+        var dstep = w << 1,
+            x = 0,
+            y = 0,
+            x1 = 0,
+            a,
+            b,
+            c,
+            d,
+            e,
+            f;
+        var srow0 = 0,
+            srow1 = 0,
+            srow2 = 0,
+            drow = 0;
         var trow0, trow1;
 
         dst.resize(w, h, 2); // 2 channel output gx, gy
 
-        var img = src.data, gxgy = dst.data;
+        var img = src.data,
+            gxgy = dst.data;
 
         var buf0_node = this.cache.get_buffer((w + 2) << 2);
         var buf1_node = this.cache.get_buffer((w + 2) << 2);
@@ -1155,40 +1360,46 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
             drow = (y * dstep) | 0;
             // do vertical convolution
             for (x = 0, x1 = 1; x <= w - 2; x += 2, x1 += 2) {
-                a = img[srow0 + x], b = img[srow2 + x];
-                trow0[x1] = ((a + b) + (img[srow1 + x] * 2));
-                trow1[x1] = (b - a);
+                (a = img[srow0 + x]), (b = img[srow2 + x]);
+                trow0[x1] = a + b + img[srow1 + x] * 2;
+                trow1[x1] = b - a;
                 //
-                a = img[srow0 + x + 1], b = img[srow2 + x + 1];
-                trow0[x1 + 1] = ((a + b) + (img[srow1 + x + 1] * 2));
-                trow1[x1 + 1] = (b - a);
+                (a = img[srow0 + x + 1]), (b = img[srow2 + x + 1]);
+                trow0[x1 + 1] = a + b + img[srow1 + x + 1] * 2;
+                trow1[x1 + 1] = b - a;
             }
             for (; x < w; ++x, ++x1) {
-                a = img[srow0 + x], b = img[srow2 + x];
-                trow0[x1] = ((a + b) + (img[srow1 + x] * 2));
-                trow1[x1] = (b - a);
+                (a = img[srow0 + x]), (b = img[srow2 + x]);
+                trow0[x1] = a + b + img[srow1 + x] * 2;
+                trow1[x1] = b - a;
             }
             // make border
             x = (w + 1) | 0;
-            trow0[0] = trow0[1]; trow0[x] = trow0[w];
-            trow1[0] = trow1[1]; trow1[x] = trow1[w];
+            trow0[0] = trow0[1];
+            trow0[x] = trow0[w];
+            trow1[0] = trow1[1];
+            trow1[x] = trow1[w];
             // do horizontal convolution, interleave the results and store them
             for (x = 0; x <= w - 4; x += 4) {
-                a = trow1[x + 2], b = trow1[x + 1], c = trow1[x + 3], d = trow1[x + 4],
-                    e = trow0[x + 2], f = trow0[x + 3];
-                gxgy[drow++] = (e - trow0[x]);
-                gxgy[drow++] = (a + trow1[x] + b * 2);
-                gxgy[drow++] = (f - trow0[x + 1]);
-                gxgy[drow++] = (c + b + a * 2);
+                (a = trow1[x + 2]),
+                    (b = trow1[x + 1]),
+                    (c = trow1[x + 3]),
+                    (d = trow1[x + 4]),
+                    (e = trow0[x + 2]),
+                    (f = trow0[x + 3]);
+                gxgy[drow++] = e - trow0[x];
+                gxgy[drow++] = a + trow1[x] + b * 2;
+                gxgy[drow++] = f - trow0[x + 1];
+                gxgy[drow++] = c + b + a * 2;
 
-                gxgy[drow++] = (trow0[x + 4] - e);
-                gxgy[drow++] = (d + a + c * 2);
-                gxgy[drow++] = (trow0[x + 5] - f);
-                gxgy[drow++] = (trow1[x + 5] + c + d * 2);
+                gxgy[drow++] = trow0[x + 4] - e;
+                gxgy[drow++] = d + a + c * 2;
+                gxgy[drow++] = trow0[x + 5] - f;
+                gxgy[drow++] = trow1[x + 5] + c + d * 2;
             }
             for (; x < w; ++x) {
-                gxgy[drow++] = (trow0[x + 2] - trow0[x]);
-                gxgy[drow++] = (trow1[x + 2] + trow1[x] + trow1[x + 1] * 2);
+                gxgy[drow++] = trow0[x + 2] - trow0[x];
+                gxgy[drow++] = trow1[x + 2] + trow1[x] + trow1[x + 1] * 2;
             }
         }
         this.cache.put_buffer(buf0_node);
@@ -1197,32 +1408,41 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
     // please note:
     // dst_(type) size should be cols = src.cols+1, rows = src.rows+1
     compute_integral_image(src: matrix_t, dst_sum: number[], dst_sqsum: number[], dst_tilted: any[]): void {
-        var w0 = src.cols | 0, h0 = src.rows | 0, src_d = src.data;
+        var w0 = src.cols | 0,
+            h0 = src.rows | 0,
+            src_d = src.data;
         var w1 = (w0 + 1) | 0;
-        var s = 0, s2 = 0, p = 0, pup = 0, i = 0, j = 0, v = 0, k = 0;
+        var s = 0,
+            s2 = 0,
+            p = 0,
+            pup = 0,
+            i = 0,
+            j = 0,
+            v = 0,
+            k = 0;
 
         if (dst_sum && dst_sqsum) {
             // fill first row with zeros
             for (; i < w1; ++i) {
-                dst_sum[i] = 0, dst_sqsum[i] = 0;
+                (dst_sum[i] = 0), (dst_sqsum[i] = 0);
             }
-            p = (w1 + 1) | 0, pup = 1;
+            (p = (w1 + 1) | 0), (pup = 1);
             for (i = 0, k = 0; i < h0; ++i, ++p, ++pup) {
                 s = s2 = 0;
                 for (j = 0; j <= w0 - 2; j += 2, k += 2, p += 2, pup += 2) {
                     v = src_d[k];
-                    s += v, s2 += v * v;
+                    (s += v), (s2 += v * v);
                     dst_sum[p] = dst_sum[pup] + s;
                     dst_sqsum[p] = dst_sqsum[pup] + s2;
 
                     v = src_d[k + 1];
-                    s += v, s2 += v * v;
+                    (s += v), (s2 += v * v);
                     dst_sum[p + 1] = dst_sum[pup + 1] + s;
                     dst_sqsum[p + 1] = dst_sqsum[pup + 1] + s2;
                 }
                 for (; j < w0; ++j, ++k, ++p, ++pup) {
                     v = src_d[k];
-                    s += v, s2 += v * v;
+                    (s += v), (s2 += v * v);
                     dst_sum[p] = dst_sum[pup] + s;
                     dst_sqsum[p] = dst_sqsum[pup] + s2;
                 }
@@ -1232,7 +1452,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
             for (; i < w1; ++i) {
                 dst_sum[i] = 0;
             }
-            p = (w1 + 1) | 0, pup = 1;
+            (p = (w1 + 1) | 0), (pup = 1);
             for (i = 0, k = 0; i < h0; ++i, ++p, ++pup) {
                 s = 0;
                 for (j = 0; j <= w0 - 2; j += 2, k += 2, p += 2, pup += 2) {
@@ -1251,7 +1471,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
             for (; i < w1; ++i) {
                 dst_sqsum[i] = 0;
             }
-            p = (w1 + 1) | 0, pup = 1;
+            (p = (w1 + 1) | 0), (pup = 1);
             for (i = 0, k = 0; i < h0; ++i, ++p, ++pup) {
                 s2 = 0;
                 for (j = 0; j <= w0 - 2; j += 2, k += 2, p += 2, pup += 2) {
@@ -1276,7 +1496,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
                 dst_tilted[i] = 0;
             }
             // diagonal
-            p = (w1 + 1) | 0, pup = 0;
+            (p = (w1 + 1) | 0), (pup = 0);
             for (i = 0, k = 0; i < h0; ++i, ++p, ++pup) {
                 for (j = 0; j <= w0 - 2; j += 2, k += 2, p += 2, pup += 2) {
                     dst_tilted[p] = src_d[k] + dst_tilted[pup];
@@ -1287,13 +1507,13 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
                 }
             }
             // diagonal
-            p = (w1 + w0) | 0, pup = w0;
+            (p = (w1 + w0) | 0), (pup = w0);
             for (i = 0; i < h0; ++i, p += w1, pup += w1) {
                 dst_tilted[p] += dst_tilted[pup];
             }
 
             for (j = w0 - 1; j > 0; --j) {
-                p = j + h0 * w1, pup = p - w1;
+                (p = j + h0 * w1), (pup = p - w1);
                 for (i = h0; i > 0; --i, p -= w1, pup -= w1) {
                     dst_tilted[p] += dst_tilted[pup] + dst_tilted[pup + 1];
                 }
@@ -1301,12 +1521,18 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         }
     }
     equalize_histogram(src: matrix_t, dst: matrix_t): void {
-        var w = src.cols, h = src.rows, src_d = src.data;
+        var w = src.cols,
+            h = src.rows,
+            src_d = src.data;
 
         dst.resize(w, h, src.channel);
 
-        var dst_d = dst.data, size = w * h;
-        var i = 0, prev = 0, hist0, norm;
+        var dst_d = dst.data,
+            size = w * h;
+        var i = 0,
+            prev = 0,
+            hist0,
+            norm;
 
         var hist0_node = this.cache.get_buffer(256 << 2);
         hist0 = hist0_node.i32;
@@ -1327,13 +1553,25 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         this.cache.put_buffer(hist0_node);
     }
     canny(src: matrix_t, dst: matrix_t, low_thresh: number, high_thresh: number): void {
-        var w = src.cols, h = src.rows, src_d = src.data;
+        var w = src.cols,
+            h = src.rows,
+            src_d = src.data;
 
         dst.resize(w, h, src.channel);
 
         var dst_d = dst.data;
-        var i = 0, j: number = 0, grad = 0, w2 = w << 1, _grad = 0, suppress = 0, f = 0, x = 0, y = 0, s = 0;
-        var tg22x = 0, tg67x = 0;
+        var i = 0,
+            j: number = 0,
+            grad = 0,
+            w2 = w << 1,
+            _grad = 0,
+            suppress = 0,
+            f = 0,
+            x = 0,
+            y = 0,
+            s = 0;
+        var tg22x = 0,
+            tg67x = 0;
 
         // cache buffers
         var dxdy_node = this.cache.get_buffer((h * w2) << 2);
@@ -1341,13 +1579,17 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         var map_node = this.cache.get_buffer(((h + 2) * (w + 2)) << 2);
         var stack_node = this.cache.get_buffer((h * w) << 2);
 
-
         var buf = buf_node.i32;
         var map = map_node.i32;
         var stack = stack_node.i32;
         var dxdy = dxdy_node.i32;
         var dxdy_m = new matrix_t(w, h, JSFEAT_CONSTANTS.S32C2_t, dxdy_node.data);
-        var row0 = 1, row1 = (w + 2 + 1) | 0, row2 = (2 * (w + 2) + 1) | 0, map_w = (w + 2) | 0, map_i: number = (map_w + 1) | 0, stack_i = 0;
+        var row0 = 1,
+            row1 = (w + 2 + 1) | 0,
+            row2 = (2 * (w + 2) + 1) | 0,
+            map_w = (w + 2) | 0,
+            map_i: number = (map_w + 1) | 0,
+            stack_i = 0;
 
         this.sobel_derivatives(src, dxdy_m);
 
@@ -1369,9 +1611,9 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
 
         for (; j < w; ++j, grad += 2) {
             //buf[row1+j] = Math.abs(dxdy[grad]) + Math.abs(dxdy[grad+1]);
-            x = dxdy[grad], y = dxdy[grad + 1];
+            (x = dxdy[grad]), (y = dxdy[grad + 1]);
             //buf[row1+j] = x*x + y*y;
-            buf[row1 + j] = ((x ^ (x >> 31)) - (x >> 31)) + ((y ^ (y >> 31)) - (y >> 31));
+            buf[row1 + j] = (x ^ (x >> 31)) - (x >> 31) + ((y ^ (y >> 31)) - (y >> 31));
         }
 
         for (i = 1; i <= h; ++i, grad += w2) {
@@ -1383,9 +1625,9 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
             } else {
                 for (j = 0; j < w; j++) {
                     //buf[row2+j] =  Math.abs(dxdy[grad+(j<<1)]) + Math.abs(dxdy[grad+(j<<1)+1]);
-                    x = dxdy[grad + (j << 1)], y = dxdy[grad + (j << 1) + 1];
+                    (x = dxdy[grad + (j << 1)]), (y = dxdy[grad + (j << 1) + 1]);
                     //buf[row2+j] = x*x + y*y;
-                    buf[row2 + j] = ((x ^ (x >> 31)) - (x >> 31)) + ((y ^ (y >> 31)) - (y >> 31));
+                    buf[row2 + j] = (x ^ (x >> 31)) - (x >> 31) + ((y ^ (y >> 31)) - (y >> 31));
                 }
             }
             _grad = (grad - w2) | 0;
@@ -1459,28 +1701,28 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         while (stack_i > 0) {
             map_i = stack[--stack_i];
             map_i -= map_w + 1;
-            if (map[map_i] == 1) map[map_i] = 2, stack[stack_i++] = map_i;
+            if (map[map_i] == 1) (map[map_i] = 2), (stack[stack_i++] = map_i);
             map_i += 1;
-            if (map[map_i] == 1) map[map_i] = 2, stack[stack_i++] = map_i;
+            if (map[map_i] == 1) (map[map_i] = 2), (stack[stack_i++] = map_i);
             map_i += 1;
-            if (map[map_i] == 1) map[map_i] = 2, stack[stack_i++] = map_i;
+            if (map[map_i] == 1) (map[map_i] = 2), (stack[stack_i++] = map_i);
             map_i += map_w;
-            if (map[map_i] == 1) map[map_i] = 2, stack[stack_i++] = map_i;
+            if (map[map_i] == 1) (map[map_i] = 2), (stack[stack_i++] = map_i);
             map_i -= 2;
-            if (map[map_i] == 1) map[map_i] = 2, stack[stack_i++] = map_i;
+            if (map[map_i] == 1) (map[map_i] = 2), (stack[stack_i++] = map_i);
             map_i += map_w;
-            if (map[map_i] == 1) map[map_i] = 2, stack[stack_i++] = map_i;
+            if (map[map_i] == 1) (map[map_i] = 2), (stack[stack_i++] = map_i);
             map_i += 1;
-            if (map[map_i] == 1) map[map_i] = 2, stack[stack_i++] = map_i;
+            if (map[map_i] == 1) (map[map_i] = 2), (stack[stack_i++] = map_i);
             map_i += 1;
-            if (map[map_i] == 1) map[map_i] = 2, stack[stack_i++] = map_i;
+            if (map[map_i] == 1) (map[map_i] = 2), (stack[stack_i++] = map_i);
         }
 
         map_i = map_w + 1;
         row0 = 0;
         for (i = 0; i < h; ++i, map_i += map_w) {
             for (j = 0; j < w; ++j) {
-                dst_d[row0++] = (Number(map[map_i + j] == 2) * 0xff);
+                dst_d[row0++] = Number(map[map_i + j] == 2) * 0xff;
             }
         }
 
@@ -1492,25 +1734,49 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
     }
     // transform is 3x3 matrix_t
     warp_perspective(src: matrix_t, dst: matrix_t, transform: matrix_t, fill_value: number): void {
-        if (typeof fill_value === "undefined") { fill_value = 0; }
-        var src_width = src.cols | 0, src_height = src.rows | 0, dst_width = dst.cols | 0, dst_height = dst.rows | 0;
-        var src_d = src.data, dst_d = dst.data;
-        var x = 0, y = 0, off = 0, ixs = 0, iys = 0, xs = 0.0, ys = 0.0, xs0 = 0.0, ys0 = 0.0, ws = 0.0, sc = 0.0, a = 0.0, b = 0.0, p0 = 0.0, p1 = 0.0;
+        if (typeof fill_value === "undefined") {
+            fill_value = 0;
+        }
+        var src_width = src.cols | 0,
+            src_height = src.rows | 0,
+            dst_width = dst.cols | 0,
+            dst_height = dst.rows | 0;
+        var src_d = src.data,
+            dst_d = dst.data;
+        var x = 0,
+            y = 0,
+            off = 0,
+            ixs = 0,
+            iys = 0,
+            xs = 0.0,
+            ys = 0.0,
+            xs0 = 0.0,
+            ys0 = 0.0,
+            ws = 0.0,
+            sc = 0.0,
+            a = 0.0,
+            b = 0.0,
+            p0 = 0.0,
+            p1 = 0.0;
         var td = transform.data;
-        var m00 = td[0], m01 = td[1], m02 = td[2],
-            m10 = td[3], m11 = td[4], m12 = td[5],
-            m20 = td[6], m21 = td[7], m22 = td[8];
+        var m00 = td[0],
+            m01 = td[1],
+            m02 = td[2],
+            m10 = td[3],
+            m11 = td[4],
+            m12 = td[5],
+            m20 = td[6],
+            m21 = td[7],
+            m22 = td[8];
 
         for (var dptr = 0; y < dst_height; ++y) {
-            xs0 = m01 * y + m02,
-                ys0 = m11 * y + m12,
-                ws = m21 * y + m22;
+            (xs0 = m01 * y + m02), (ys0 = m11 * y + m12), (ws = m21 * y + m22);
             for (x = 0; x < dst_width; ++x, ++dptr, xs0 += m00, ys0 += m10, ws += m20) {
                 sc = 1.0 / ws;
-                xs = xs0 * sc, ys = ys0 * sc;
-                ixs = xs | 0, iys = ys | 0;
+                (xs = xs0 * sc), (ys = ys0 * sc);
+                (ixs = xs | 0), (iys = ys | 0);
 
-                if (xs > 0 && ys > 0 && ixs < (src_width - 1) && iys < (src_height - 1)) {
+                if (xs > 0 && ys > 0 && ixs < src_width - 1 && iys < src_height - 1) {
                     a = Math.max(xs - ixs, 0.0);
                     b = Math.max(ys - iys, 0.0);
                     off = (src_width * iys + ixs) | 0;
@@ -1519,28 +1785,48 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
                     p1 = src_d[off + src_width] + a * (src_d[off + src_width + 1] - src_d[off + src_width]);
 
                     dst_d[dptr] = p0 + b * (p1 - p0);
-                }
-                else dst_d[dptr] = fill_value;
+                } else dst_d[dptr] = fill_value;
             }
         }
     }
     // transform is 3x3 or 2x3 matrix_t only first 6 values referenced
     warp_affine(src: matrix_t, dst: matrix_t, transform: matrix_t, fill_value: number): void {
-        if (typeof fill_value === "undefined") { fill_value = 0; }
-        var src_width = src.cols, src_height = src.rows, dst_width = dst.cols, dst_height = dst.rows;
-        var src_d = src.data, dst_d = dst.data;
-        var x = 0, y = 0, off = 0, ixs = 0, iys = 0, xs = 0.0, ys = 0.0, a = 0.0, b = 0.0, p0 = 0.0, p1 = 0.0;
+        if (typeof fill_value === "undefined") {
+            fill_value = 0;
+        }
+        var src_width = src.cols,
+            src_height = src.rows,
+            dst_width = dst.cols,
+            dst_height = dst.rows;
+        var src_d = src.data,
+            dst_d = dst.data;
+        var x = 0,
+            y = 0,
+            off = 0,
+            ixs = 0,
+            iys = 0,
+            xs = 0.0,
+            ys = 0.0,
+            a = 0.0,
+            b = 0.0,
+            p0 = 0.0,
+            p1 = 0.0;
         var td = transform.data;
-        var m00 = td[0], m01 = td[1], m02 = td[2],
-            m10 = td[3], m11 = td[4], m12 = td[5];
+        var m00 = td[0],
+            m01 = td[1],
+            m02 = td[2],
+            m10 = td[3],
+            m11 = td[4],
+            m12 = td[5];
 
         for (var dptr = 0; y < dst_height; ++y) {
             xs = m01 * y + m02;
             ys = m11 * y + m12;
             for (x = 0; x < dst_width; ++x, ++dptr, xs += m00, ys += m10) {
-                ixs = xs | 0; iys = ys | 0;
+                ixs = xs | 0;
+                iys = ys | 0;
 
-                if (ixs >= 0 && iys >= 0 && ixs < (src_width - 1) && iys < (src_height - 1)) {
+                if (ixs >= 0 && iys >= 0 && ixs < src_width - 1 && iys < src_height - 1) {
                     a = xs - ixs;
                     b = ys - iys;
                     off = src_width * iys + ixs;
@@ -1549,8 +1835,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
                     p1 = src_d[off + src_width] + a * (src_d[off + src_width + 1] - src_d[off + src_width]);
 
                     dst_d[dptr] = p0 + b * (p1 - p0);
-                }
-                else dst_d[dptr] = fill_value;
+                } else dst_d[dptr] = fill_value;
             }
         }
     }
@@ -1564,17 +1849,13 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
             r = src.data[j];
             g = src.data[j + 1];
             b = src.data[j + 2];
-            if ((r > 95) && (g > 40) && (b > 20)
-                && (r > g) && (r > b)
-                && (r - Math.min(g, b) > 15)
-                && (Math.abs(r - g) > 15)) {
+            if (r > 95 && g > 40 && b > 20 && r > g && r > b && r - Math.min(g, b) > 15 && Math.abs(r - g) > 15) {
                 dst[i] = 255;
             } else {
                 dst[i] = 0;
             }
         }
     }
-
 };
 
 jsfeatNext.math = class math extends jsfeatNext {
@@ -1585,10 +1866,14 @@ jsfeatNext.math = class math extends jsfeatNext {
     }
 
     get_gaussian_kernel(size: number, sigma: number, kernel: Float32Array | Int32Array, data_type: number): void {
-        var i = 0, x = 0.0, t = 0.0, sigma_x = 0.0, scale_2x = 0.0;
+        var i = 0,
+            x = 0.0,
+            t = 0.0,
+            sigma_x = 0.0,
+            scale_2x = 0.0;
         var sum = 0.0;
         var kern_node = this.cache.get_buffer(size << 2);
-        var _kernel = kern_node.f32;//new Float32Array(size);
+        var _kernel = kern_node.f32; //new Float32Array(size);
 
         if ((size & 1) == 1 && size <= 7 && sigma <= 0) {
             switch (size >> 1) {
@@ -1597,17 +1882,25 @@ jsfeatNext.math = class math extends jsfeatNext {
                     sum = 1.0;
                     break;
                 case 1:
-                    _kernel[0] = 0.25, _kernel[1] = 0.5, _kernel[2] = 0.25;
+                    (_kernel[0] = 0.25), (_kernel[1] = 0.5), (_kernel[2] = 0.25);
                     sum = 0.25 + 0.5 + 0.25;
                     break;
                 case 2:
-                    _kernel[0] = 0.0625, _kernel[1] = 0.25, _kernel[2] = 0.375,
-                        _kernel[3] = 0.25, _kernel[4] = 0.0625;
+                    (_kernel[0] = 0.0625),
+                        (_kernel[1] = 0.25),
+                        (_kernel[2] = 0.375),
+                        (_kernel[3] = 0.25),
+                        (_kernel[4] = 0.0625);
                     sum = 0.0625 + 0.25 + 0.375 + 0.25 + 0.0625;
                     break;
                 case 3:
-                    _kernel[0] = 0.03125, _kernel[1] = 0.109375, _kernel[2] = 0.21875,
-                        _kernel[3] = 0.28125, _kernel[4] = 0.21875, _kernel[5] = 0.109375, _kernel[6] = 0.03125;
+                    (_kernel[0] = 0.03125),
+                        (_kernel[1] = 0.109375),
+                        (_kernel[2] = 0.21875),
+                        (_kernel[3] = 0.28125),
+                        (_kernel[4] = 0.21875),
+                        (_kernel[5] = 0.109375),
+                        (_kernel[6] = 0.03125);
                     sum = 0.03125 + 0.109375 + 0.21875 + 0.28125 + 0.21875 + 0.109375 + 0.03125;
                     break;
             }
@@ -1642,11 +1935,28 @@ jsfeatNext.math = class math extends jsfeatNext {
     }
 
     // model is 3x3 matrix_t
-    perspective_4point_transform(model: matrix_t, src_x0: number, src_y0: number, dst_x0: number, dst_y0: number,
-        src_x1: number, src_y1: number, dst_x1: number, dst_y1: number,
-        src_x2: number, src_y2: number, dst_x2: number, dst_y2: number,
-        src_x3: number, src_y3: number, dst_x3: number, dst_y3: number): void {
-        console.warn("⚠️⚠️⚠️ This method is deprecated ad will be removed in the next releases, use transform.perspective_4point_transform() instead. ⚠️⚠️⚠️");
+    perspective_4point_transform(
+        model: matrix_t,
+        src_x0: number,
+        src_y0: number,
+        dst_x0: number,
+        dst_y0: number,
+        src_x1: number,
+        src_y1: number,
+        dst_x1: number,
+        dst_y1: number,
+        src_x2: number,
+        src_y2: number,
+        dst_x2: number,
+        dst_y2: number,
+        src_x3: number,
+        src_y3: number,
+        dst_x3: number,
+        dst_y3: number
+    ): void {
+        console.warn(
+            "⚠️⚠️⚠️ This method is deprecated ad will be removed in the next releases, use transform.perspective_4point_transform() instead. ⚠️⚠️⚠️"
+        );
         var t1 = src_x0;
         var t2 = src_x2;
         var t4 = src_y1;
@@ -1765,24 +2075,39 @@ jsfeatNext.math = class math extends jsfeatNext {
     qsort(array: number[], low: number, high: number, cmp: (a: number, b: number) => number): void {
         var isort_thresh = 7;
         var t, ta, tb, tc;
-        var sp = 0, left = 0, right = 0, i = 0, n = 0, m = 0, ptr = 0, ptr2 = 0, d = 0;
-        var left0 = 0, left1 = 0, right0 = 0, right1 = 0, pivot = 0, a = 0, b = 0, c = 0, swap_cnt = 0;
+        var sp = 0,
+            left = 0,
+            right = 0,
+            i = 0,
+            n = 0,
+            m = 0,
+            ptr = 0,
+            ptr2 = 0,
+            d = 0;
+        var left0 = 0,
+            left1 = 0,
+            right0 = 0,
+            right1 = 0,
+            pivot = 0,
+            a = 0,
+            b = 0,
+            c = 0,
+            swap_cnt = 0;
 
         var stack = this.qsort_stack;
 
-        if ((high - low + 1) <= 1) return;
+        if (high - low + 1 <= 1) return;
 
         stack[0] = low;
         stack[1] = high;
 
         while (sp >= 0) {
-
             left = stack[sp << 1];
             right = stack[(sp << 1) + 1];
             sp--;
 
-            for (; ;) {
-                n = (right - left) + 1;
+            for (;;) {
+                n = right - left + 1;
 
                 if (n <= isort_thresh) {
                     //insert_sort:
@@ -1803,26 +2128,62 @@ jsfeatNext.math = class math extends jsfeatNext {
 
                     if (n > 40) {
                         d = n >> 3;
-                        a = left, b = left + d, c = left + (d << 1);
-                        ta = array[a], tb = array[b], tc = array[c];
-                        left = cmp(ta, tb) ? (cmp(tb, tc) ? b : (cmp(ta, tc) ? c : a))
-                            : (cmp(tc, tb) ? b : (cmp(ta, tc) ? a : c));
+                        (a = left), (b = left + d), (c = left + (d << 1));
+                        (ta = array[a]), (tb = array[b]), (tc = array[c]);
+                        left = cmp(ta, tb)
+                            ? cmp(tb, tc)
+                                ? b
+                                : cmp(ta, tc)
+                                ? c
+                                : a
+                            : cmp(tc, tb)
+                            ? b
+                            : cmp(ta, tc)
+                            ? a
+                            : c;
 
-                        a = pivot - d, b = pivot, c = pivot + d;
-                        ta = array[a], tb = array[b], tc = array[c];
-                        pivot = cmp(ta, tb) ? (cmp(tb, tc) ? b : (cmp(ta, tc) ? c : a))
-                            : (cmp(tc, tb) ? b : (cmp(ta, tc) ? a : c));
+                        (a = pivot - d), (b = pivot), (c = pivot + d);
+                        (ta = array[a]), (tb = array[b]), (tc = array[c]);
+                        pivot = cmp(ta, tb)
+                            ? cmp(tb, tc)
+                                ? b
+                                : cmp(ta, tc)
+                                ? c
+                                : a
+                            : cmp(tc, tb)
+                            ? b
+                            : cmp(ta, tc)
+                            ? a
+                            : c;
 
-                        a = right - (d << 1), b = right - d, c = right;
-                        ta = array[a], tb = array[b], tc = array[c];
-                        right = cmp(ta, tb) ? (cmp(tb, tc) ? b : (cmp(ta, tc) ? c : a))
-                            : (cmp(tc, tb) ? b : (cmp(ta, tc) ? a : c));
+                        (a = right - (d << 1)), (b = right - d), (c = right);
+                        (ta = array[a]), (tb = array[b]), (tc = array[c]);
+                        right = cmp(ta, tb)
+                            ? cmp(tb, tc)
+                                ? b
+                                : cmp(ta, tc)
+                                ? c
+                                : a
+                            : cmp(tc, tb)
+                            ? b
+                            : cmp(ta, tc)
+                            ? a
+                            : c;
                     }
 
-                    a = left, b = pivot, c = right;
-                    ta = array[a], tb = array[b], tc = array[c];
-                    pivot = cmp(ta, tb) ? (cmp(tb, tc) ? b : (cmp(ta, tc) ? c : a))
-                        : (cmp(tc, tb) ? b : (cmp(ta, tc) ? a : c));
+                    (a = left), (b = pivot), (c = right);
+                    (ta = array[a]), (tb = array[b]), (tc = array[c]);
+                    pivot = cmp(ta, tb)
+                        ? cmp(tb, tc)
+                            ? b
+                            : cmp(ta, tc)
+                            ? c
+                            : a
+                        : cmp(tc, tb)
+                        ? b
+                        : cmp(ta, tc)
+                        ? a
+                        : c;
                     if (pivot != left0) {
                         t = array[pivot];
                         array[pivot] = array[left0];
@@ -1833,7 +2194,7 @@ jsfeatNext.math = class math extends jsfeatNext {
                     right = right1 = right0;
 
                     ta = array[pivot];
-                    for (; ;) {
+                    for (;;) {
                         while (left <= right && !cmp(ta, array[left])) {
                             if (!cmp(array[left], ta)) {
                                 if (left > left1) {
@@ -1871,7 +2232,7 @@ jsfeatNext.math = class math extends jsfeatNext {
                     }
 
                     if (swap_cnt == 0) {
-                        left = left0, right = right0;
+                        (left = left0), (right = right0);
                         //goto insert_sort;
                         for (ptr = left + 1; ptr <= right; ptr++) {
                             for (ptr2 = ptr; ptr2 > left && cmp(array[ptr2], array[ptr2 - 1]); ptr2--) {
@@ -1883,7 +2244,7 @@ jsfeatNext.math = class math extends jsfeatNext {
                         break;
                     }
 
-                    n = Math.min((left1 - left0), (left - left1));
+                    n = Math.min(left1 - left0, left - left1);
                     m = (left - n) | 0;
                     for (i = 0; i < n; ++i, ++m) {
                         t = array[left0 + i];
@@ -1891,36 +2252,33 @@ jsfeatNext.math = class math extends jsfeatNext {
                         array[m] = t;
                     }
 
-                    n = Math.min((right0 - right1), (right1 - right));
+                    n = Math.min(right0 - right1, right1 - right);
                     m = (right0 - n + 1) | 0;
                     for (i = 0; i < n; ++i, ++m) {
                         t = array[left + i];
                         array[left + i] = array[m];
                         array[m] = t;
                     }
-                    n = (left - left1);
-                    m = (right1 - right);
+                    n = left - left1;
+                    m = right1 - right;
                     if (n > 1) {
                         if (m > 1) {
                             if (n > m) {
                                 ++sp;
                                 stack[sp << 1] = left0;
                                 stack[(sp << 1) + 1] = left0 + n - 1;
-                                left = right0 - m + 1, right = right0;
+                                (left = right0 - m + 1), (right = right0);
                             } else {
                                 ++sp;
                                 stack[sp << 1] = right0 - m + 1;
                                 stack[(sp << 1) + 1] = right0;
-                                left = left0, right = left0 + n - 1;
+                                (left = left0), (right = left0 + n - 1);
                             }
                         } else {
-                            left = left0, right = left0 + n - 1;
+                            (left = left0), (right = left0 + n - 1);
                         }
-                    }
-                    else if (m > 1)
-                        left = right0 - m + 1, right = right0;
-                    else
-                        break;
+                    } else if (m > 1) (left = right0 - m + 1), (right = right0);
+                    else break;
                 }
             }
         }
@@ -1928,10 +2286,13 @@ jsfeatNext.math = class math extends jsfeatNext {
 
     median(array: number[], low: number, high: number): number {
         var w;
-        var middle = 0, ll = 0, hh = 0, median = (low + high) >> 1;
-        for (; ;) {
+        var middle = 0,
+            ll = 0,
+            hh = 0,
+            median = (low + high) >> 1;
+        for (;;) {
             if (high <= low) return array[median];
-            if (high == (low + 1)) {
+            if (high == low + 1) {
                 if (array[low] > array[high]) {
                     w = array[low];
                     array[low] = array[high];
@@ -1939,7 +2300,7 @@ jsfeatNext.math = class math extends jsfeatNext {
                 }
                 return array[median];
             }
-            middle = ((low + high) >> 1);
+            middle = (low + high) >> 1;
             if (array[middle] > array[high]) {
                 w = array[middle];
                 array[middle] = array[high];
@@ -1955,14 +2316,16 @@ jsfeatNext.math = class math extends jsfeatNext {
                 array[middle] = array[low];
                 array[low] = w;
             }
-            ll = (low + 1);
+            ll = low + 1;
             w = array[middle];
             array[middle] = array[ll];
             array[ll] = w;
             hh = high;
-            for (; ;) {
-                do ++ll; while (array[low] > array[ll]);
-                do --hh; while (array[hh] > array[low]);
+            for (;;) {
+                do ++ll;
+                while (array[low] > array[ll]);
+                do --hh;
+                while (array[hh] > array[low]);
                 if (hh < ll) break;
                 w = array[ll];
                 array[ll] = array[hh];
@@ -1971,10 +2334,8 @@ jsfeatNext.math = class math extends jsfeatNext {
             w = array[low];
             array[low] = array[hh];
             array[hh] = w;
-            if (hh <= median)
-                low = ll;
-            else if (hh >= median)
-                high = (hh - 1);
+            if (hh <= median) low = ll;
+            else if (hh >= median) high = hh - 1;
         }
         return 0;
     }
@@ -1989,11 +2350,34 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         this.matmath = new matmath();
     }
 
-    JacobiImpl(A: Int32Array | Float32Array | Float64Array, astep: number, W: Int32Array | Float32Array | Float64Array, V: Int32Array | Float32Array | Float64Array, vstep: number, n: number): void {
+    JacobiImpl(
+        A: Int32Array | Float32Array | Float64Array,
+        astep: number,
+        W: Int32Array | Float32Array | Float64Array,
+        V: Int32Array | Float32Array | Float64Array,
+        vstep: number,
+        n: number
+    ): void {
         var eps = JSFEAT_CONSTANTS.EPSILON;
-        var i = 0, j = 0, k = 0, m = 0, l = 0, idx = 0, _in = 0, _in2 = 0;
-        var iters = 0, max_iter = n * n * 30;
-        var mv = 0.0, val = 0.0, p = 0.0, y = 0.0, t = 0.0, s = 0.0, c = 0.0, a0 = 0.0, b0 = 0.0;
+        var i = 0,
+            j = 0,
+            k = 0,
+            m = 0,
+            l = 0,
+            idx = 0,
+            _in = 0,
+            _in2 = 0;
+        var iters = 0,
+            max_iter = n * n * 30;
+        var mv = 0.0,
+            val = 0.0,
+            p = 0.0,
+            y = 0.0,
+            t = 0.0,
+            s = 0.0,
+            c = 0.0,
+            a0 = 0.0,
+            b0 = 0.0;
 
         var indR_buff = this.cache.get_buffer(n << 2);
         var indC_buff = this.cache.get_buffer(n << 2);
@@ -2015,117 +2399,111 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
             if (k < n - 1) {
                 for (m = k + 1, mv = Math.abs(A[astep * k + m]), i = k + 2; i < n; i++) {
                     val = Math.abs(A[astep * k + i]);
-                    if (mv < val)
-                        mv = val, m = i;
+                    if (mv < val) (mv = val), (m = i);
                 }
                 indR[k] = m;
             }
             if (k > 0) {
                 for (m = 0, mv = Math.abs(A[k]), i = 1; i < k; i++) {
                     val = Math.abs(A[astep * i + k]);
-                    if (mv < val)
-                        mv = val, m = i;
+                    if (mv < val) (mv = val), (m = i);
                 }
                 indC[k] = m;
             }
         }
 
-        if (n > 1) for (; iters < max_iter; iters++) {
-            // find index (k,l) of pivot p
-            for (k = 0, mv = Math.abs(A[indR[0]]), i = 1; i < n - 1; i++) {
-                val = Math.abs(A[astep * i + indR[i]]);
-                if (mv < val)
-                    mv = val, k = i;
-            }
-            l = indR[k];
-            for (i = 1; i < n; i++) {
-                val = Math.abs(A[astep * indC[i] + i]);
-                if (mv < val)
-                    mv = val, k = indC[i], l = i;
-            }
-
-            p = A[astep * k + l];
-
-            if (Math.abs(p) <= eps) break;
-
-            y = (W[l] - W[k]) * 0.5;
-            t = Math.abs(y) + hypot(p, y);
-            s = hypot(p, t);
-            c = t / s;
-            s = p / s; t = (p / t) * p;
-            if (y < 0)
-                s = -s, t = -t;
-            A[astep * k + l] = 0;
-
-            W[k] -= t;
-            W[l] += t;
-
-            // rotate rows and columns k and l
-            for (i = 0; i < k; i++) {
-                _in = (astep * i + k);
-                _in2 = (astep * i + l);
-                a0 = A[_in];
-                b0 = A[_in2];
-                A[_in] = a0 * c - b0 * s;
-                A[_in2] = a0 * s + b0 * c;
-            }
-            for (i = (k + 1); i < l; i++) {
-                _in = (astep * k + i);
-                _in2 = (astep * i + l);
-                a0 = A[_in];
-                b0 = A[_in2];
-                A[_in] = a0 * c - b0 * s;
-                A[_in2] = a0 * s + b0 * c;
-            }
-            i = l + 1;
-            _in = (astep * k + i);
-            _in2 = (astep * l + i);
-            for (; i < n; i++, _in++, _in2++) {
-                a0 = A[_in];
-                b0 = A[_in2];
-                A[_in] = a0 * c - b0 * s;
-                A[_in2] = a0 * s + b0 * c;
-            }
-
-            // rotate eigenvectors
-            if (V) {
-                _in = vstep * k;
-                _in2 = vstep * l;
-                for (i = 0; i < n; i++, _in++, _in2++) {
-                    a0 = V[_in];
-                    b0 = V[_in2];
-                    V[_in] = a0 * c - b0 * s;
-                    V[_in2] = a0 * s + b0 * c;
+        if (n > 1)
+            for (; iters < max_iter; iters++) {
+                // find index (k,l) of pivot p
+                for (k = 0, mv = Math.abs(A[indR[0]]), i = 1; i < n - 1; i++) {
+                    val = Math.abs(A[astep * i + indR[i]]);
+                    if (mv < val) (mv = val), (k = i);
                 }
-            }
+                l = indR[k];
+                for (i = 1; i < n; i++) {
+                    val = Math.abs(A[astep * indC[i] + i]);
+                    if (mv < val) (mv = val), (k = indC[i]), (l = i);
+                }
 
-            for (j = 0; j < 2; j++) {
-                idx = j == 0 ? k : l;
-                if (idx < n - 1) {
-                    for (m = idx + 1, mv = Math.abs(A[astep * idx + m]), i = idx + 2; i < n; i++) {
-                        val = Math.abs(A[astep * idx + i]);
-                        if (mv < val)
-                            mv = val, m = i;
+                p = A[astep * k + l];
+
+                if (Math.abs(p) <= eps) break;
+
+                y = (W[l] - W[k]) * 0.5;
+                t = Math.abs(y) + hypot(p, y);
+                s = hypot(p, t);
+                c = t / s;
+                s = p / s;
+                t = (p / t) * p;
+                if (y < 0) (s = -s), (t = -t);
+                A[astep * k + l] = 0;
+
+                W[k] -= t;
+                W[l] += t;
+
+                // rotate rows and columns k and l
+                for (i = 0; i < k; i++) {
+                    _in = astep * i + k;
+                    _in2 = astep * i + l;
+                    a0 = A[_in];
+                    b0 = A[_in2];
+                    A[_in] = a0 * c - b0 * s;
+                    A[_in2] = a0 * s + b0 * c;
+                }
+                for (i = k + 1; i < l; i++) {
+                    _in = astep * k + i;
+                    _in2 = astep * i + l;
+                    a0 = A[_in];
+                    b0 = A[_in2];
+                    A[_in] = a0 * c - b0 * s;
+                    A[_in2] = a0 * s + b0 * c;
+                }
+                i = l + 1;
+                _in = astep * k + i;
+                _in2 = astep * l + i;
+                for (; i < n; i++, _in++, _in2++) {
+                    a0 = A[_in];
+                    b0 = A[_in2];
+                    A[_in] = a0 * c - b0 * s;
+                    A[_in2] = a0 * s + b0 * c;
+                }
+
+                // rotate eigenvectors
+                if (V) {
+                    _in = vstep * k;
+                    _in2 = vstep * l;
+                    for (i = 0; i < n; i++, _in++, _in2++) {
+                        a0 = V[_in];
+                        b0 = V[_in2];
+                        V[_in] = a0 * c - b0 * s;
+                        V[_in2] = a0 * s + b0 * c;
                     }
-                    indR[idx] = m;
                 }
-                if (idx > 0) {
-                    for (m = 0, mv = Math.abs(A[idx]), i = 1; i < idx; i++) {
-                        val = Math.abs(A[astep * i + idx]);
-                        if (mv < val)
-                            mv = val, m = i;
+
+                for (j = 0; j < 2; j++) {
+                    idx = j == 0 ? k : l;
+                    if (idx < n - 1) {
+                        for (m = idx + 1, mv = Math.abs(A[astep * idx + m]), i = idx + 2; i < n; i++) {
+                            val = Math.abs(A[astep * idx + i]);
+                            if (mv < val) (mv = val), (m = i);
+                        }
+                        indR[idx] = m;
                     }
-                    indC[idx] = m;
+                    if (idx > 0) {
+                        for (m = 0, mv = Math.abs(A[idx]), i = 1; i < idx; i++) {
+                            val = Math.abs(A[astep * i + idx]);
+                            if (mv < val) (mv = val), (m = i);
+                        }
+                        indC[idx] = m;
+                    }
                 }
             }
-        }
 
         // sort eigenvalues & eigenvectors
         for (k = 0; k < n - 1; k++) {
             m = k;
             for (i = k + 1; i < n; i++) {
-                if (W[m] < W[i])
-                    m = i;
+                if (W[m] < W[i]) m = i;
             }
             if (k != m) {
                 swap(W, m, k, mv);
@@ -2137,20 +2515,48 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
             }
         }
 
-
         this.cache.put_buffer(indR_buff);
         this.cache.put_buffer(indC_buff);
     }
 
-    JacobiSVDImpl(At: Int32Array | Float32Array | Float64Array, astep: number, _W: Int32Array | Float32Array | Float64Array, Vt: Int32Array | Float32Array | Float64Array, vstep: number, m: number, n: number, n1: number): void {
+    JacobiSVDImpl(
+        At: Int32Array | Float32Array | Float64Array,
+        astep: number,
+        _W: Int32Array | Float32Array | Float64Array,
+        Vt: Int32Array | Float32Array | Float64Array,
+        vstep: number,
+        m: number,
+        n: number,
+        n1: number
+    ): void {
         var eps = JSFEAT_CONSTANTS.EPSILON * 2.0;
         var minval = JSFEAT_CONSTANTS.FLT_MIN;
-        var i = 0, j = 0, k = 0, iter = 0, max_iter = Math.max(m, 30);
-        var Ai = 0, Aj = 0, Vi = 0, Vj = 0, changed = 0;
-        var c = 0.0, s = 0.0, t = 0.0;
-        var t0 = 0.0, t1 = 0.0, sd = 0.0, beta = 0.0, gamma = 0.0, delta = 0.0, a = 0.0, p = 0.0, b = 0.0;
+        var i = 0,
+            j = 0,
+            k = 0,
+            iter = 0,
+            max_iter = Math.max(m, 30);
+        var Ai = 0,
+            Aj = 0,
+            Vi = 0,
+            Vj = 0,
+            changed = 0;
+        var c = 0.0,
+            s = 0.0,
+            t = 0.0;
+        var t0 = 0.0,
+            t1 = 0.0,
+            sd = 0.0,
+            beta = 0.0,
+            gamma = 0.0,
+            delta = 0.0,
+            a = 0.0,
+            p = 0.0,
+            b = 0.0;
         var seed = 0x1234;
-        var val = 0.0, val0 = 0.0, asum = 0.0;
+        var val = 0.0,
+            val0 = 0.0,
+            asum = 0.0;
 
         var W_buff = this.cache.get_buffer(n << 3);
         var W = W_buff.f64;
@@ -2175,70 +2581,79 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
 
             for (i = 0; i < n - 1; i++) {
                 for (j = i + 1; j < n; j++) {
-                    Ai = (i * astep) | 0, Aj = (j * astep) | 0;
-                    a = W[i], p = 0, b = W[j];
+                    (Ai = (i * astep) | 0), (Aj = (j * astep) | 0);
+                    (a = W[i]), (p = 0), (b = W[j]);
 
                     k = 2;
                     p += At[Ai] * At[Aj];
                     p += At[Ai + 1] * At[Aj + 1];
 
-                    for (; k < m; k++)
-                        p += At[Ai + k] * At[Aj + k];
+                    for (; k < m; k++) p += At[Ai + k] * At[Aj + k];
 
                     if (Math.abs(p) <= eps * Math.sqrt(a * b)) continue;
 
                     p *= 2.0;
-                    beta = a - b, gamma = hypot(p, beta);
+                    (beta = a - b), (gamma = hypot(p, beta));
                     if (beta < 0) {
                         delta = (gamma - beta) * 0.5;
                         s = Math.sqrt(delta / gamma);
-                        c = (p / (gamma * s * 2.0));
+                        c = p / (gamma * s * 2.0);
                     } else {
                         c = Math.sqrt((gamma + beta) / (gamma * 2.0));
-                        s = (p / (gamma * c * 2.0));
+                        s = p / (gamma * c * 2.0);
                     }
 
-                    a = 0.0, b = 0.0;
+                    (a = 0.0), (b = 0.0);
 
                     k = 2; // unroll
                     t0 = c * At[Ai] + s * At[Aj];
                     t1 = -s * At[Ai] + c * At[Aj];
-                    At[Ai] = t0; At[Aj] = t1;
-                    a += t0 * t0; b += t1 * t1;
+                    At[Ai] = t0;
+                    At[Aj] = t1;
+                    a += t0 * t0;
+                    b += t1 * t1;
 
                     t0 = c * At[Ai + 1] + s * At[Aj + 1];
                     t1 = -s * At[Ai + 1] + c * At[Aj + 1];
-                    At[Ai + 1] = t0; At[Aj + 1] = t1;
-                    a += t0 * t0; b += t1 * t1;
+                    At[Ai + 1] = t0;
+                    At[Aj + 1] = t1;
+                    a += t0 * t0;
+                    b += t1 * t1;
 
                     for (; k < m; k++) {
                         t0 = c * At[Ai + k] + s * At[Aj + k];
                         t1 = -s * At[Ai + k] + c * At[Aj + k];
-                        At[Ai + k] = t0; At[Aj + k] = t1;
+                        At[Ai + k] = t0;
+                        At[Aj + k] = t1;
 
-                        a += t0 * t0; b += t1 * t1;
+                        a += t0 * t0;
+                        b += t1 * t1;
                     }
 
-                    W[i] = a; W[j] = b;
+                    W[i] = a;
+                    W[j] = b;
 
                     changed = 1;
 
                     if (Vt) {
-                        Vi = (i * vstep) | 0, Vj = (j * vstep) | 0;
+                        (Vi = (i * vstep) | 0), (Vj = (j * vstep) | 0);
 
                         k = 2;
                         t0 = c * Vt[Vi] + s * Vt[Vj];
                         t1 = -s * Vt[Vi] + c * Vt[Vj];
-                        Vt[Vi] = t0; Vt[Vj] = t1;
+                        Vt[Vi] = t0;
+                        Vt[Vj] = t1;
 
                         t0 = c * Vt[Vi + 1] + s * Vt[Vj + 1];
                         t1 = -s * Vt[Vi + 1] + c * Vt[Vj + 1];
-                        Vt[Vi + 1] = t0; Vt[Vj + 1] = t1;
+                        Vt[Vi + 1] = t0;
+                        Vt[Vj + 1] = t1;
 
                         for (; k < n; k++) {
                             t0 = c * Vt[Vi + k] + s * Vt[Vj + k];
                             t1 = -s * Vt[Vi + k] + c * Vt[Vj + k];
-                            Vt[Vi + k] = t0; Vt[Vj + k] = t1;
+                            Vt[Vi + k] = t0;
+                            Vt[Vj + k] = t1;
                         }
                     }
                 }
@@ -2257,8 +2672,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         for (i = 0; i < n - 1; i++) {
             j = i;
             for (k = i + 1; k < n; k++) {
-                if (W[j] < W[k])
-                    j = k;
+                if (W[j] < W[k]) j = k;
             }
             if (i != j) {
                 swap(W, i, j, sd);
@@ -2284,17 +2698,16 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         }
 
         for (i = 0; i < n1; i++) {
-
             sd = i < n ? W[i] : 0;
 
             while (sd <= minval) {
                 // if we got a zero singular value, then in order to get the corresponding left singular vector
                 // we generate a random vector, project it to the previously computed left singular vectors,
                 // subtract the projection and normalize the difference.
-                val0 = (1.0 / m);
+                val0 = 1.0 / m;
                 for (k = 0; k < m; k++) {
-                    seed = (seed * 214013 + 2531011);
-                    val = (((seed >> 16) & 0x7fff) & 256) != 0 ? val0 : -val0;
+                    seed = seed * 214013 + 2531011;
+                    val = ((seed >> 16) & 0x7fff & 256) != 0 ? val0 : -val0;
                     At[i * astep + k] = val;
                 }
                 for (iter = 0; iter < 2; iter++) {
@@ -2305,7 +2718,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
                         }
                         asum = 0.0;
                         for (k = 0; k < m; k++) {
-                            t = (At[i * astep + k] - sd * At[j * astep + k]);
+                            t = At[i * astep + k] - sd * At[j * astep + k];
                             At[i * astep + k] = t;
                             asum += Math.abs(t);
                         }
@@ -2323,7 +2736,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
                 sd = Math.sqrt(sd);
             }
 
-            s = (1.0 / sd);
+            s = 1.0 / sd;
             for (k = 0; k < m; k++) {
                 At[i * astep + k] *= s;
             }
@@ -2333,8 +2746,13 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
     }
 
     lu_solve(A: matrix_t, B: matrix_t): number {
-        var i = 0, j = 0, k = 0, p = 1, astep = A.cols;
-        var ad = A.data, bd = B.data;
+        var i = 0,
+            j = 0,
+            k = 0,
+            p = 1,
+            astep = A.cols;
+        var ad = A.data,
+            bd = B.data;
         var t, alpha, d, s;
 
         for (i = 0; i < astep; i++) {
@@ -2385,35 +2803,42 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
     }
 
     cholesky_solve(A: matrix_t, B: matrix_t): number {
-        var col = 0, row = 0, col2 = 0, cs = 0, rs = 0, i = 0, j = 0;
+        var col = 0,
+            row = 0,
+            col2 = 0,
+            cs = 0,
+            rs = 0,
+            i = 0,
+            j = 0;
         var size = A.cols;
-        var ad = A.data, bd = B.data;
+        var ad = A.data,
+            bd = B.data;
         var val, inv_diag;
 
         for (col = 0; col < size; col++) {
             inv_diag = 1.0;
-            cs = (col * size);
+            cs = col * size;
             rs = cs;
             for (row = col; row < size; row++) {
                 // correct for the parts of cholesky already computed
-                val = ad[(rs + col)];
+                val = ad[rs + col];
                 for (col2 = 0; col2 < col; col2++) {
-                    val -= ad[(col2 * size + col)] * ad[(rs + col2)];
+                    val -= ad[col2 * size + col] * ad[rs + col2];
                 }
                 if (row == col) {
                     // this is the diagonal element so don't divide
-                    ad[(rs + col)] = val;
+                    ad[rs + col] = val;
                     if (val == 0) {
                         return 0;
                     }
                     inv_diag = 1.0 / val;
                 } else {
                     // cache the value without division in the upper half
-                    ad[(cs + row)] = val;
+                    ad[cs + row] = val;
                     // divide my the diagonal element for all others
-                    ad[(rs + col)] = val * inv_diag;
+                    ad[rs + col] = val * inv_diag;
                 }
-                rs = (rs + size);
+                rs = rs + size;
             }
         }
 
@@ -2422,26 +2847,26 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         for (i = 0; i < size; i++) {
             val = bd[i];
             for (j = 0; j < i; j++) {
-                val -= ad[(cs + j)] * bd[j];
+                val -= ad[cs + j] * bd[j];
             }
             bd[i] = val;
-            cs = (cs + size);
+            cs = cs + size;
         }
         // backsub through diagonal
         cs = 0;
         for (i = 0; i < size; i++) {
-            bd[i] /= ad[(cs + i)];
-            cs = (cs + size);
+            bd[i] /= ad[cs + i];
+            cs = cs + size;
         }
         // backsub through L Transpose
-        i = (size - 1);
+        i = size - 1;
         for (; i >= 0; i--) {
             val = bd[i];
-            j = (i + 1);
-            cs = (j * size);
+            j = i + 1;
+            cs = j * size;
             for (; j < size; j++) {
-                val -= ad[(cs + i)] * bd[j];
-                cs = (cs + size);
+                val -= ad[cs + i] * bd[j];
+                cs = cs + size;
             }
             bd[i] = val;
         }
@@ -2450,8 +2875,16 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
     }
 
     svd_decompose(A: any, W: matrix_t, U: matrix_t, V: matrix_t, options: number): void {
-        if (typeof options === "undefined") { options = 0; };
-        var at = 0, i = 0, j = 0, _m = A.rows, _n = A.cols, m = _m, n = _n;
+        if (typeof options === "undefined") {
+            options = 0;
+        }
+        var at = 0,
+            i = 0,
+            j = 0,
+            _m = A.rows,
+            _n = A.cols,
+            m = _m,
+            n = _n;
         var dt = A.type | JSFEAT_CONSTANTS.C1_t; // we only work with single channel
 
         if (m < n) {
@@ -2493,7 +2926,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         }
 
         if (at == 0) {
-            if (U && (options & JSFEAT_CONSTANTS.SVD_U_T)) {
+            if (U && options & JSFEAT_CONSTANTS.SVD_U_T) {
                 i = m * m;
                 while (--i >= 0) {
                     U.data[i] = a_mt.data[i];
@@ -2502,7 +2935,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
                 this.matmath.transpose(U, a_mt);
             }
 
-            if (V && (options & JSFEAT_CONSTANTS.SVD_V_T)) {
+            if (V && options & JSFEAT_CONSTANTS.SVD_V_T) {
                 i = n * n;
                 while (--i >= 0) {
                     V.data[i] = v_mt.data[i];
@@ -2511,7 +2944,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
                 this.matmath.transpose(V, v_mt);
             }
         } else {
-            if (U && (options & JSFEAT_CONSTANTS.SVD_U_T)) {
+            if (U && options & JSFEAT_CONSTANTS.SVD_U_T) {
                 i = n * n;
                 while (--i >= 0) {
                     U.data[i] = v_mt.data[i];
@@ -2520,7 +2953,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
                 this.matmath.transpose(U, v_mt);
             }
 
-            if (V && (options & JSFEAT_CONSTANTS.SVD_V_T)) {
+            if (V && options & JSFEAT_CONSTANTS.SVD_V_T) {
                 i = m * m;
                 while (--i >= 0) {
                     V.data[i] = a_mt.data[i];
@@ -2533,14 +2966,19 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         this.cache.put_buffer(a_buff);
         this.cache.put_buffer(w_buff);
         this.cache.put_buffer(v_buff);
-
     }
 
     svd_solve(A: matrix_t, X: matrix_t, B: matrix_t): void {
-        var i = 0, j = 0, k = 0;
-        var pu = 0, pv = 0;
-        var nrows = A.rows, ncols = A.cols;
-        var sum = 0.0, xsum = 0.0, tol = 0.0;
+        var i = 0,
+            j = 0,
+            k = 0;
+        var pu = 0,
+            pv = 0;
+        var nrows = A.rows,
+            ncols = A.cols;
+        var sum = 0.0,
+            xsum = 0.0,
+            tol = 0.0;
         var dt = A.type | JSFEAT_CONSTANTS.C1_t;
 
         var u_buff = this.cache.get_buffer((nrows * nrows) << 3);
@@ -2551,7 +2989,10 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         var w_mt = new matrix_t(1, ncols, dt, w_buff.data);
         var v_mt = new matrix_t(ncols, ncols, dt, v_buff.data);
 
-        var bd = B.data, ud = u_mt.data, wd = w_mt.data, vd = v_mt.data;
+        var bd = B.data,
+            ud = u_mt.data,
+            wd = w_mt.data,
+            vd = v_mt.data;
 
         this.svd_decompose(A, w_mt, u_mt, v_mt, 0);
 
@@ -2564,7 +3005,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
                     for (k = 0, sum = 0.0, pu = 0; k < nrows; k++, pu += ncols) {
                         sum += ud[pu + j] * bd[k];
                     }
-                    xsum += sum * vd[pv + j] / wd[j];
+                    xsum += (sum * vd[pv + j]) / wd[j];
                 }
             }
             X.data[i] = xsum;
@@ -2576,10 +3017,16 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
     }
 
     svd_invert(Ai: matrix_t, A: matrix_t): void {
-        var i = 0, j = 0, k = 0;
-        var pu = 0, pv = 0, pa = 0;
-        var nrows = A.rows, ncols = A.cols;
-        var sum = 0.0, tol = 0.0;
+        var i = 0,
+            j = 0,
+            k = 0;
+        var pu = 0,
+            pv = 0,
+            pa = 0;
+        var nrows = A.rows,
+            ncols = A.cols;
+        var sum = 0.0,
+            tol = 0.0;
         var dt = A.type | JSFEAT_CONSTANTS.C1_t;
 
         //var u_buff = cache1.get_buffer((nrows * nrows) << 3);
@@ -2590,7 +3037,10 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         var w_mt = new matrix_t(1, ncols, dt, w_buff.data);
         var v_mt = new matrix_t(ncols, ncols, dt, v_buff.data);
 
-        var id = Ai.data, ud = u_mt.data, wd = w_mt.data, vd = v_mt.data;
+        var id = Ai.data,
+            ud = u_mt.data,
+            wd = w_mt.data,
+            vd = v_mt.data;
 
         this.svd_decompose(A, w_mt, u_mt, v_mt, 0);
 
@@ -2599,7 +3049,7 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         for (; i < ncols; i++, pv += ncols) {
             for (j = 0, pu = 0; j < nrows; j++, pa++) {
                 for (k = 0, sum = 0.0; k < ncols; k++, pu++) {
-                    if (wd[k] > tol) sum += vd[pv + k] * ud[pu] / wd[k];
+                    if (wd[k] > tol) sum += (vd[pv + k] * ud[pu]) / wd[k];
                 }
                 id[pa] = sum;
             }
@@ -2611,7 +3061,8 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
     }
 
     eigenVV(A: matrix_t, vects: matrix_t, vals?: matrix_t): void {
-        var n = A.cols, i = n * n;
+        var n = A.cols,
+            i = n * n;
         var dt = A.type | JSFEAT_CONSTANTS.C1_t;
 
         var a_buff = this.cache.get_buffer((n * n) << 3);
@@ -2634,12 +3085,12 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         this.cache.put_buffer(a_buff);
         this.cache.put_buffer(w_buff);
     }
-}
+};
 
 jsfeatNext.orb = class orb extends jsfeatNext {
-    public bit_pattern_31_: Int32Array
-    public H: matrix_t
-    public patch_img: matrix_t
+    public bit_pattern_31_: Int32Array;
+    public H: matrix_t;
+    public patch_img: matrix_t;
     public imgproc: imgproc;
     constructor() {
         super();
@@ -2651,8 +3102,14 @@ jsfeatNext.orb = class orb extends jsfeatNext {
 
     describe(src: matrix_t, corners: keypoint_t[], count: number, descriptors: matrix_t): void {
         var DESCR_SIZE = 32; // bytes;
-        var i = 0, b = 0, px = 0.0, py = 0.0, angle = 0.0;
-        var t0 = 0, t1 = 0, val = 0;
+        var i = 0,
+            b = 0,
+            px = 0.0,
+            py = 0.0,
+            angle = 0.0;
+        var t0 = 0,
+            t1 = 0,
+            val = 0;
         //var img = src.data, w = src.cols, h = src.rows;
         var patch_d = this.patch_img.data;
         var patch_off = 16 * 32 + 16; // center of patch
@@ -2682,38 +3139,53 @@ jsfeatNext.orb = class orb extends jsfeatNext {
             // describe the patch
             patt = 0;
             for (b = 0; b < DESCR_SIZE; ++b) {
+                t0 = patch_d[patch_off + this.bit_pattern_31_[patt + 1] * 32 + this.bit_pattern_31_[patt]];
+                patt += 2;
+                t1 = patch_d[patch_off + this.bit_pattern_31_[patt + 1] * 32 + this.bit_pattern_31_[patt]];
+                patt += 2;
+                val = (<number>(<unknown>(t0 < t1))) | 0;
 
-                t0 = patch_d[patch_off + this.bit_pattern_31_[patt + 1] * 32 + this.bit_pattern_31_[patt]]; patt += 2
-                t1 = patch_d[patch_off + this.bit_pattern_31_[patt + 1] * 32 + this.bit_pattern_31_[patt]]; patt += 2
-                val = <number><unknown>(t0 < t1) | 0;
+                t0 = patch_d[patch_off + this.bit_pattern_31_[patt + 1] * 32 + this.bit_pattern_31_[patt]];
+                patt += 2;
+                t1 = patch_d[patch_off + this.bit_pattern_31_[patt + 1] * 32 + this.bit_pattern_31_[patt]];
+                patt += 2;
+                val |= (<number>(<unknown>(t0 < t1))) << 1;
 
-                t0 = patch_d[patch_off + this.bit_pattern_31_[patt + 1] * 32 + this.bit_pattern_31_[patt]]; patt += 2
-                t1 = patch_d[patch_off + this.bit_pattern_31_[patt + 1] * 32 + this.bit_pattern_31_[patt]]; patt += 2
-                val |= <number><unknown>(t0 < t1) << 1;
+                t0 = patch_d[patch_off + this.bit_pattern_31_[patt + 1] * 32 + this.bit_pattern_31_[patt]];
+                patt += 2;
+                t1 = patch_d[patch_off + this.bit_pattern_31_[patt + 1] * 32 + this.bit_pattern_31_[patt]];
+                patt += 2;
+                val |= (<number>(<unknown>(t0 < t1))) << 2;
 
-                t0 = patch_d[patch_off + this.bit_pattern_31_[patt + 1] * 32 + this.bit_pattern_31_[patt]]; patt += 2
-                t1 = patch_d[patch_off + this.bit_pattern_31_[patt + 1] * 32 + this.bit_pattern_31_[patt]]; patt += 2
-                val |= <number><unknown>(t0 < t1) << 2;
+                t0 = patch_d[patch_off + this.bit_pattern_31_[patt + 1] * 32 + this.bit_pattern_31_[patt]];
+                patt += 2;
+                t1 = patch_d[patch_off + this.bit_pattern_31_[patt + 1] * 32 + this.bit_pattern_31_[patt]];
+                patt += 2;
+                val |= (<number>(<unknown>(t0 < t1))) << 3;
 
-                t0 = patch_d[patch_off + this.bit_pattern_31_[patt + 1] * 32 + this.bit_pattern_31_[patt]]; patt += 2
-                t1 = patch_d[patch_off + this.bit_pattern_31_[patt + 1] * 32 + this.bit_pattern_31_[patt]]; patt += 2
-                val |= <number><unknown>(t0 < t1) << 3;
+                t0 = patch_d[patch_off + this.bit_pattern_31_[patt + 1] * 32 + this.bit_pattern_31_[patt]];
+                patt += 2;
+                t1 = patch_d[patch_off + this.bit_pattern_31_[patt + 1] * 32 + this.bit_pattern_31_[patt]];
+                patt += 2;
+                val |= (<number>(<unknown>(t0 < t1))) << 4;
 
-                t0 = patch_d[patch_off + this.bit_pattern_31_[patt + 1] * 32 + this.bit_pattern_31_[patt]]; patt += 2
-                t1 = patch_d[patch_off + this.bit_pattern_31_[patt + 1] * 32 + this.bit_pattern_31_[patt]]; patt += 2
-                val |= <number><unknown>(t0 < t1) << 4;
+                t0 = patch_d[patch_off + this.bit_pattern_31_[patt + 1] * 32 + this.bit_pattern_31_[patt]];
+                patt += 2;
+                t1 = patch_d[patch_off + this.bit_pattern_31_[patt + 1] * 32 + this.bit_pattern_31_[patt]];
+                patt += 2;
+                val |= (<number>(<unknown>(t0 < t1))) << 5;
 
-                t0 = patch_d[patch_off + this.bit_pattern_31_[patt + 1] * 32 + this.bit_pattern_31_[patt]]; patt += 2
-                t1 = patch_d[patch_off + this.bit_pattern_31_[patt + 1] * 32 + this.bit_pattern_31_[patt]]; patt += 2
-                val |= <number><unknown>(t0 < t1) << 5;
+                t0 = patch_d[patch_off + this.bit_pattern_31_[patt + 1] * 32 + this.bit_pattern_31_[patt]];
+                patt += 2;
+                t1 = patch_d[patch_off + this.bit_pattern_31_[patt + 1] * 32 + this.bit_pattern_31_[patt]];
+                patt += 2;
+                val |= (<number>(<unknown>(t0 < t1))) << 6;
 
-                t0 = patch_d[patch_off + this.bit_pattern_31_[patt + 1] * 32 + this.bit_pattern_31_[patt]]; patt += 2
-                t1 = patch_d[patch_off + this.bit_pattern_31_[patt + 1] * 32 + this.bit_pattern_31_[patt]]; patt += 2
-                val |= <number><unknown>(t0 < t1) << 6;
-
-                t0 = patch_d[patch_off + this.bit_pattern_31_[patt + 1] * 32 + this.bit_pattern_31_[patt]]; patt += 2
-                t1 = patch_d[patch_off + this.bit_pattern_31_[patt + 1] * 32 + this.bit_pattern_31_[patt]]; patt += 2
-                val |= <number><unknown>(t0 < t1) << 7;
+                t0 = patch_d[patch_off + this.bit_pattern_31_[patt + 1] * 32 + this.bit_pattern_31_[patt]];
+                patt += 2;
+                t1 = patch_d[patch_off + this.bit_pattern_31_[patt + 1] * 32 + this.bit_pattern_31_[patt]];
+                patt += 2;
+                val |= (<number>(<unknown>(t0 < t1))) << 7;
 
                 descr_d[descr_off + b] = val;
             }
@@ -2733,14 +3205,25 @@ jsfeatNext.yape06 = class yape06 extends jsfeatNext {
         this.min_eigen_value_threshold = 25;
     }
     detect(src: matrix_t, points: keypoint_t[], border: number): number {
-        if (typeof border === "undefined") { border = 5; }
-        var x = 0, y = 0;
-        var w = src.cols, h = src.rows, srd_d = src.data;
-        var Dxx = 5, Dyy = (5 * w) | 0;
-        var Dxy = (3 + 3 * w) | 0, Dyx = (3 - 3 * w) | 0;
+        if (typeof border === "undefined") {
+            border = 5;
+        }
+        var x = 0,
+            y = 0;
+        var w = src.cols,
+            h = src.rows,
+            srd_d = src.data;
+        var Dxx = 5,
+            Dyy = (5 * w) | 0;
+        var Dxy = (3 + 3 * w) | 0,
+            Dyx = (3 - 3 * w) | 0;
         var lap_buf = this.cache.get_buffer((w * h) << 2);
         var laplacian = lap_buf.i32;
-        var lv = 0, row = 0, rowx = 0, min_eigen_value = 0, pt;
+        var lv = 0,
+            row = 0,
+            rowx = 0,
+            min_eigen_value = 0,
+            pt;
         var number_of_points = 0;
         var lap_thresh = this.laplacian_threshold;
         var eigen_thresh = this.min_eigen_value_threshold;
@@ -2751,31 +3234,39 @@ jsfeatNext.yape06 = class yape06 extends jsfeatNext {
         var ey = Math.min(h - 3, h - border) | 0;
 
         x = w * h;
-        while (--x >= 0) { laplacian[x] = 0; }
+        while (--x >= 0) {
+            laplacian[x] = 0;
+        }
         compute_laplacian(srd_d, laplacian, w, h, Dxx, Dyy, sx, sy, ex, ey);
 
         row = (sy * w + sx) | 0;
         for (y = sy; y < ey; ++y, row += w) {
             for (x = sx, rowx = row; x < ex; ++x, ++rowx) {
-
                 lv = laplacian[rowx];
-                if ((lv < -lap_thresh &&
-                    lv < laplacian[rowx - 1] && lv < laplacian[rowx + 1] &&
-                    lv < laplacian[rowx - w] && lv < laplacian[rowx + w] &&
-                    lv < laplacian[rowx - w - 1] && lv < laplacian[rowx + w - 1] &&
-                    lv < laplacian[rowx - w + 1] && lv < laplacian[rowx + w + 1])
-                    ||
+                if (
+                    (lv < -lap_thresh &&
+                        lv < laplacian[rowx - 1] &&
+                        lv < laplacian[rowx + 1] &&
+                        lv < laplacian[rowx - w] &&
+                        lv < laplacian[rowx + w] &&
+                        lv < laplacian[rowx - w - 1] &&
+                        lv < laplacian[rowx + w - 1] &&
+                        lv < laplacian[rowx - w + 1] &&
+                        lv < laplacian[rowx + w + 1]) ||
                     (lv > lap_thresh &&
-                        lv > laplacian[rowx - 1] && lv > laplacian[rowx + 1] &&
-                        lv > laplacian[rowx - w] && lv > laplacian[rowx + w] &&
-                        lv > laplacian[rowx - w - 1] && lv > laplacian[rowx + w - 1] &&
-                        lv > laplacian[rowx - w + 1] && lv > laplacian[rowx + w + 1])
+                        lv > laplacian[rowx - 1] &&
+                        lv > laplacian[rowx + 1] &&
+                        lv > laplacian[rowx - w] &&
+                        lv > laplacian[rowx + w] &&
+                        lv > laplacian[rowx - w - 1] &&
+                        lv > laplacian[rowx + w - 1] &&
+                        lv > laplacian[rowx - w + 1] &&
+                        lv > laplacian[rowx + w + 1])
                 ) {
-
                     min_eigen_value = hessian_min_eigen_value(srd_d, rowx, lv, Dxx, Dyy, Dxy, Dyx);
                     if (min_eigen_value > eigen_thresh) {
                         pt = points[number_of_points];
-                        pt.x = x, pt.y = y, pt.score = min_eigen_value;
+                        (pt.x = x), (pt.y = y), (pt.score = min_eigen_value);
                         ++number_of_points;
                         ++x, ++rowx; // skip next pixel since this is maxima in 3x3
                     }
@@ -2794,20 +3285,35 @@ jsfeatNext.motion_estimator = class motion_estimator extends jsfeatNext {
         super();
     }
 
-    get_subset(kernel: homography2d, from: point_t[], to: point_t[], need_cnt: number, max_cnt: number, from_sub: point_t[], to_sub: point_t[]): boolean {
+    get_subset(
+        kernel: homography2d,
+        from: point_t[],
+        to: point_t[],
+        need_cnt: number,
+        max_cnt: number,
+        from_sub: point_t[],
+        to_sub: point_t[]
+    ): boolean {
         var max_try = 1000;
         var indices = [];
-        var i = 0, j = 0, ssiter = 0, idx_i = 0, ok = false;
+        var i = 0,
+            j = 0,
+            ssiter = 0,
+            idx_i = 0,
+            ok = false;
         for (; ssiter < max_try; ++ssiter) {
             i = 0;
-            for (; i < need_cnt && ssiter < max_try;) {
+            for (; i < need_cnt && ssiter < max_try; ) {
                 ok = false;
                 idx_i = 0;
                 while (!ok) {
                     ok = true;
                     idx_i = indices[i] = Math.floor(Math.random() * max_cnt) | 0;
                     for (j = 0; j < i; ++j) {
-                        if (idx_i == indices[j]) { ok = false; break; }
+                        if (idx_i == indices[j]) {
+                            ok = false;
+                            break;
+                        }
                     }
                 }
                 from_sub[i] = from[idx_i];
@@ -2821,37 +3327,61 @@ jsfeatNext.motion_estimator = class motion_estimator extends jsfeatNext {
             break;
         }
 
-        return (i == need_cnt && ssiter < max_try);
+        return i == need_cnt && ssiter < max_try;
     }
 
-    find_inliers(kernel: homography2d, model: matrix_t, from: point_t[], to: point_t[], count: number, thresh: number, err: Int32Array | Float32Array, mask: number[]): number {
-        var numinliers: number = 0, i = 0, f = 0;
+    find_inliers(
+        kernel: homography2d,
+        model: matrix_t,
+        from: point_t[],
+        to: point_t[],
+        count: number,
+        thresh: number,
+        err: Int32Array | Float32Array,
+        mask: number[]
+    ): number {
+        var numinliers: number = 0,
+            i = 0,
+            f = 0;
         var t = thresh * thresh;
 
         kernel.error(from, to, model, err, count);
 
         for (; i < count; ++i) {
-            f = <number><unknown>(err[i] <= t);
+            f = <number>(<unknown>(err[i] <= t));
             mask[i] = f;
             numinliers += f;
         }
         return numinliers;
     }
 
-    ransac(params: ransac_params_t, kernel: any, from: point_t[], to: point_t[], count: number, model: matrix_t, mask: matrix_t, max_iters: number): boolean {
-        if (typeof max_iters === "undefined") { max_iters = 1000; }
+    ransac(
+        params: ransac_params_t,
+        kernel: any,
+        from: point_t[],
+        to: point_t[],
+        count: number,
+        model: matrix_t,
+        mask: matrix_t,
+        max_iters: number
+    ): boolean {
+        if (typeof max_iters === "undefined") {
+            max_iters = 1000;
+        }
 
         if (count < params.size) return false;
 
         var model_points = params.size;
-        var niters = max_iters, iter = 0;
+        var niters = max_iters,
+            iter = 0;
         var result: boolean = false;
 
         var subset0: any = [];
         var subset1: any = [];
         var found = false;
 
-        var mc = model.cols, mr = model.rows;
+        var mc = model.cols,
+            mr = model.rows;
         var dt = model.type | JSFEAT_CONSTANTS.C1_t;
 
         var m_buff = this.cache.get_buffer((mc * mr) << 3);
@@ -2860,7 +3390,8 @@ jsfeatNext.motion_estimator = class motion_estimator extends jsfeatNext {
         var M = new matrix_t(mc, mr, dt, m_buff.data);
         var curr_mask = new matrix_t(count, 1, JSFEAT_CONSTANTS.U8C1_t, ms_buff.data);
 
-        var inliers_max = -1, numinliers = 0;
+        var inliers_max = -1,
+            numinliers = 0;
         var nmodels = 0;
 
         var err = err_buff.f32;
@@ -2900,8 +3431,7 @@ jsfeatNext.motion_estimator = class motion_estimator extends jsfeatNext {
             }
 
             nmodels = kernel.run(subset0, subset1, M, model_points);
-            if (nmodels <= 0)
-                continue;
+            if (nmodels <= 0) continue;
 
             // TODO handle multimodel output
 
@@ -2923,13 +3453,25 @@ jsfeatNext.motion_estimator = class motion_estimator extends jsfeatNext {
         return result;
     }
 
-    lmeds(params: ransac_params_t, kernel: any, from: point_t[], to: point_t[], count: number, model: matrix_t, mask: matrix_t, max_iters: number): boolean {
-        if (typeof max_iters === "undefined") { max_iters = 1000; }
+    lmeds(
+        params: ransac_params_t,
+        kernel: any,
+        from: point_t[],
+        to: point_t[],
+        count: number,
+        model: matrix_t,
+        mask: matrix_t,
+        max_iters: number
+    ): boolean {
+        if (typeof max_iters === "undefined") {
+            max_iters = 1000;
+        }
 
         if (count < params.size) return false;
 
         var model_points = params.size;
-        var niters = max_iters, iter = 0;
+        var niters = max_iters,
+            iter = 0;
         var result: boolean = false;
         var _math = new jsfeatNext.math();
 
@@ -2937,7 +3479,8 @@ jsfeatNext.motion_estimator = class motion_estimator extends jsfeatNext {
         var subset1: any = [];
         var found = false;
 
-        var mc = model.cols, mr = model.rows;
+        var mc = model.cols,
+            mr = model.rows;
         var dt = model.type | JSFEAT_CONSTANTS.C1_t;
 
         var m_buff = this.cache.get_buffer((mc * mr) << 3);
@@ -2950,7 +3493,9 @@ jsfeatNext.motion_estimator = class motion_estimator extends jsfeatNext {
         var nmodels = 0;
 
         var err = err_buff.f32;
-        var min_median = 1000000000.0, sigma = 0.0, median = 0.0;
+        var min_median = 1000000000.0,
+            sigma = 0.0,
+            median = 0.0;
 
         params.eps = 0.45;
         niters = params.update_iters(params.eps, niters);
@@ -2990,8 +3535,7 @@ jsfeatNext.motion_estimator = class motion_estimator extends jsfeatNext {
             }
 
             nmodels = kernel.run(subset0, subset1, M, model_points);
-            if (nmodels <= 0)
-                continue;
+            if (nmodels <= 0) continue;
 
             // TODO handle multimodel output
 
@@ -3033,21 +3577,45 @@ jsfeatNext.optical_flow_lk = class optical_flow_lk extends jsfeatNext {
     public scharr_deriv: any;
     constructor() {
         super();
-        var _imgproc = new jsfeatNext.imgproc()
+        var _imgproc = new jsfeatNext.imgproc();
         this.scharr_deriv = _imgproc.scharr_derivatives;
     }
-    track(prev_pyr: pyramid_t, curr_pyr: pyramid_t, prev_xy: Float32Array, curr_xy: Float32Array, count: number, win_size: number, max_iter: number, status: Uint8Array, eps: number, min_eigen_threshold: number): void {
-        if (typeof max_iter === "undefined") { max_iter = 30; }
-        if (typeof status === "undefined") { status = new Uint8Array(count); }
-        if (typeof eps === "undefined") { eps = 0.01; }
-        if (typeof min_eigen_threshold === "undefined") { min_eigen_threshold = 0.0001; }
+    track(
+        prev_pyr: pyramid_t,
+        curr_pyr: pyramid_t,
+        prev_xy: Float32Array,
+        curr_xy: Float32Array,
+        count: number,
+        win_size: number,
+        max_iter: number,
+        status: Uint8Array,
+        eps: number,
+        min_eigen_threshold: number
+    ): void {
+        if (typeof max_iter === "undefined") {
+            max_iter = 30;
+        }
+        if (typeof status === "undefined") {
+            status = new Uint8Array(count);
+        }
+        if (typeof eps === "undefined") {
+            eps = 0.01;
+        }
+        if (typeof min_eigen_threshold === "undefined") {
+            min_eigen_threshold = 0.0001;
+        }
 
         var half_win = (win_size - 1) * 0.5;
         var win_area = (win_size * win_size) | 0;
         var win_area2 = win_area << 1;
-        var prev_imgs = prev_pyr.data, next_imgs = curr_pyr.data;
-        var img_prev = prev_imgs[0].data, img_next = next_imgs[0].data;
-        var w0 = prev_imgs[0].cols, h0 = prev_imgs[0].rows, lw = 0, lh = 0;
+        var prev_imgs = prev_pyr.data,
+            next_imgs = curr_pyr.data;
+        var img_prev = prev_imgs[0].data,
+            img_next = next_imgs[0].data;
+        var w0 = prev_imgs[0].cols,
+            h0 = prev_imgs[0].rows,
+            lw = 0,
+            lh = 0;
 
         var iwin_node = this.cache.get_buffer(win_area << 2);
         var deriv_iwin_node = this.cache.get_buffer(win_area2 << 2);
@@ -3059,24 +3627,60 @@ jsfeatNext.optical_flow_lk = class optical_flow_lk extends jsfeatNext {
         var deriv_iwin = deriv_iwin_node.i32;
         var deriv_lev = deriv_lev_node.i32;
 
-        var dstep = 0, src = 0, dsrc = 0, iptr = 0, diptr = 0, jptr = 0;
-        var lev_sc = 0.0, prev_x = 0.0, prev_y = 0.0, next_x = 0.0, next_y = 0.0;
-        var prev_delta_x = 0.0, prev_delta_y = 0.0, delta_x = 0.0, delta_y = 0.0;
-        var iprev_x = 0, iprev_y = 0, inext_x = 0, inext_y = 0;
-        var i = 0, j = 0, x = 0, y = 0, level = 0, ptid = 0, iter = 0;
-        var brd_tl = 0, brd_r = 0, brd_b = 0;
-        var a = 0.0, b = 0.0, b1 = 0.0, b2 = 0.0;
+        var dstep = 0,
+            src = 0,
+            dsrc = 0,
+            iptr = 0,
+            diptr = 0,
+            jptr = 0;
+        var lev_sc = 0.0,
+            prev_x = 0.0,
+            prev_y = 0.0,
+            next_x = 0.0,
+            next_y = 0.0;
+        var prev_delta_x = 0.0,
+            prev_delta_y = 0.0,
+            delta_x = 0.0,
+            delta_y = 0.0;
+        var iprev_x = 0,
+            iprev_y = 0,
+            inext_x = 0,
+            inext_y = 0;
+        var i = 0,
+            j = 0,
+            x = 0,
+            y = 0,
+            level = 0,
+            ptid = 0,
+            iter = 0;
+        var brd_tl = 0,
+            brd_r = 0,
+            brd_b = 0;
+        var a = 0.0,
+            b = 0.0,
+            b1 = 0.0,
+            b2 = 0.0;
 
         // fixed point math
         var W_BITS14 = 14;
         var W_BITS4 = 14;
         var W_BITS1m5 = W_BITS4 - 5;
-        var W_BITS1m51 = (1 << ((W_BITS1m5) - 1));
-        var W_BITS14_ = (1 << W_BITS14);
-        var W_BITS41 = (1 << ((W_BITS4) - 1));
+        var W_BITS1m51 = 1 << (W_BITS1m5 - 1);
+        var W_BITS14_ = 1 << W_BITS14;
+        var W_BITS41 = 1 << (W_BITS4 - 1);
         var FLT_SCALE = 1.0 / (1 << 20);
-        var iw00 = 0, iw01 = 0, iw10 = 0, iw11 = 0, ival = 0, ixval = 0, iyval = 0;
-        var A11 = 0.0, A12 = 0.0, A22 = 0.0, D = 0.0, min_eig = 0.0;
+        var iw00 = 0,
+            iw01 = 0,
+            iw10 = 0,
+            iw11 = 0,
+            ival = 0,
+            ixval = 0,
+            iyval = 0;
+        var A11 = 0.0,
+            A12 = 0.0,
+            A22 = 0.0,
+            D = 0.0,
+            min_eig = 0.0;
 
         var FLT_EPSILON = 0.00000011920929;
         eps *= eps;
@@ -3090,7 +3694,7 @@ jsfeatNext.optical_flow_lk = class optical_flow_lk extends jsfeatNext {
         level = max_level;
 
         for (; level >= 0; --level) {
-            lev_sc = (1.0 / (1 << level));
+            lev_sc = 1.0 / (1 << level);
             lw = w0 >> level;
             lh = h0 >> level;
             dstep = lw << 1;
@@ -3126,7 +3730,7 @@ jsfeatNext.optical_flow_lk = class optical_flow_lk extends jsfeatNext {
                 iprev_y = prev_y | 0;
 
                 // border check
-                x = <number><unknown>((iprev_x <= brd_tl) || (iprev_x >= brd_r) || (iprev_y <= brd_tl) || (iprev_y >= brd_b));
+                x = <number>(<unknown>(iprev_x <= brd_tl || iprev_x >= brd_r || iprev_y <= brd_tl || iprev_y >= brd_b));
                 if (x != 0) {
                     if (level == 0) {
                         status[ptid] = 0;
@@ -3136,12 +3740,12 @@ jsfeatNext.optical_flow_lk = class optical_flow_lk extends jsfeatNext {
 
                 a = prev_x - iprev_x;
                 b = prev_y - iprev_y;
-                iw00 = (((1.0 - a) * (1.0 - b) * W_BITS14_) + 0.5) | 0;
-                iw01 = ((a * (1.0 - b) * W_BITS14_) + 0.5) | 0;
-                iw10 = (((1.0 - a) * b * W_BITS14_) + 0.5) | 0;
-                iw11 = (W_BITS14_ - iw00 - iw01 - iw10);
+                iw00 = ((1.0 - a) * (1.0 - b) * W_BITS14_ + 0.5) | 0;
+                iw01 = (a * (1.0 - b) * W_BITS14_ + 0.5) | 0;
+                iw10 = ((1.0 - a) * b * W_BITS14_ + 0.5) | 0;
+                iw11 = W_BITS14_ - iw00 - iw01 - iw10;
 
-                A11 = 0.0, A12 = 0.0, A22 = 0.0;
+                (A11 = 0.0), (A12 = 0.0), (A22 = 0.0);
 
                 // extract the patch from the first image, compute covariation matrix of derivatives
                 for (y = 0; y < win_size; ++y) {
@@ -3151,17 +3755,26 @@ jsfeatNext.optical_flow_lk = class optical_flow_lk extends jsfeatNext {
                     iptr = (y * win_size) | 0;
                     diptr = iptr << 1;
                     for (x = 0; x < win_size; ++x, ++src, ++iptr, dsrc += 2) {
-                        ival = ((img_prev[src]) * iw00 + (img_prev[src + 1]) * iw01 +
-                            (img_prev[src + lw]) * iw10 + (img_prev[src + lw + 1]) * iw11);
-                        ival = (((ival) + W_BITS1m51) >> (W_BITS1m5));
+                        ival =
+                            img_prev[src] * iw00 +
+                            img_prev[src + 1] * iw01 +
+                            img_prev[src + lw] * iw10 +
+                            img_prev[src + lw + 1] * iw11;
+                        ival = (ival + W_BITS1m51) >> W_BITS1m5;
 
-                        ixval = (deriv_lev[dsrc] * iw00 + deriv_lev[dsrc + 2] * iw01 +
-                            deriv_lev[dsrc + dstep] * iw10 + deriv_lev[dsrc + dstep + 2] * iw11);
-                        ixval = (((ixval) + W_BITS41) >> (W_BITS4));
+                        ixval =
+                            deriv_lev[dsrc] * iw00 +
+                            deriv_lev[dsrc + 2] * iw01 +
+                            deriv_lev[dsrc + dstep] * iw10 +
+                            deriv_lev[dsrc + dstep + 2] * iw11;
+                        ixval = (ixval + W_BITS41) >> W_BITS4;
 
-                        iyval = (deriv_lev[dsrc + 1] * iw00 + deriv_lev[dsrc + 3] * iw01 + deriv_lev[dsrc + dstep + 1] * iw10 +
-                            deriv_lev[dsrc + dstep + 3] * iw11);
-                        iyval = (((iyval) + W_BITS41) >> (W_BITS4));
+                        iyval =
+                            deriv_lev[dsrc + 1] * iw00 +
+                            deriv_lev[dsrc + 3] * iw01 +
+                            deriv_lev[dsrc + dstep + 1] * iw10 +
+                            deriv_lev[dsrc + dstep + 3] * iw11;
+                        iyval = (iyval + W_BITS41) >> W_BITS4;
 
                         iwin_buf[iptr] = ival;
                         deriv_iwin[diptr++] = ixval;
@@ -3173,7 +3786,9 @@ jsfeatNext.optical_flow_lk = class optical_flow_lk extends jsfeatNext {
                     }
                 }
 
-                A11 *= FLT_SCALE; A12 *= FLT_SCALE; A22 *= FLT_SCALE;
+                A11 *= FLT_SCALE;
+                A12 *= FLT_SCALE;
+                A22 *= FLT_SCALE;
 
                 D = A11 * A22 - A12 * A12;
                 min_eig = (A22 + A11 - Math.sqrt((A11 - A22) * (A11 - A22) + 4.0 * A12 * A12)) / win_area2;
@@ -3196,7 +3811,9 @@ jsfeatNext.optical_flow_lk = class optical_flow_lk extends jsfeatNext {
                     inext_x = next_x | 0;
                     inext_y = next_y | 0;
 
-                    x = <number><unknown>((inext_x <= brd_tl) || (inext_x >= brd_r) || (inext_y <= brd_tl) || (inext_y >= brd_b));
+                    x = <number>(
+                        (<unknown>(inext_x <= brd_tl || inext_x >= brd_r || inext_y <= brd_tl || inext_y >= brd_b))
+                    );
                     if (x != 0) {
                         if (level == 0) {
                             status[ptid] = 0;
@@ -3206,11 +3823,11 @@ jsfeatNext.optical_flow_lk = class optical_flow_lk extends jsfeatNext {
 
                     a = next_x - inext_x;
                     b = next_y - inext_y;
-                    iw00 = (((1.0 - a) * (1.0 - b) * W_BITS14_) + 0.5) | 0;
-                    iw01 = ((a * (1.0 - b) * W_BITS14_) + 0.5) | 0;
-                    iw10 = (((1.0 - a) * b * W_BITS14_) + 0.5) | 0;
-                    iw11 = (W_BITS14_ - iw00 - iw01 - iw10);
-                    b1 = 0.0, b2 = 0.0;
+                    iw00 = ((1.0 - a) * (1.0 - b) * W_BITS14_ + 0.5) | 0;
+                    iw01 = (a * (1.0 - b) * W_BITS14_ + 0.5) | 0;
+                    iw10 = ((1.0 - a) * b * W_BITS14_ + 0.5) | 0;
+                    iw11 = W_BITS14_ - iw00 - iw01 - iw10;
+                    (b1 = 0.0), (b2 = 0.0);
 
                     for (y = 0; y < win_size; ++y) {
                         jptr = ((y + inext_y) * lw + inext_x) | 0;
@@ -3218,10 +3835,13 @@ jsfeatNext.optical_flow_lk = class optical_flow_lk extends jsfeatNext {
                         iptr = (y * win_size) | 0;
                         diptr = iptr << 1;
                         for (x = 0; x < win_size; ++x, ++jptr, ++iptr) {
-                            ival = ((img_next[jptr]) * iw00 + (img_next[jptr + 1]) * iw01 +
-                                (img_next[jptr + lw]) * iw10 + (img_next[jptr + lw + 1]) * iw11);
-                            ival = (((ival) + W_BITS1m51) >> (W_BITS1m5));
-                            ival = (ival - iwin_buf[iptr]);
+                            ival =
+                                img_next[jptr] * iw00 +
+                                img_next[jptr + 1] * iw01 +
+                                img_next[jptr + lw] * iw10 +
+                                img_next[jptr + lw + 1] * iw11;
+                            ival = (ival + W_BITS1m51) >> W_BITS1m5;
+                            ival = ival - iwin_buf[iptr];
 
                             b1 += ival * deriv_iwin[diptr++];
                             b2 += ival * deriv_iwin[diptr++];
@@ -3231,8 +3851,8 @@ jsfeatNext.optical_flow_lk = class optical_flow_lk extends jsfeatNext {
                     b1 *= FLT_SCALE;
                     b2 *= FLT_SCALE;
 
-                    delta_x = ((A12 * b2 - A22 * b1) * D);
-                    delta_y = ((A12 * b1 - A11 * b2) * D);
+                    delta_x = (A12 * b2 - A22 * b1) * D;
+                    delta_y = (A12 * b1 - A11 * b2) * D;
 
                     next_x += delta_x;
                     next_y += delta_y;
@@ -3243,8 +3863,11 @@ jsfeatNext.optical_flow_lk = class optical_flow_lk extends jsfeatNext {
                         break;
                     }
 
-                    if (iter > 0 && Math.abs(delta_x + prev_delta_x) < 0.01 &&
-                        Math.abs(delta_y + prev_delta_y) < 0.01) {
+                    if (
+                        iter > 0 &&
+                        Math.abs(delta_x + prev_delta_x) < 0.01 &&
+                        Math.abs(delta_y + prev_delta_y) < 0.01
+                    ) {
                         curr_xy[i] -= delta_x * 0.5;
                         curr_xy[j] -= delta_y * 0.5;
                         break;
