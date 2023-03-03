@@ -1,6 +1,6 @@
 {
   "name": "@webarkit/jsfeat-next",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "description": "Typescript version of jsfeat for WebARKit",
   "main": "dist/jsfeatNext.js",
   "types": "types/src/index.d.ts",
