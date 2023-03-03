@@ -19,7 +19,7 @@ A testing repository to develop a ES6 version of [jsfeat](https://github.com/ins
 
 - webpack bundler
 
-- npm packages
+- npm package
 
 ## Classes
 These public classes were implemented:
@@ -68,6 +68,7 @@ working = ✔️ not working = ⚠️
 - sample_gaussblur.html ✔️
 - sample_oflow_lk.html ✔️
 - sample_orb.html ✔️
+- sample_orb_pinball.html ✔️
 - sample_pyrdown.html ✔️
 - sample_scharr.html ✔️
 - sample_sobel_edge.html ✔️
@@ -83,4 +84,4 @@ You can find some Typescript examples in this repository [jsfeatNext-examples](h
 
 ## Documentation
 
-There is not yet an official webarkit documentation but you can read the [original jsfeat docs](https://inspirit.github.io/jsfeat/) to have an idea of classes and functions. We tried to be much close as possible to the original code, so if it woks on **jsfeat** it will works on **jsfeatNext**.
+There is not yet an official JsfeatNext documentation but you can read the [original jsfeat docs](https://inspirit.github.io/jsfeat/) to have an idea of classes and functions. We tried to be much close as possible to the original code, so if it works on **jsfeat** it will works on **jsfeatNext**.
