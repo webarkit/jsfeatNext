@@ -1,6 +1,6 @@
 export function precompute_directions(step: number, dirs: Int32Array, R: number): number {
-    var i = 0;
-    var x, y;
+    let i = 0;
+    let x, y;
 
     x = R;
     for (y = 0; y < x; y++, i++) {
@@ -42,7 +42,7 @@ export function precompute_directions(step: number, dirs: Int32Array, R: number)
 }
 
 export function third_check(Sb: Int32Array | number[], off: number, step: number) {
-    var n = 0;
+    let n = 0;
     if (Sb[off + 1] != 0) n++;
     if (Sb[off - 1] != 0) n++;
     if (Sb[off + step] != 0) n++;
@@ -56,7 +56,7 @@ export function third_check(Sb: Int32Array | number[], off: number, step: number
 }
 
 export function is_local_maxima(p: Int32Array, off: number, v: number, step: number, neighborhood: number) {
-    var x, y;
+    let x, y;
 
     if (v > 0) {
         off -= step * neighborhood;
@@ -88,14 +88,14 @@ export function perform_one_point(
     opposite: number,
     dirs_nb: number
 ) {
-    var score = 0;
-    var a = 0,
+    let score = 0;
+    let a = 0,
         b = (opposite - 1) | 0;
-    var A = 0,
+    let A = 0,
         B0 = 0,
         B1 = 0,
         B2 = 0;
-    var state = 0;
+    let state = 0;
 
     // WE KNOW THAT NOT(A ~ I0 & B1 ~ I0):
     A = I[x + dirs[a]];

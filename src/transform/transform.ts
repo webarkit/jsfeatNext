@@ -27,45 +27,45 @@ export class transform {
         dst_x3: number,
         dst_y3: number
     ): void {
-        var t1 = src_x0;
-        var t2 = src_x2;
-        var t4 = src_y1;
-        var t5 = t1 * t2 * t4;
-        var t6 = src_y3;
-        var t7 = t1 * t6;
-        var t8 = t2 * t7;
-        var t9 = src_y2;
-        var t10 = t1 * t9;
-        var t11 = src_x1;
-        var t14 = src_y0;
-        var t15 = src_x3;
-        var t16 = t14 * t15;
-        var t18 = t16 * t11;
-        var t20 = t15 * t11 * t9;
-        var t21 = t15 * t4;
-        var t24 = t15 * t9;
-        var t25 = t2 * t4;
-        var t26 = t6 * t2;
-        var t27 = t6 * t11;
-        var t28 = t9 * t11;
-        var t30 = 1.0 / (t21 - t24 - t25 + t26 - t27 + t28);
-        var t32 = t1 * t15;
-        var t35 = t14 * t11;
-        var t41 = t4 * t1;
-        var t42 = t6 * t41;
-        var t43 = t14 * t2;
-        var t46 = t16 * t9;
-        var t48 = t14 * t9 * t11;
-        var t51 = t4 * t6 * t2;
-        var t55 = t6 * t14;
-        var Hr0 = -(t8 - t5 + t10 * t11 - t11 * t7 - t16 * t2 + t18 - t20 + t21 * t2) * t30;
-        var Hr1 = (t5 - t8 - t32 * t4 + t32 * t9 + t18 - t2 * t35 + t27 * t2 - t20) * t30;
-        var Hr2 = t1;
-        var Hr3 = (-t9 * t7 + t42 + t43 * t4 - t16 * t4 + t46 - t48 + t27 * t9 - t51) * t30;
-        var Hr4 = (-t42 + t41 * t9 - t55 * t2 + t46 - t48 + t55 * t11 + t51 - t21 * t9) * t30;
-        var Hr5 = t14;
-        var Hr6 = (-t10 + t41 + t43 - t35 + t24 - t21 - t26 + t27) * t30;
-        var Hr7 = (-t7 + t10 + t16 - t43 + t27 - t28 - t21 + t25) * t30;
+        let t1 = src_x0;
+        let t2 = src_x2;
+        let t4 = src_y1;
+        let t5 = t1 * t2 * t4;
+        let t6 = src_y3;
+        let t7 = t1 * t6;
+        let t8 = t2 * t7;
+        let t9 = src_y2;
+        let t10 = t1 * t9;
+        let t11 = src_x1;
+        let t14 = src_y0;
+        let t15 = src_x3;
+        let t16 = t14 * t15;
+        let t18 = t16 * t11;
+        let t20 = t15 * t11 * t9;
+        let t21 = t15 * t4;
+        let t24 = t15 * t9;
+        let t25 = t2 * t4;
+        let t26 = t6 * t2;
+        let t27 = t6 * t11;
+        let t28 = t9 * t11;
+        let t30 = 1.0 / (t21 - t24 - t25 + t26 - t27 + t28);
+        let t32 = t1 * t15;
+        let t35 = t14 * t11;
+        let t41 = t4 * t1;
+        let t42 = t6 * t41;
+        let t43 = t14 * t2;
+        let t46 = t16 * t9;
+        let t48 = t14 * t9 * t11;
+        let t51 = t4 * t6 * t2;
+        let t55 = t6 * t14;
+        const Hr0 = -(t8 - t5 + t10 * t11 - t11 * t7 - t16 * t2 + t18 - t20 + t21 * t2) * t30;
+        const Hr1 = (t5 - t8 - t32 * t4 + t32 * t9 + t18 - t2 * t35 + t27 * t2 - t20) * t30;
+        const Hr2 = t1;
+        const Hr3 = (-t9 * t7 + t42 + t43 * t4 - t16 * t4 + t46 - t48 + t27 * t9 - t51) * t30;
+        const Hr4 = (-t42 + t41 * t9 - t55 * t2 + t46 - t48 + t55 * t11 + t51 - t21 * t9) * t30;
+        const Hr5 = t14;
+        const Hr6 = (-t10 + t41 + t43 - t35 + t24 - t21 - t26 + t27) * t30;
+        const Hr7 = (-t7 + t10 + t16 - t43 + t27 - t28 - t21 + t25) * t30;
 
         t1 = dst_x0;
         t2 = dst_x2;
@@ -98,14 +98,14 @@ export class transform {
         t48 = t14 * t9 * t11;
         t51 = t4 * t6 * t2;
         t55 = t6 * t14;
-        var Hl0 = -(t8 - t5 + t10 * t11 - t11 * t7 - t16 * t2 + t18 - t20 + t21 * t2) * t30;
-        var Hl1 = (t5 - t8 - t32 * t4 + t32 * t9 + t18 - t2 * t35 + t27 * t2 - t20) * t30;
-        var Hl2 = t1;
-        var Hl3 = (-t9 * t7 + t42 + t43 * t4 - t16 * t4 + t46 - t48 + t27 * t9 - t51) * t30;
-        var Hl4 = (-t42 + t41 * t9 - t55 * t2 + t46 - t48 + t55 * t11 + t51 - t21 * t9) * t30;
-        var Hl5 = t14;
-        var Hl6 = (-t10 + t41 + t43 - t35 + t24 - t21 - t26 + t27) * t30;
-        var Hl7 = (-t7 + t10 + t16 - t43 + t27 - t28 - t21 + t25) * t30;
+        const Hl0 = -(t8 - t5 + t10 * t11 - t11 * t7 - t16 * t2 + t18 - t20 + t21 * t2) * t30;
+        const Hl1 = (t5 - t8 - t32 * t4 + t32 * t9 + t18 - t2 * t35 + t27 * t2 - t20) * t30;
+        const Hl2 = t1;
+        const Hl3 = (-t9 * t7 + t42 + t43 * t4 - t16 * t4 + t46 - t48 + t27 * t9 - t51) * t30;
+        const Hl4 = (-t42 + t41 * t9 - t55 * t2 + t46 - t48 + t55 * t11 + t51 - t21 * t9) * t30;
+        const Hl5 = t14;
+        const Hl6 = (-t10 + t41 + t43 - t35 + t24 - t21 - t26 + t27) * t30;
+        const Hl7 = (-t7 + t10 + t16 - t43 + t27 - t28 - t21 + t25) * t30;
 
         // the following code computes R = Hl * inverse Hr
         t2 = Hr4 - Hr7 * Hr5;
@@ -114,20 +114,20 @@ export class transform {
         t7 = Hr3 * Hr1;
         t8 = Hr2 * Hr3;
         t10 = Hr1 * Hr6;
-        var t12 = Hr2 * Hr6;
+        const t12 = Hr2 * Hr6;
         t15 = 1.0 / (t4 - t5 * Hr7 - t7 + t8 * Hr7 + t10 * Hr5 - t12 * Hr4);
         t18 = -Hr3 + Hr5 * Hr6;
-        var t23 = -Hr3 * Hr7 + Hr4 * Hr6;
+        const t23 = -Hr3 * Hr7 + Hr4 * Hr6;
         t28 = -Hr1 + Hr2 * Hr7;
-        var t31 = Hr0 - t12;
+        const t31 = Hr0 - t12;
         t35 = Hr0 * Hr7 - t10;
         t41 = -Hr1 * Hr5 + Hr2 * Hr4;
-        var t44 = t5 - t8;
-        var t47 = t4 - t7;
+        const t44 = t5 - t8;
+        const t47 = t4 - t7;
         t48 = t2 * t15;
-        var t49 = t28 * t15;
-        var t50 = t41 * t15;
-        var mat = model.data;
+        const t49 = t28 * t15;
+        const t50 = t41 * t15;
+        const mat = model.data;
         mat[0] = Hl0 * t48 + Hl1 * (t18 * t15) - Hl2 * (t23 * t15);
         mat[1] = Hl0 * t49 + Hl1 * (t31 * t15) - Hl2 * (t35 * t15);
         mat[2] = -Hl0 * t50 - Hl1 * (t44 * t15) + Hl2 * (t47 * t15);
@@ -140,17 +140,17 @@ export class transform {
     }
 
     invert_affine_transform(src: matrix_t, dst: matrix_t): void {
-        var src_d = src.data;
-        var dst_d = dst.data;
+        const src_d = src.data;
+        const dst_d = dst.data;
 
-        var m11 = src_d[0],
+        const m11 = src_d[0],
             m12 = src_d[1],
             m13 = src_d[2];
-        var m21 = src_d[3],
+        const m21 = src_d[3],
             m22 = src_d[4],
             m23 = src_d[5];
 
-        var det = 1.0 / (m11 * m22 - m12 * m21);
+        const det = 1.0 / (m11 * m22 - m12 * m21);
 
         dst_d[0] = det * m22;
         dst_d[1] = det * -m12;
@@ -162,19 +162,20 @@ export class transform {
     }
 
     invert_perspective_transform(src: matrix_t, dst: matrix_t): void {
-        var src_d = src.data;
-        var dst_d = dst.data;
-        var m11 = src_d[0],
+        const src_d = src.data;
+        const dst_d = dst.data;
+        const m11 = src_d[0],
             m12 = src_d[1],
             m13 = src_d[2];
-        var m21 = src_d[3],
+        const m21 = src_d[3],
             m22 = src_d[4],
             m23 = src_d[5];
-        var m31 = src_d[6],
+        const m31 = src_d[6],
             m32 = src_d[7],
             m33 = src_d[8];
 
-        var det = 1.0 / (m11 * (m22 * m33 - m23 * m32) - m12 * (m21 * m33 - m23 * m31) + m13 * (m21 * m32 - m22 * m31));
+        const det =
+            1.0 / (m11 * (m22 * m33 - m23 * m32) - m12 * (m21 * m33 - m23 * m31) + m13 * (m21 * m32 - m22 * m31));
 
         dst_d[0] = det * (m22 * m33 - m23 * m32);
         dst_d[1] = det * (m13 * m32 - m12 * m33);

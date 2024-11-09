@@ -10,14 +10,14 @@ export class cache {
     }
     allocate(capacity, data_size) {
         this._pool_head = this._pool_tail = new _pool_node_t(data_size);
-        for (var i = 0; i < capacity; ++i) {
-            var node = new _pool_node_t(data_size);
+        for (let i = 0; i < capacity; ++i) {
+            const node = new _pool_node_t(data_size);
             this._pool_tail = this._pool_tail.next = node;
             this._pool_size++;
         }
     }
     get_buffer(size_in_bytes) {
-        var node = this._pool_head;
+        const node = this._pool_head;
         this._pool_head = this._pool_head.next;
         this._pool_size--;
         if (size_in_bytes > node.size) {

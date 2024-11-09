@@ -44,8 +44,8 @@ export class matrix_t {
                         : this.buffer.f64;
     }
     copy_to(other) {
-        var od = other.data, td = this.data;
-        var i = 0, n = (this.cols * this.rows * this.channel) | 0;
+        const od = other.data, td = this.data;
+        let i = 0, n = (this.cols * this.rows * this.channel) | 0;
         for (; i < n - 4; i += 4) {
             od[i] = td[i];
             od[i + 1] = td[i + 1];
@@ -60,7 +60,7 @@ export class matrix_t {
         if (typeof ch === "undefined") {
             ch = this.channel;
         }
-        var new_size = c * this.dt._get_data_type_size(this.type) * ch * r;
+        const new_size = c * this.dt._get_data_type_size(this.type) * ch * r;
         if (new_size > this.buffer.size) {
             this.cols = c;
             this.rows = r;

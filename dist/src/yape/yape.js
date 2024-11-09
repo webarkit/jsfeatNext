@@ -10,7 +10,7 @@ export class yape {
         if (typeof pyramid_levels === "undefined") {
             pyramid_levels = 1;
         }
-        var i;
+        let i;
         radius = Math.min(radius, 7);
         radius = Math.max(radius, 3);
         for (i = 0; i < pyramid_levels; ++i) {
@@ -21,20 +21,20 @@ export class yape {
         if (typeof border === "undefined") {
             border = 4;
         }
-        var t = this.level_tables[0];
-        var R = t.radius | 0, Rm1 = (R - 1) | 0;
-        var dirs = t.dirs;
-        var dirs_count = t.dirs_count | 0;
-        var opposite = dirs_count >> 1;
-        var img = src.data, w = src.cols | 0, h = src.rows | 0, hw = w >> 1;
-        var scores = t.scores;
-        var x = 0, y = 0, row = 0, rowx = 0, ip = 0, im = 0, abs_score = 0, score = 0;
-        var tau = this.tau | 0;
-        var number_of_points = 0, pt;
-        var sx = Math.max(R + 1, border) | 0;
-        var sy = Math.max(R + 1, border) | 0;
-        var ex = Math.min(w - R - 2, w - border) | 0;
-        var ey = Math.min(h - R - 2, h - border) | 0;
+        const t = this.level_tables[0];
+        const R = t.radius | 0, Rm1 = (R - 1) | 0;
+        const dirs = t.dirs;
+        const dirs_count = t.dirs_count | 0;
+        const opposite = dirs_count >> 1;
+        const img = src.data, w = src.cols | 0, h = src.rows | 0, hw = w >> 1;
+        const scores = t.scores;
+        let x = 0, y = 0, row = 0, rowx = 0, ip = 0, im = 0, abs_score = 0, score = 0;
+        const tau = this.tau | 0;
+        let number_of_points = 0, pt;
+        const sx = Math.max(R + 1, border) | 0;
+        const sy = Math.max(R + 1, border) | 0;
+        const ex = Math.min(w - R - 2, w - border) | 0;
+        const ey = Math.min(h - R - 2, h - border) | 0;
         row = (sy * w + sx) | 0;
         for (y = sy; y < ey; ++y, row += w) {
             for (x = sx, rowx = row; x < ex; ++x, ++rowx) {

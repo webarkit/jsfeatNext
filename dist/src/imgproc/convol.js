@@ -1,6 +1,6 @@
 export function _convol_u8(buf, src_d, dst_d, w, h, filter, kernel_size, half_kernel) {
-    var i = 0, j = 0, k = 0, sp = 0, dp = 0, sum = 0, sum1 = 0, sum2 = 0, sum3 = 0, f0 = filter[0], fk = 0;
-    var w2 = w << 1, w3 = w * 3, w4 = w << 2;
+    let i = 0, j = 0, k = 0, sp = 0, dp = 0, sum = 0, sum1 = 0, sum2 = 0, sum3 = 0, f0 = filter[0], fk = 0;
+    const w2 = w << 1, w3 = w * 3, w4 = w << 2;
     for (; i < h; ++i) {
         sum = src_d[sp];
         for (j = 0; j < half_kernel; ++j) {
@@ -83,8 +83,8 @@ export function _convol_u8(buf, src_d, dst_d, w, h, filter, kernel_size, half_ke
     }
 }
 export function _convol(buf, src_d, dst_d, w, h, filter, kernel_size, half_kernel) {
-    var i = 0, j = 0, k = 0, sp = 0, dp = 0, sum = 0.0, sum1 = 0.0, sum2 = 0.0, sum3 = 0.0, f0 = filter[0], fk = 0.0;
-    var w2 = w << 1, w3 = w * 3, w4 = w << 2;
+    let i = 0, j = 0, k = 0, sp = 0, dp = 0, sum = 0.0, sum1 = 0.0, sum2 = 0.0, sum3 = 0.0, f0 = filter[0], fk = 0.0;
+    const w2 = w << 1, w3 = w * 3, w4 = w << 2;
     for (; i < h; ++i) {
         sum = src_d[sp];
         for (j = 0; j < half_kernel; ++j) {
