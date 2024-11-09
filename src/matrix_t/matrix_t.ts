@@ -38,10 +38,10 @@ export class matrix_t implements IMatrix_T {
                 this.type & JSFEAT_CONSTANTS.U8_t
                     ? this.buffer.u8
                     : this.type & JSFEAT_CONSTANTS.S32_t
-                    ? this.buffer.i32
-                    : this.type & JSFEAT_CONSTANTS.F32_t
-                    ? this.buffer.f32
-                    : this.buffer.f64;
+                      ? this.buffer.i32
+                      : this.type & JSFEAT_CONSTANTS.F32_t
+                        ? this.buffer.f32
+                        : this.buffer.f64;
         }
     }
 
@@ -55,10 +55,10 @@ export class matrix_t implements IMatrix_T {
             this.type & JSFEAT_CONSTANTS.U8_t
                 ? this.buffer.u8
                 : this.type & JSFEAT_CONSTANTS.S32_t
-                ? this.buffer.i32
-                : this.type & JSFEAT_CONSTANTS.F32_t
-                ? this.buffer.f32
-                : this.buffer.f64;
+                  ? this.buffer.i32
+                  : this.type & JSFEAT_CONSTANTS.F32_t
+                    ? this.buffer.f32
+                    : this.buffer.f64;
     }
 
     copy_to(other: IMatrix_T): void {
