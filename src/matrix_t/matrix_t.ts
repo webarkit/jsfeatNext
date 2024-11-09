@@ -13,6 +13,7 @@ export interface IMatrix_T {
     copy_to: (other: any) => void;
     resize: (c: number, r: number, ch: any) => void;
 }
+
 export class matrix_t implements IMatrix_T {
     private dt: IData_Type;
     public type: number;
@@ -21,6 +22,7 @@ export class matrix_t implements IMatrix_T {
     public rows: number;
     public data: any;
     public buffer: data_t;
+
     constructor(c: number, r: number, _data_type: number, _data_buffer?: data_t) {
         this.dt = new data_type();
         this.type = this.dt._get_data_type(_data_type) | 0;
@@ -42,6 +44,7 @@ export class matrix_t implements IMatrix_T {
                     : this.buffer.f64;
         }
     }
+
     allocate(): void {
         // clear references
         delete this.data;
@@ -57,6 +60,7 @@ export class matrix_t implements IMatrix_T {
                 ? this.buffer.f32
                 : this.buffer.f64;
     }
+
     copy_to(other: IMatrix_T): void {
         var od = other.data,
             td = this.data;
@@ -72,6 +76,7 @@ export class matrix_t implements IMatrix_T {
             od[i] = td[i];
         }
     }
+
     resize(c: number, r: number, ch: number): void {
         if (typeof ch === "undefined") {
             ch = this.channel;

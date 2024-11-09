@@ -110,6 +110,7 @@ class motion_model extends jsfeatNext {
     public T1: matrix_t;
     public AtA: matrix_t;
     public AtB: matrix_t;
+
     constructor() {
         super();
         this.T0 = new matrix_t(3, 3, JSFEAT_CONSTANTS.F32_t | JSFEAT_CONSTANTS.C1_t);
@@ -117,6 +118,7 @@ class motion_model extends jsfeatNext {
         this.AtA = new matrix_t(6, 6, JSFEAT_CONSTANTS.F32_t | JSFEAT_CONSTANTS.C1_t);
         this.AtB = new matrix_t(6, 1, JSFEAT_CONSTANTS.F32_t | JSFEAT_CONSTANTS.C1_t);
     }
+
     sqr(x: number): number {
         return x * x;
     }
@@ -207,6 +209,7 @@ class affine2d extends motion_model {
     constructor() {
         super();
     }
+
     run(from: point_t[], to: point_t[], model: matrix_t, count: number): number {
         var i = 0,
             j = 0;
@@ -273,11 +276,13 @@ class affine2d extends motion_model {
 class homography2d extends motion_model {
     public mLtL: matrix_t;
     public Evec: matrix_t;
+
     constructor() {
         super();
         this.mLtL = new matrix_t(9, 9, JSFEAT_CONSTANTS.F32_t | JSFEAT_CONSTANTS.C1_t);
         this.Evec = new matrix_t(9, 9, JSFEAT_CONSTANTS.F32_t | JSFEAT_CONSTANTS.C1_t);
     }
+
     run(from: point_t[], to: point_t[], model: matrix_t, count: number): number {
         var i = 0,
             j = 0;
@@ -438,6 +443,7 @@ class homography2d extends motion_model {
 
         return 1;
     }
+
     error(from: point_t[], to: point_t[], model: matrix_t, err: Int32Array | Float32Array, count: number): void {
         var i = 0;
         var pt0,
@@ -457,6 +463,7 @@ class homography2d extends motion_model {
             err[i] = dx * dx + dy * dy;
         }
     }
+
     check_subset(from: point_t[], to: point_t[], count: number): boolean {
         // seems to reject good subsets actually
         //if( have_collinear_points(from, count) || have_collinear_points(to, count) ) {
@@ -557,6 +564,7 @@ jsfeatNext.pyramid_t = class pyramid_t extends jsfeatNext {
     public levels: number;
     public data: any;
     private pyrdown: any;
+
     constructor(levels: number) {
         super();
         this.levels = levels | 0;
@@ -564,12 +572,14 @@ jsfeatNext.pyramid_t = class pyramid_t extends jsfeatNext {
         var _imgproc = new jsfeatNext.imgproc();
         this.pyrdown = _imgproc.pyrdown;
     }
+
     allocate(start_w: number, start_h: number, data_type: number): void {
         var i = this.levels;
         while (--i >= 0) {
             this.data[i] = new matrix_t(start_w >> i, start_h >> i, data_type);
         }
     }
+
     build(input: matrix_t, skip_first_level: boolean): void {
         if (typeof skip_first_level === "undefined") {
             skip_first_level = true;
@@ -606,6 +616,7 @@ jsfeatNext.fast_corners = class fast_corners extends jsfeatNext {
     public threshold_tab: Uint8Array;
     public pixel_off: Int32Array;
     public score_diff: Int32Array;
+
     constructor() {
         super();
         this.offsets16 = new Int32Array([
@@ -617,6 +628,7 @@ jsfeatNext.fast_corners = class fast_corners extends jsfeatNext {
         this.pixel_off = new Int32Array(25);
         this.score_diff = new Int32Array(25);
     }
+
     set_threshold(threshold: number): number {
         this._threshold = Math.min(Math.max(threshold, 0), 255);
         for (var i = -255; i <= 255; ++i) {
@@ -624,6 +636,7 @@ jsfeatNext.fast_corners = class fast_corners extends jsfeatNext {
         }
         return this._threshold;
     }
+
     detect(src: matrix_t, corners: point_t[], border: number): number {
         if (typeof border === "undefined") {
             border = 3;
@@ -826,6 +839,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
     constructor() {
         super();
     }
+
     grayscale(src: Uint8Array | Uint8ClampedArray, w: number, h: number, dst: matrix_t, code?: number): void {
         // this is default image data representation in browser
         if (typeof code === "undefined") {
@@ -870,6 +884,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
             }
         }
     }
+
     // derived from CCV library
     resample(src: matrix_t, dst: matrix_t, nw: number, nh: number): void {
         var h = src.rows,
@@ -884,6 +899,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
             }
         }
     }
+
     box_blur_gray(src: matrix_t, dst: matrix_t, radius: number, options: number): void {
         if (typeof options === "undefined") {
             options = 0;
@@ -1063,6 +1079,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
 
         this.cache.put_buffer(tmp_buff);
     }
+
     gaussian_blur(src: matrix_t, dst: matrix_t, kernel_size: number, sigma: number): void {
         var jsfeatmath = new jsfeatNext.math();
         if (typeof sigma === "undefined") {
@@ -1111,6 +1128,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         this.cache.put_buffer(buf_node);
         this.cache.put_buffer(filt_node);
     }
+
     hough_transform(img: matrix_t, rho_res: number, theta_res: number, threshold: number): Array<number> {
         var image = img.data;
 
@@ -1188,6 +1206,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         }
         return lines;
     }
+
     pyrdown(src: matrix_t, dst: matrix_t, sx?: number, sy?: number): void {
         // this is needed for bbf
         if (typeof sx === "undefined") {
@@ -1230,6 +1249,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
             dptr += w2;
         }
     }
+
     // dst: [gx,gy,...]
     scharr_derivatives(src: matrix_t, dst: matrix_t): void {
         var w = src.cols,
@@ -1317,6 +1337,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         this.cache.put_buffer(buf0_node);
         this.cache.put_buffer(buf1_node);
     }
+
     // compute gradient using Sobel kernel [1 2 1] * [-1 0 1]^T
     // dst: [gx,gy,...]
     sobel_derivatives(src: matrix_t, dst: matrix_t): void {
@@ -1405,6 +1426,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         this.cache.put_buffer(buf0_node);
         this.cache.put_buffer(buf1_node);
     }
+
     // please note:
     // dst_(type) size should be cols = src.cols+1, rows = src.rows+1
     compute_integral_image(src: matrix_t, dst_sum: number[], dst_sqsum: number[], dst_tilted: any[]): void {
@@ -1520,6 +1542,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
             }
         }
     }
+
     equalize_histogram(src: matrix_t, dst: matrix_t): void {
         var w = src.cols,
             h = src.rows,
@@ -1552,6 +1575,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         }
         this.cache.put_buffer(hist0_node);
     }
+
     canny(src: matrix_t, dst: matrix_t, low_thresh: number, high_thresh: number): void {
         var w = src.cols,
             h = src.rows,
@@ -1732,6 +1756,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         this.cache.put_buffer(map_node);
         this.cache.put_buffer(stack_node);
     }
+
     // transform is 3x3 matrix_t
     warp_perspective(src: matrix_t, dst: matrix_t, transform: matrix_t, fill_value: number): void {
         if (typeof fill_value === "undefined") {
@@ -1789,6 +1814,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
             }
         }
     }
+
     // transform is 3x3 or 2x3 matrix_t only first 6 values referenced
     warp_affine(src: matrix_t, dst: matrix_t, transform: matrix_t, fill_value: number): void {
         if (typeof fill_value === "undefined") {
@@ -1839,6 +1865,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
             }
         }
     }
+
     // Basic RGB Skin detection filter
     // from http://popscan.blogspot.fr/2012/08/skin-detection-in-digital-images.html
     skindetector(src: { width: number; height: number; data: any[] }, dst: number[]): void {
@@ -1860,6 +1887,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
 
 jsfeatNext.math = class math extends jsfeatNext {
     private qsort_stack: Int32Array;
+
     constructor() {
         super();
         this.qsort_stack = new Int32Array(48 * 2);
@@ -2345,6 +2373,7 @@ jsfeatNext.matmath = matmath;
 
 jsfeatNext.linalg = class linalg extends jsfeatNext {
     public matmath: matmath;
+
     constructor() {
         super();
         this.matmath = new matmath();
@@ -3092,6 +3121,7 @@ jsfeatNext.orb = class orb extends jsfeatNext {
     public H: matrix_t;
     public patch_img: matrix_t;
     public imgproc: imgproc;
+
     constructor() {
         super();
         this.bit_pattern_31_ = new Int32Array(bit_pattern_31);
@@ -3199,11 +3229,13 @@ jsfeatNext.yape = yape;
 jsfeatNext.yape06 = class yape06 extends jsfeatNext {
     public laplacian_threshold: number;
     public min_eigen_value_threshold: number;
+
     constructor() {
         super();
         this.laplacian_threshold = 30;
         this.min_eigen_value_threshold = 25;
     }
+
     detect(src: matrix_t, points: keypoint_t[], border: number): number {
         if (typeof border === "undefined") {
             border = 5;
@@ -3575,11 +3607,13 @@ jsfeatNext.homography2d = homography2d;
 
 jsfeatNext.optical_flow_lk = class optical_flow_lk extends jsfeatNext {
     public scharr_deriv: any;
+
     constructor() {
         super();
         var _imgproc = new jsfeatNext.imgproc();
         this.scharr_deriv = _imgproc.scharr_derivatives;
     }
+
     track(
         prev_pyr: pyramid_t,
         curr_pyr: pyramid_t,
