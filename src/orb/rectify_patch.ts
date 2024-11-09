@@ -11,8 +11,8 @@ export function rectify_patch(
     H: matrix_t,
     imgproc: imgproc
 ) {
-    var cosine = Math.cos(angle);
-    var sine = Math.sin(angle);
+    const cosine = Math.cos(angle);
+    const sine = Math.sin(angle);
 
     (H.data[0] = cosine),
         (H.data[1] = -sine),

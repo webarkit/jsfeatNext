@@ -1,6 +1,6 @@
 export function _cmp_score_16(src, off, pixel, d, threshold) {
-    var N = 25, k = 0, v = src[off];
-    var a0 = threshold, a = 0, b0 = 0, b = 0;
+    let N = 25, k = 0, v = src[off];
+    let a0 = threshold, a = 0, b0 = 0, b = 0;
     for (; k < N; ++k) {
         d[k] = v - src[off + pixel[k]];
     }

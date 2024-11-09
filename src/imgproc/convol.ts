@@ -8,7 +8,7 @@ export function _convol_u8(
     kernel_size: number,
     half_kernel: number
 ) {
-    var i = 0,
+    let i = 0,
         j = 0,
         k = 0,
         sp = 0,
@@ -19,7 +19,7 @@ export function _convol_u8(
         sum3 = 0,
         f0 = filter[0],
         fk = 0;
-    var w2 = w << 1,
+    const w2 = w << 1,
         w3 = w * 3,
         w4 = w << 2;
     // hor pass
@@ -117,7 +117,7 @@ export function _convol(
     kernel_size: number,
     half_kernel: number
 ) {
-    var i = 0,
+    let i = 0,
         j = 0,
         k = 0,
         sp = 0,
@@ -128,7 +128,7 @@ export function _convol(
         sum3 = 0.0,
         f0 = filter[0],
         fk = 0.0;
-    var w2 = w << 1,
+    const w2 = w << 1,
         w3 = w * 3,
         w4 = w << 2;
     // hor pass

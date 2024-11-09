@@ -93,10 +93,10 @@ class motion_model extends jsfeatNext {
         return x * x;
     }
     iso_normalize_points(from, to, T0, T1, count) {
-        var i = 0;
-        var cx0 = 0.0, cy0 = 0.0, d0 = 0.0, s0 = 0.0;
-        var cx1 = 0.0, cy1 = 0.0, d1 = 0.0, s1 = 0.0;
-        var dx = 0.0, dy = 0.0;
+        let i = 0;
+        let cx0 = 0.0, cy0 = 0.0, d0 = 0.0, s0 = 0.0;
+        let cx1 = 0.0, cy1 = 0.0, d1 = 0.0, s1 = 0.0;
+        let dx = 0.0, dy = 0.0;
         for (; i < count; ++i) {
             cx0 += from[i].x;
             cy0 += from[i].y;
@@ -131,8 +131,8 @@ class motion_model extends jsfeatNext {
         T1[8] = 1.0;
     }
     have_collinear_points(points, count) {
-        var j = 0, k = 0, i = (count - 1) | 0;
-        var dx1 = 0.0, dy1 = 0.0, dx2 = 0.0, dy2 = 0.0;
+        let j = 0, k = 0, i = (count - 1) | 0;
+        let dx1 = 0.0, dy1 = 0.0, dx2 = 0.0, dy2 = 0.0;
         for (; j < i; ++j) {
             dx1 = points[j].x - points[i].x;
             dy1 = points[j].y - points[i].y;
@@ -152,18 +152,18 @@ class affine2d extends motion_model {
         super();
     }
     run(from, to, model, count) {
-        var i = 0, j = 0;
-        var dt = model.type | JSFEAT_CONSTANTS.C1_t;
-        var md = model.data, t0d = this.T0.data, t1d = this.T1.data;
-        var pt0, pt1, px = 0.0, py = 0.0;
-        var _matmath = new matmath();
-        var _linalg = new jsfeatNext.linalg();
+        let i = 0, j = 0;
+        const dt = model.type | JSFEAT_CONSTANTS.C1_t;
+        const md = model.data, t0d = this.T0.data, t1d = this.T1.data;
+        let pt0, pt1, px = 0.0, py = 0.0;
+        const _matmath = new matmath();
+        const _linalg = new jsfeatNext.linalg();
         this.iso_normalize_points(from, to, t0d, t1d, count);
-        var a_buff = this.cache.get_buffer((2 * count * 6) << 3);
-        var b_buff = this.cache.get_buffer((2 * count) << 3);
-        var a_mt = new matrix_t(6, 2 * count, dt, a_buff.data);
-        var b_mt = new matrix_t(1, 2 * count, dt, b_buff.data);
-        var ad = a_mt.data, bd = b_mt.data;
+        const a_buff = this.cache.get_buffer((2 * count * 6) << 3);
+        const b_buff = this.cache.get_buffer((2 * count) << 3);
+        const a_mt = new matrix_t(6, 2 * count, dt, a_buff.data);
+        const b_mt = new matrix_t(1, 2 * count, dt, b_buff.data);
+        const ad = a_mt.data, bd = b_mt.data;
         for (; i < count; ++i) {
             pt0 = from[i];
             pt1 = to[i];
@@ -199,13 +199,13 @@ class homography2d extends motion_model {
         this.Evec = new matrix_t(9, 9, JSFEAT_CONSTANTS.F32_t | JSFEAT_CONSTANTS.C1_t);
     }
     run(from, to, model, count) {
-        var i = 0, j = 0;
-        var md = model.data, t0d = this.T0.data, t1d = this.T1.data;
-        var LtL = this.mLtL.data, evd = this.Evec.data;
-        var x = 0.0, y = 0.0, X = 0.0, Y = 0.0;
-        var _linalg = new jsfeatNext.linalg();
-        var _matmath = new matmath();
-        var smx = 0.0, smy = 0.0, cmx = 0.0, cmy = 0.0, sMx = 0.0, sMy = 0.0, cMx = 0.0, cMy = 0.0;
+        let i = 0, j = 0;
+        const md = model.data, t0d = this.T0.data, t1d = this.T1.data;
+        const LtL = this.mLtL.data, evd = this.Evec.data;
+        let x = 0.0, y = 0.0, X = 0.0, Y = 0.0;
+        const _linalg = new jsfeatNext.linalg();
+        const _matmath = new matmath();
+        let smx = 0.0, smy = 0.0, cmx = 0.0, cmy = 0.0, sMx = 0.0, sMy = 0.0, cMx = 0.0, cMy = 0.0;
         for (; i < count; ++i) {
             cmx += to[i].x;
             cmy += to[i].y;
@@ -318,9 +318,9 @@ class homography2d extends motion_model {
         return 1;
     }
     error(from, to, model, err, count) {
-        var i = 0;
-        var pt0, pt1, ww = 0.0, dx = 0.0, dy = 0.0;
-        var m = model.data;
+        let i = 0;
+        let pt0, pt1, ww = 0.0, dx = 0.0, dy = 0.0;
+        const m = model.data;
         for (; i < count; ++i) {
             pt0 = from[i];
             pt1 = to[i];
@@ -331,19 +331,19 @@ class homography2d extends motion_model {
         }
     }
     check_subset(from, to, count) {
-        var _matmath = new matmath();
+        const _matmath = new matmath();
         if (count == 4) {
-            var negative = 0;
-            var fp0 = from[0], fp1 = from[1], fp2 = from[2], fp3 = from[3];
-            var tp0 = to[0], tp1 = to[1], tp2 = to[2], tp3 = to[3];
-            var A11 = fp0.x, A12 = fp0.y, A13 = 1.0;
-            var A21 = fp1.x, A22 = fp1.y, A23 = 1.0;
-            var A31 = fp2.x, A32 = fp2.y, A33 = 1.0;
-            var B11 = tp0.x, B12 = tp0.y, B13 = 1.0;
-            var B21 = tp1.x, B22 = tp1.y, B23 = 1.0;
-            var B31 = tp2.x, B32 = tp2.y, B33 = 1.0;
-            var detA = _matmath.determinant_3x3(A11, A12, A13, A21, A22, A23, A31, A32, A33);
-            var detB = _matmath.determinant_3x3(B11, B12, B13, B21, B22, B23, B31, B32, B33);
+            let negative = 0;
+            const fp0 = from[0], fp1 = from[1], fp2 = from[2], fp3 = from[3];
+            const tp0 = to[0], tp1 = to[1], tp2 = to[2], tp3 = to[3];
+            let A11 = fp0.x, A12 = fp0.y, A13 = 1.0;
+            let A21 = fp1.x, A22 = fp1.y, A23 = 1.0;
+            let A31 = fp2.x, A32 = fp2.y, A33 = 1.0;
+            let B11 = tp0.x, B12 = tp0.y, B13 = 1.0;
+            let B21 = tp1.x, B22 = tp1.y, B23 = 1.0;
+            let B31 = tp2.x, B32 = tp2.y, B33 = 1.0;
+            let detA = _matmath.determinant_3x3(A11, A12, A13, A21, A22, A23, A31, A32, A33);
+            let detB = _matmath.determinant_3x3(B11, B12, B13, B21, B22, B23, B31, B32, B33);
             if (detA * detB < 0)
                 negative++;
             (A11 = fp1.x), (A12 = fp1.y);
@@ -392,11 +392,11 @@ jsfeatNext.pyramid_t = class pyramid_t extends jsfeatNext {
         super();
         this.levels = levels | 0;
         this.data = new Array(levels);
-        var _imgproc = new jsfeatNext.imgproc();
+        const _imgproc = new jsfeatNext.imgproc();
         this.pyrdown = _imgproc.pyrdown;
     }
     allocate(start_w, start_h, data_type) {
-        var i = this.levels;
+        let i = this.levels;
         while (--i >= 0) {
             this.data[i] = new matrix_t(start_w >> i, start_h >> i, data_type);
         }
@@ -405,9 +405,9 @@ jsfeatNext.pyramid_t = class pyramid_t extends jsfeatNext {
         if (typeof skip_first_level === "undefined") {
             skip_first_level = true;
         }
-        var i = 2, a = input, b = this.data[0];
+        let i = 2, a = input, b = this.data[0];
         if (!skip_first_level) {
-            var j = input.cols * input.rows;
+            let j = input.cols * input.rows;
             while (--j >= 0) {
                 b.data[j] = input.data[j];
             }
@@ -443,7 +443,7 @@ jsfeatNext.fast_corners = class fast_corners extends jsfeatNext {
     }
     set_threshold(threshold) {
         this._threshold = Math.min(Math.max(threshold, 0), 255);
-        for (var i = -255; i <= 255; ++i) {
+        for (let i = -255; i <= 255; ++i) {
             this.threshold_tab[i + 255] = i < -this._threshold ? 1 : i > this._threshold ? 2 : 0;
         }
         return this._threshold;
@@ -452,42 +452,42 @@ jsfeatNext.fast_corners = class fast_corners extends jsfeatNext {
         if (typeof border === "undefined") {
             border = 3;
         }
-        var K = 8, N = 25;
-        var img = src.data, w = src.cols, h = src.rows;
-        var i = 0, j = 0, k = 0, vt = 0, x = 0, m3 = 0;
-        var buf_node = this.cache.get_buffer(3 * w);
-        var cpbuf_node = this.cache.get_buffer(((w + 1) * 3) << 2);
-        var buf = buf_node.u8;
-        var cpbuf = cpbuf_node.i32;
-        var pixel = this.pixel_off;
-        var sd = this.score_diff;
-        var sy = Math.max(3, border);
-        var ey = Math.min(h - 2, h - border);
-        var sx = Math.max(3, border);
-        var ex = Math.min(w - 3, w - border);
-        var _count = 0, corners_cnt = 0, pt;
-        var score_func = _cmp_score_16;
-        var thresh_tab = this.threshold_tab;
-        var threshold = this._threshold;
-        var v = 0, tab = 0, d = 0, ncorners = 0, cornerpos = 0, curr = 0, ptr = 0, prev = 0, pprev = 0;
-        var jp1 = 0, jm1 = 0, score = 0;
+        const K = 8, N = 25;
+        const img = src.data, w = src.cols, h = src.rows;
+        let i = 0, j = 0, k = 0, vt = 0, x = 0, m3 = 0;
+        const buf_node = this.cache.get_buffer(3 * w);
+        const cpbuf_node = this.cache.get_buffer(((w + 1) * 3) << 2);
+        const buf = buf_node.u8;
+        const cpbuf = cpbuf_node.i32;
+        const pixel = this.pixel_off;
+        const sd = this.score_diff;
+        const sy = Math.max(3, border);
+        const ey = Math.min(h - 2, h - border);
+        const sx = Math.max(3, border);
+        const ex = Math.min(w - 3, w - border);
+        let _count = 0, corners_cnt = 0, pt;
+        const score_func = _cmp_score_16;
+        const thresh_tab = this.threshold_tab;
+        const threshold = this._threshold;
+        let v = 0, tab = 0, d = 0, ncorners = 0, cornerpos = 0, curr = 0, ptr = 0, prev = 0, pprev = 0;
+        let jp1 = 0, jm1 = 0, score = 0;
         this._cmp_offsets(pixel, w, 16);
-        var pixel0 = pixel[0];
-        var pixel1 = pixel[1];
-        var pixel2 = pixel[2];
-        var pixel3 = pixel[3];
-        var pixel4 = pixel[4];
-        var pixel5 = pixel[5];
-        var pixel6 = pixel[6];
-        var pixel7 = pixel[7];
-        var pixel8 = pixel[8];
-        var pixel9 = pixel[9];
-        var pixel10 = pixel[10];
-        var pixel11 = pixel[11];
-        var pixel12 = pixel[12];
-        var pixel13 = pixel[13];
-        var pixel14 = pixel[14];
-        var pixel15 = pixel[15];
+        const pixel0 = pixel[0];
+        const pixel1 = pixel[1];
+        const pixel2 = pixel[2];
+        const pixel3 = pixel[3];
+        const pixel4 = pixel[4];
+        const pixel5 = pixel[5];
+        const pixel6 = pixel[6];
+        const pixel7 = pixel[7];
+        const pixel8 = pixel[8];
+        const pixel9 = pixel[9];
+        const pixel10 = pixel[10];
+        const pixel11 = pixel[11];
+        const pixel12 = pixel[12];
+        const pixel13 = pixel[13];
+        const pixel14 = pixel[14];
+        const pixel15 = pixel[15];
         for (i = 0; i < w * 3; ++i) {
             buf[i] = 0;
         }
@@ -592,8 +592,8 @@ jsfeatNext.fast_corners = class fast_corners extends jsfeatNext {
         return corners_cnt;
     }
     _cmp_offsets(pixel, step, pattern_size) {
-        var k = 0;
-        var offsets = this.offsets16;
+        let k = 0;
+        const offsets = this.offsets16;
         for (; k < pattern_size; ++k) {
             pixel[k] = offsets[k << 1] + offsets[(k << 1) + 1] * step;
         }
@@ -610,8 +610,8 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         if (typeof code === "undefined") {
             code = JSFEAT_CONSTANTS.COLOR_RGBA2GRAY;
         }
-        var x = 0, y = 0, i = 0, j = 0, ir = 0, jr = 0;
-        var coeff_r = 4899, coeff_g = 9617, coeff_b = 1868, cn = 4;
+        let x = 0, y = 0, i = 0, j = 0, ir = 0, jr = 0;
+        let coeff_r = 4899, coeff_g = 9617, coeff_b = 1868, cn = 4;
         if (code == JSFEAT_CONSTANTS.COLOR_BGRA2GRAY || code == JSFEAT_CONSTANTS.COLOR_BGR2GRAY) {
             coeff_r = 1868;
             coeff_b = 4899;
@@ -619,9 +619,9 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         if (code == JSFEAT_CONSTANTS.COLOR_RGB2GRAY || code == JSFEAT_CONSTANTS.COLOR_BGR2GRAY) {
             cn = 3;
         }
-        var cn2 = cn << 1, cn3 = (cn * 3) | 0;
+        const cn2 = cn << 1, cn3 = (cn * 3) | 0;
         dst.resize(w, h, 1);
-        var dst_u8 = dst.data;
+        const dst_u8 = dst.data;
         for (y = 0; y < h; ++y, j += w, i += w * cn) {
             for (x = 0, ir = i, jr = j; x <= w - 4; x += 4, ir += cn << 2, jr += 4) {
                 dst_u8[jr] = (src[ir] * coeff_r + src[ir + 1] * coeff_g + src[ir + 2] * coeff_b + 8192) >> 14;
@@ -638,7 +638,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         }
     }
     resample(src, dst, nw, nh) {
-        var h = src.rows, w = src.cols;
+        const h = src.rows, w = src.cols;
         if (h > nh && w > nw) {
             dst.resize(nw, nh, src.channel);
             if (src.type & JSFEAT_CONSTANTS.U8_t && dst.type & JSFEAT_CONSTANTS.U8_t && (h * w) / (nh * nw) < 0x100) {
@@ -653,16 +653,16 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         if (typeof options === "undefined") {
             options = 0;
         }
-        var w = src.cols, h = src.rows, h2 = h << 1, w2 = w << 1;
-        var i = 0, x = 0, y = 0, end = 0;
-        var windowSize = ((radius << 1) + 1) | 0;
-        var radiusPlusOne = (radius + 1) | 0, radiusPlus2 = (radiusPlusOne + 1) | 0;
-        var scale = options & JSFEAT_CONSTANTS.BOX_BLUR_NOSCALE ? 1 : 1.0 / (windowSize * windowSize);
-        var tmp_buff = this.cache.get_buffer((w * h) << 2);
-        var sum = 0, dstIndex = 0, srcIndex = 0, nextPixelIndex = 0, previousPixelIndex = 0;
-        var data_i32 = tmp_buff.i32;
-        var data_u8 = src.data;
-        var hold = 0;
+        const w = src.cols, h = src.rows, h2 = h << 1, w2 = w << 1;
+        let i = 0, x = 0, y = 0, end = 0;
+        const windowSize = ((radius << 1) + 1) | 0;
+        const radiusPlusOne = (radius + 1) | 0, radiusPlus2 = (radiusPlusOne + 1) | 0;
+        const scale = options & JSFEAT_CONSTANTS.BOX_BLUR_NOSCALE ? 1 : 1.0 / (windowSize * windowSize);
+        const tmp_buff = this.cache.get_buffer((w * h) << 2);
+        let sum = 0, dstIndex = 0, srcIndex = 0, nextPixelIndex = 0, previousPixelIndex = 0;
+        const data_i32 = tmp_buff.i32;
+        let data_u8 = src.data;
+        let hold = 0;
         dst.resize(w, h, src.channel);
         for (y = 0; y < h; ++y) {
             dstIndex = y;
@@ -781,7 +781,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         this.cache.put_buffer(tmp_buff);
     }
     gaussian_blur(src, dst, kernel_size, sigma) {
-        var jsfeatmath = new jsfeatNext.math();
+        const jsfeatmath = new jsfeatNext.math();
         if (typeof sigma === "undefined") {
             sigma = 0.0;
         }
@@ -789,14 +789,14 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
             kernel_size = 0;
         }
         kernel_size = kernel_size == 0 ? (Math.max(1, 4.0 * sigma + 1.0 - 1e-8) * 2 + 1) | 0 : kernel_size;
-        var half_kernel = kernel_size >> 1;
-        var w = src.cols, h = src.rows;
-        var data_type = src.type, is_u8 = data_type & JSFEAT_CONSTANTS.U8_t;
+        const half_kernel = kernel_size >> 1;
+        const w = src.cols, h = src.rows;
+        const data_type = src.type, is_u8 = data_type & JSFEAT_CONSTANTS.U8_t;
         dst.resize(w, h, src.channel);
-        var src_d = src.data, dst_d = dst.data;
-        var buf, filter, buf_sz = (kernel_size + Math.max(h, w)) | 0;
-        var buf_node = this.cache.get_buffer(buf_sz << 2);
-        var filt_node = this.cache.get_buffer(kernel_size << 2);
+        const src_d = src.data, dst_d = dst.data;
+        let buf, filter, buf_sz = (kernel_size + Math.max(h, w)) | 0;
+        const buf_node = this.cache.get_buffer(buf_sz << 2);
+        const filt_node = this.cache.get_buffer(kernel_size << 2);
         if (is_u8) {
             buf = buf_node.i32;
             filter = filt_node.i32;
@@ -820,40 +820,42 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         this.cache.put_buffer(filt_node);
     }
     hough_transform(img, rho_res, theta_res, threshold) {
-        var image = img.data;
-        var width = img.cols;
-        var height = img.rows;
-        var step = width;
-        var min_theta = 0.0;
-        var max_theta = Math.PI;
-        var numangle = Math.round((max_theta - min_theta) / theta_res);
-        var numrho = Math.round(((width + height) * 2 + 1) / rho_res);
-        var irho = 1.0 / rho_res;
-        var accum = new Int32Array((numangle + 2) * (numrho + 2));
-        var tabSin = new Float32Array(numangle);
-        var tabCos = new Float32Array(numangle);
-        var n = 0;
-        var ang = min_theta;
+        let r;
+        let i;
+        const image = img.data;
+        const width = img.cols;
+        const height = img.rows;
+        const step = width;
+        const min_theta = 0.0;
+        const max_theta = Math.PI;
+        const numangle = Math.round((max_theta - min_theta) / theta_res);
+        const numrho = Math.round(((width + height) * 2 + 1) / rho_res);
+        const irho = 1.0 / rho_res;
+        const accum = new Int32Array((numangle + 2) * (numrho + 2));
+        const tabSin = new Float32Array(numangle);
+        const tabCos = new Float32Array(numangle);
+        let n = 0;
+        let ang = min_theta;
         for (; n < numangle; n++) {
             tabSin[n] = Math.sin(ang) * irho;
             tabCos[n] = Math.cos(ang) * irho;
             ang += theta_res;
         }
-        for (var i = 0; i < height; i++) {
-            for (var j = 0; j < width; j++) {
+        for (i = 0; i < height; i++) {
+            for (let j = 0; j < width; j++) {
                 if (image[i * step + j] != 0) {
-                    for (var n = 0; n < numangle; n++) {
-                        var r = Math.round(j * tabCos[n] + i * tabSin[n]);
+                    for (n = 0; n < numangle; n++) {
+                        r = Math.round(j * tabCos[n] + i * tabSin[n]);
                         r += (numrho - 1) / 2;
                         accum[(n + 1) * (numrho + 2) + r + 1] += 1;
                     }
                 }
             }
         }
-        var _sort_buf = new Array();
-        for (var r = 0; r < numrho; r++) {
-            for (var n = 0; n < numangle; n++) {
-                var base = (n + 1) * (numrho + 2) + r + 1;
+        const _sort_buf = [];
+        for (r = 0; r < numrho; r++) {
+            for (n = 0; n < numangle; n++) {
+                const base = (n + 1) * (numrho + 2) + r + 1;
                 if (accum[base] > threshold &&
                     accum[base] > accum[base - 1] &&
                     accum[base] >= accum[base + 1] &&
@@ -866,15 +868,15 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         _sort_buf.sort(function (l1, l2) {
             return (accum[l1] > accum[l2] || (accum[l1] == accum[l2] && l1 < l2));
         });
-        var linesMax = Math.min(numangle * numrho, _sort_buf.length);
-        var scale = 1.0 / (numrho + 2);
-        var lines = new Array();
-        for (var i = 0; i < linesMax; i++) {
-            var idx = _sort_buf[i];
-            var n = Math.floor(idx * scale) - 1;
-            var r = idx - (n + 1) * (numrho + 2) - 1;
-            var lrho = (r - (numrho - 1) * 0.5) * rho_res;
-            var langle = n * theta_res;
+        const linesMax = Math.min(numangle * numrho, _sort_buf.length);
+        const scale = 1.0 / (numrho + 2);
+        const lines = new Array();
+        for (i = 0; i < linesMax; i++) {
+            const idx = _sort_buf[i];
+            n = Math.floor(idx * scale) - 1;
+            r = idx - (n + 1) * (numrho + 2) - 1;
+            const lrho = (r - (numrho - 1) * 0.5) * rho_res;
+            const langle = n * theta_res;
             lines.push([lrho, langle]);
         }
         return lines;
@@ -886,12 +888,12 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         if (typeof sy === "undefined") {
             sy = 0;
         }
-        var w = src.cols, h = src.rows;
-        var w2 = w >> 1, h2 = h >> 1;
-        var _w2 = w2 - (sx << 1), _h2 = h2 - (sy << 1);
-        var x = 0, y = 0, sptr = sx + sy * w, sline = 0, dptr = 0, dline = 0;
+        const w = src.cols, h = src.rows;
+        const w2 = w >> 1, h2 = h >> 1;
+        const _w2 = w2 - (sx << 1), _h2 = h2 - (sy << 1);
+        let x = 0, y = 0, sptr = sx + sy * w, sline = 0, dptr = 0, dline = 0;
         dst.resize(w2, h2, src.channel);
-        var src_d = src.data, dst_d = dst.data;
+        const src_d = src.data, dst_d = dst.data;
         for (y = 0; y < _h2; ++y) {
             sline = sptr;
             dline = dptr;
@@ -908,14 +910,14 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         }
     }
     scharr_derivatives(src, dst) {
-        var w = src.cols, h = src.rows;
-        var dstep = w << 1, x = 0, y = 0, x1 = 0, a, b, c, d, e, f;
-        var srow0 = 0, srow1 = 0, srow2 = 0, drow = 0;
-        var trow0, trow1;
+        const w = src.cols, h = src.rows;
+        let dstep = w << 1, x = 0, y = 0, x1 = 0, a, b, c, d, e, f;
+        let srow0 = 0, srow1 = 0, srow2 = 0, drow = 0;
+        let trow0, trow1;
         dst.resize(w, h, 2);
-        var img = src.data, gxgy = dst.data;
-        var buf0_node = this.cache.get_buffer((w + 2) << 2);
-        var buf1_node = this.cache.get_buffer((w + 2) << 2);
+        const img = src.data, gxgy = dst.data;
+        const buf0_node = this.cache.get_buffer((w + 2) << 2);
+        const buf1_node = this.cache.get_buffer((w + 2) << 2);
         if (src.type & JSFEAT_CONSTANTS.U8_t || src.type & JSFEAT_CONSTANTS.S32_t) {
             trow0 = buf0_node.i32;
             trow1 = buf1_node.i32;
@@ -971,14 +973,14 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         this.cache.put_buffer(buf1_node);
     }
     sobel_derivatives(src, dst) {
-        var w = src.cols, h = src.rows;
-        var dstep = w << 1, x = 0, y = 0, x1 = 0, a, b, c, d, e, f;
-        var srow0 = 0, srow1 = 0, srow2 = 0, drow = 0;
-        var trow0, trow1;
+        const w = src.cols, h = src.rows;
+        let dstep = w << 1, x = 0, y = 0, x1 = 0, a, b, c, d, e, f;
+        let srow0 = 0, srow1 = 0, srow2 = 0, drow = 0;
+        let trow0, trow1;
         dst.resize(w, h, 2);
-        var img = src.data, gxgy = dst.data;
-        var buf0_node = this.cache.get_buffer((w + 2) << 2);
-        var buf1_node = this.cache.get_buffer((w + 2) << 2);
+        const img = src.data, gxgy = dst.data;
+        const buf0_node = this.cache.get_buffer((w + 2) << 2);
+        const buf1_node = this.cache.get_buffer((w + 2) << 2);
         if (src.type & JSFEAT_CONSTANTS.U8_t || src.type & JSFEAT_CONSTANTS.S32_t) {
             trow0 = buf0_node.i32;
             trow1 = buf1_node.i32;
@@ -1034,9 +1036,9 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         this.cache.put_buffer(buf1_node);
     }
     compute_integral_image(src, dst_sum, dst_sqsum, dst_tilted) {
-        var w0 = src.cols | 0, h0 = src.rows | 0, src_d = src.data;
-        var w1 = (w0 + 1) | 0;
-        var s = 0, s2 = 0, p = 0, pup = 0, i = 0, j = 0, v = 0, k = 0;
+        const w0 = src.cols | 0, h0 = src.rows | 0, src_d = src.data;
+        const w1 = (w0 + 1) | 0;
+        let s = 0, s2 = 0, p = 0, pup = 0, i = 0, j = 0, v = 0, k = 0;
         if (dst_sum && dst_sqsum) {
             for (; i < w1; ++i) {
                 (dst_sum[i] = 0), (dst_sqsum[i] = 0);
@@ -1130,11 +1132,11 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         }
     }
     equalize_histogram(src, dst) {
-        var w = src.cols, h = src.rows, src_d = src.data;
+        const w = src.cols, h = src.rows, src_d = src.data;
         dst.resize(w, h, src.channel);
-        var dst_d = dst.data, size = w * h;
-        var i = 0, prev = 0, hist0, norm;
-        var hist0_node = this.cache.get_buffer(256 << 2);
+        const dst_d = dst.data, size = w * h;
+        let i = 0, prev = 0, hist0, norm;
+        const hist0_node = this.cache.get_buffer(256 << 2);
         hist0 = hist0_node.i32;
         for (; i < 256; ++i)
             hist0[i] = 0;
@@ -1152,21 +1154,21 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         this.cache.put_buffer(hist0_node);
     }
     canny(src, dst, low_thresh, high_thresh) {
-        var w = src.cols, h = src.rows, src_d = src.data;
+        const w = src.cols, h = src.rows, src_d = src.data;
         dst.resize(w, h, src.channel);
-        var dst_d = dst.data;
-        var i = 0, j = 0, grad = 0, w2 = w << 1, _grad = 0, suppress = 0, f = 0, x = 0, y = 0, s = 0;
-        var tg22x = 0, tg67x = 0;
-        var dxdy_node = this.cache.get_buffer((h * w2) << 2);
-        var buf_node = this.cache.get_buffer((3 * (w + 2)) << 2);
-        var map_node = this.cache.get_buffer(((h + 2) * (w + 2)) << 2);
-        var stack_node = this.cache.get_buffer((h * w) << 2);
-        var buf = buf_node.i32;
-        var map = map_node.i32;
-        var stack = stack_node.i32;
-        var dxdy = dxdy_node.i32;
-        var dxdy_m = new matrix_t(w, h, JSFEAT_CONSTANTS.S32C2_t, dxdy_node.data);
-        var row0 = 1, row1 = (w + 2 + 1) | 0, row2 = (2 * (w + 2) + 1) | 0, map_w = (w + 2) | 0, map_i = (map_w + 1) | 0, stack_i = 0;
+        const dst_d = dst.data;
+        let i = 0, j = 0, grad = 0, w2 = w << 1, _grad = 0, suppress = 0, f = 0, x = 0, y = 0, s = 0;
+        let tg22x = 0, tg67x = 0;
+        const dxdy_node = this.cache.get_buffer((h * w2) << 2);
+        const buf_node = this.cache.get_buffer((3 * (w + 2)) << 2);
+        const map_node = this.cache.get_buffer(((h + 2) * (w + 2)) << 2);
+        const stack_node = this.cache.get_buffer((h * w) << 2);
+        const buf = buf_node.i32;
+        const map = map_node.i32;
+        const stack = stack_node.i32;
+        const dxdy = dxdy_node.i32;
+        const dxdy_m = new matrix_t(w, h, JSFEAT_CONSTANTS.S32C2_t, dxdy_node.data);
+        let row0 = 1, row1 = (w + 2 + 1) | 0, row2 = (2 * (w + 2) + 1) | 0, map_w = (w + 2) | 0, map_i = (map_w + 1) | 0, stack_i = 0;
         this.sobel_derivatives(src, dxdy_m);
         if (low_thresh > high_thresh) {
             i = low_thresh;
@@ -1310,11 +1312,11 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         if (typeof fill_value === "undefined") {
             fill_value = 0;
         }
-        var src_width = src.cols | 0, src_height = src.rows | 0, dst_width = dst.cols | 0, dst_height = dst.rows | 0;
-        var src_d = src.data, dst_d = dst.data;
-        var x = 0, y = 0, off = 0, ixs = 0, iys = 0, xs = 0.0, ys = 0.0, xs0 = 0.0, ys0 = 0.0, ws = 0.0, sc = 0.0, a = 0.0, b = 0.0, p0 = 0.0, p1 = 0.0;
-        var td = transform.data;
-        var m00 = td[0], m01 = td[1], m02 = td[2], m10 = td[3], m11 = td[4], m12 = td[5], m20 = td[6], m21 = td[7], m22 = td[8];
+        const src_width = src.cols | 0, src_height = src.rows | 0, dst_width = dst.cols | 0, dst_height = dst.rows | 0;
+        const src_d = src.data, dst_d = dst.data;
+        let x = 0, y = 0, off = 0, ixs = 0, iys = 0, xs = 0.0, ys = 0.0, xs0 = 0.0, ys0 = 0.0, ws = 0.0, sc = 0.0, a = 0.0, b = 0.0, p0 = 0.0, p1 = 0.0;
+        const td = transform.data;
+        const m00 = td[0], m01 = td[1], m02 = td[2], m10 = td[3], m11 = td[4], m12 = td[5], m20 = td[6], m21 = td[7], m22 = td[8];
         for (var dptr = 0; y < dst_height; ++y) {
             (xs0 = m01 * y + m02), (ys0 = m11 * y + m12), (ws = m21 * y + m22);
             for (x = 0; x < dst_width; ++x, ++dptr, xs0 += m00, ys0 += m10, ws += m20) {
@@ -1338,11 +1340,11 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         if (typeof fill_value === "undefined") {
             fill_value = 0;
         }
-        var src_width = src.cols, src_height = src.rows, dst_width = dst.cols, dst_height = dst.rows;
-        var src_d = src.data, dst_d = dst.data;
-        var x = 0, y = 0, off = 0, ixs = 0, iys = 0, xs = 0.0, ys = 0.0, a = 0.0, b = 0.0, p0 = 0.0, p1 = 0.0;
-        var td = transform.data;
-        var m00 = td[0], m01 = td[1], m02 = td[2], m10 = td[3], m11 = td[4], m12 = td[5];
+        const src_width = src.cols, src_height = src.rows, dst_width = dst.cols, dst_height = dst.rows;
+        const src_d = src.data, dst_d = dst.data;
+        let x = 0, y = 0, off = 0, ixs = 0, iys = 0, xs = 0.0, ys = 0.0, a = 0.0, b = 0.0, p0 = 0.0, p1 = 0.0;
+        const td = transform.data;
+        const m00 = td[0], m01 = td[1], m02 = td[2], m10 = td[3], m11 = td[4], m12 = td[5];
         for (var dptr = 0; y < dst_height; ++y) {
             xs = m01 * y + m02;
             ys = m11 * y + m12;
@@ -1363,8 +1365,8 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         }
     }
     skindetector(src, dst) {
-        var r, g, b, j;
-        var i = src.width * src.height;
+        let r, g, b, j;
+        let i = src.width * src.height;
         while (i--) {
             j = i * 4;
             r = src.data[j];
@@ -1386,10 +1388,10 @@ jsfeatNext.math = class math extends jsfeatNext {
         this.qsort_stack = new Int32Array(48 * 2);
     }
     get_gaussian_kernel(size, sigma, kernel, data_type) {
-        var i = 0, x = 0.0, t = 0.0, sigma_x = 0.0, scale_2x = 0.0;
-        var sum = 0.0;
-        var kern_node = this.cache.get_buffer(size << 2);
-        var _kernel = kern_node.f32;
+        let i = 0, x = 0.0, t = 0.0, sigma_x = 0.0, scale_2x = 0.0;
+        let sum = 0.0;
+        const kern_node = this.cache.get_buffer(size << 2);
+        const _kernel = kern_node.f32;
         if ((size & 1) == 1 && size <= 7 && sigma <= 0) {
             switch (size >> 1) {
                 case 0:
@@ -1446,45 +1448,45 @@ jsfeatNext.math = class math extends jsfeatNext {
     }
     perspective_4point_transform(model, src_x0, src_y0, dst_x0, dst_y0, src_x1, src_y1, dst_x1, dst_y1, src_x2, src_y2, dst_x2, dst_y2, src_x3, src_y3, dst_x3, dst_y3) {
         console.warn("⚠️⚠️⚠️ This method is deprecated ad will be removed in the next releases, use transform.perspective_4point_transform() instead. ⚠️⚠️⚠️");
-        var t1 = src_x0;
-        var t2 = src_x2;
-        var t4 = src_y1;
-        var t5 = t1 * t2 * t4;
-        var t6 = src_y3;
-        var t7 = t1 * t6;
-        var t8 = t2 * t7;
-        var t9 = src_y2;
-        var t10 = t1 * t9;
-        var t11 = src_x1;
-        var t14 = src_y0;
-        var t15 = src_x3;
-        var t16 = t14 * t15;
-        var t18 = t16 * t11;
-        var t20 = t15 * t11 * t9;
-        var t21 = t15 * t4;
-        var t24 = t15 * t9;
-        var t25 = t2 * t4;
-        var t26 = t6 * t2;
-        var t27 = t6 * t11;
-        var t28 = t9 * t11;
-        var t30 = 1.0 / (t21 - t24 - t25 + t26 - t27 + t28);
-        var t32 = t1 * t15;
-        var t35 = t14 * t11;
-        var t41 = t4 * t1;
-        var t42 = t6 * t41;
-        var t43 = t14 * t2;
-        var t46 = t16 * t9;
-        var t48 = t14 * t9 * t11;
-        var t51 = t4 * t6 * t2;
-        var t55 = t6 * t14;
-        var Hr0 = -(t8 - t5 + t10 * t11 - t11 * t7 - t16 * t2 + t18 - t20 + t21 * t2) * t30;
-        var Hr1 = (t5 - t8 - t32 * t4 + t32 * t9 + t18 - t2 * t35 + t27 * t2 - t20) * t30;
-        var Hr2 = t1;
-        var Hr3 = (-t9 * t7 + t42 + t43 * t4 - t16 * t4 + t46 - t48 + t27 * t9 - t51) * t30;
-        var Hr4 = (-t42 + t41 * t9 - t55 * t2 + t46 - t48 + t55 * t11 + t51 - t21 * t9) * t30;
-        var Hr5 = t14;
-        var Hr6 = (-t10 + t41 + t43 - t35 + t24 - t21 - t26 + t27) * t30;
-        var Hr7 = (-t7 + t10 + t16 - t43 + t27 - t28 - t21 + t25) * t30;
+        let t1 = src_x0;
+        let t2 = src_x2;
+        let t4 = src_y1;
+        let t5 = t1 * t2 * t4;
+        let t6 = src_y3;
+        let t7 = t1 * t6;
+        let t8 = t2 * t7;
+        let t9 = src_y2;
+        let t10 = t1 * t9;
+        let t11 = src_x1;
+        let t14 = src_y0;
+        let t15 = src_x3;
+        let t16 = t14 * t15;
+        let t18 = t16 * t11;
+        let t20 = t15 * t11 * t9;
+        let t21 = t15 * t4;
+        let t24 = t15 * t9;
+        let t25 = t2 * t4;
+        let t26 = t6 * t2;
+        let t27 = t6 * t11;
+        let t28 = t9 * t11;
+        let t30 = 1.0 / (t21 - t24 - t25 + t26 - t27 + t28);
+        let t32 = t1 * t15;
+        let t35 = t14 * t11;
+        let t41 = t4 * t1;
+        let t42 = t6 * t41;
+        let t43 = t14 * t2;
+        let t46 = t16 * t9;
+        let t48 = t14 * t9 * t11;
+        let t51 = t4 * t6 * t2;
+        let t55 = t6 * t14;
+        let Hr0 = -(t8 - t5 + t10 * t11 - t11 * t7 - t16 * t2 + t18 - t20 + t21 * t2) * t30;
+        let Hr1 = (t5 - t8 - t32 * t4 + t32 * t9 + t18 - t2 * t35 + t27 * t2 - t20) * t30;
+        let Hr2 = t1;
+        let Hr3 = (-t9 * t7 + t42 + t43 * t4 - t16 * t4 + t46 - t48 + t27 * t9 - t51) * t30;
+        let Hr4 = (-t42 + t41 * t9 - t55 * t2 + t46 - t48 + t55 * t11 + t51 - t21 * t9) * t30;
+        let Hr5 = t14;
+        let Hr6 = (-t10 + t41 + t43 - t35 + t24 - t21 - t26 + t27) * t30;
+        let Hr7 = (-t7 + t10 + t16 - t43 + t27 - t28 - t21 + t25) * t30;
         t1 = dst_x0;
         t2 = dst_x2;
         t4 = dst_y1;
@@ -1516,34 +1518,34 @@ jsfeatNext.math = class math extends jsfeatNext {
         t48 = t14 * t9 * t11;
         t51 = t4 * t6 * t2;
         t55 = t6 * t14;
-        var Hl0 = -(t8 - t5 + t10 * t11 - t11 * t7 - t16 * t2 + t18 - t20 + t21 * t2) * t30;
-        var Hl1 = (t5 - t8 - t32 * t4 + t32 * t9 + t18 - t2 * t35 + t27 * t2 - t20) * t30;
-        var Hl2 = t1;
-        var Hl3 = (-t9 * t7 + t42 + t43 * t4 - t16 * t4 + t46 - t48 + t27 * t9 - t51) * t30;
-        var Hl4 = (-t42 + t41 * t9 - t55 * t2 + t46 - t48 + t55 * t11 + t51 - t21 * t9) * t30;
-        var Hl5 = t14;
-        var Hl6 = (-t10 + t41 + t43 - t35 + t24 - t21 - t26 + t27) * t30;
-        var Hl7 = (-t7 + t10 + t16 - t43 + t27 - t28 - t21 + t25) * t30;
+        let Hl0 = -(t8 - t5 + t10 * t11 - t11 * t7 - t16 * t2 + t18 - t20 + t21 * t2) * t30;
+        let Hl1 = (t5 - t8 - t32 * t4 + t32 * t9 + t18 - t2 * t35 + t27 * t2 - t20) * t30;
+        let Hl2 = t1;
+        let Hl3 = (-t9 * t7 + t42 + t43 * t4 - t16 * t4 + t46 - t48 + t27 * t9 - t51) * t30;
+        let Hl4 = (-t42 + t41 * t9 - t55 * t2 + t46 - t48 + t55 * t11 + t51 - t21 * t9) * t30;
+        let Hl5 = t14;
+        let Hl6 = (-t10 + t41 + t43 - t35 + t24 - t21 - t26 + t27) * t30;
+        let Hl7 = (-t7 + t10 + t16 - t43 + t27 - t28 - t21 + t25) * t30;
         t2 = Hr4 - Hr7 * Hr5;
         t4 = Hr0 * Hr4;
         t5 = Hr0 * Hr5;
         t7 = Hr3 * Hr1;
         t8 = Hr2 * Hr3;
         t10 = Hr1 * Hr6;
-        var t12 = Hr2 * Hr6;
+        let t12 = Hr2 * Hr6;
         t15 = 1.0 / (t4 - t5 * Hr7 - t7 + t8 * Hr7 + t10 * Hr5 - t12 * Hr4);
         t18 = -Hr3 + Hr5 * Hr6;
-        var t23 = -Hr3 * Hr7 + Hr4 * Hr6;
+        let t23 = -Hr3 * Hr7 + Hr4 * Hr6;
         t28 = -Hr1 + Hr2 * Hr7;
-        var t31 = Hr0 - t12;
+        let t31 = Hr0 - t12;
         t35 = Hr0 * Hr7 - t10;
         t41 = -Hr1 * Hr5 + Hr2 * Hr4;
-        var t44 = t5 - t8;
-        var t47 = t4 - t7;
+        let t44 = t5 - t8;
+        let t47 = t4 - t7;
         t48 = t2 * t15;
-        var t49 = t28 * t15;
-        var t50 = t41 * t15;
-        var mat = model.data;
+        let t49 = t28 * t15;
+        let t50 = t41 * t15;
+        const mat = model.data;
         mat[0] = Hl0 * t48 + Hl1 * (t18 * t15) - Hl2 * (t23 * t15);
         mat[1] = Hl0 * t49 + Hl1 * (t31 * t15) - Hl2 * (t35 * t15);
         mat[2] = -Hl0 * t50 - Hl1 * (t44 * t15) + Hl2 * (t47 * t15);
@@ -1555,11 +1557,11 @@ jsfeatNext.math = class math extends jsfeatNext {
         mat[8] = -Hl6 * t50 - Hl7 * (t44 * t15) + t47 * t15;
     }
     qsort(array, low, high, cmp) {
-        var isort_thresh = 7;
-        var t, ta, tb, tc;
-        var sp = 0, left = 0, right = 0, i = 0, n = 0, m = 0, ptr = 0, ptr2 = 0, d = 0;
-        var left0 = 0, left1 = 0, right0 = 0, right1 = 0, pivot = 0, a = 0, b = 0, c = 0, swap_cnt = 0;
-        var stack = this.qsort_stack;
+        const isort_thresh = 7;
+        let t, ta, tb, tc;
+        let sp = 0, left = 0, right = 0, i = 0, n = 0, m = 0, ptr = 0, ptr2 = 0, d = 0;
+        let left0 = 0, left1 = 0, right0 = 0, right1 = 0, pivot = 0, a = 0, b = 0, c = 0, swap_cnt = 0;
+        const stack = this.qsort_stack;
         if (high - low + 1 <= 1)
             return;
         stack[0] = low;
@@ -1738,8 +1740,8 @@ jsfeatNext.math = class math extends jsfeatNext {
         }
     }
     median(array, low, high) {
-        var w;
-        var middle = 0, ll = 0, hh = 0, median = (low + high) >> 1;
+        let w;
+        let middle = 0, ll = 0, hh = 0, median = (low + high) >> 1;
         for (;;) {
             if (high <= low)
                 return array[median];
@@ -1804,14 +1806,14 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         this.matmath = new matmath();
     }
     JacobiImpl(A, astep, W, V, vstep, n) {
-        var eps = JSFEAT_CONSTANTS.EPSILON;
-        var i = 0, j = 0, k = 0, m = 0, l = 0, idx = 0, _in = 0, _in2 = 0;
-        var iters = 0, max_iter = n * n * 30;
-        var mv = 0.0, val = 0.0, p = 0.0, y = 0.0, t = 0.0, s = 0.0, c = 0.0, a0 = 0.0, b0 = 0.0;
-        var indR_buff = this.cache.get_buffer(n << 2);
-        var indC_buff = this.cache.get_buffer(n << 2);
-        var indR = indR_buff.i32;
-        var indC = indC_buff.i32;
+        const eps = JSFEAT_CONSTANTS.EPSILON;
+        let i = 0, j = 0, k = 0, m = 0, l = 0, idx = 0, _in = 0, _in2 = 0;
+        let iters = 0, max_iter = n * n * 30;
+        let mv = 0.0, val = 0.0, p = 0.0, y = 0.0, t = 0.0, s = 0.0, c = 0.0, a0 = 0.0, b0 = 0.0;
+        const indR_buff = this.cache.get_buffer(n << 2);
+        const indC_buff = this.cache.get_buffer(n << 2);
+        const indR = indR_buff.i32;
+        const indC = indC_buff.i32;
         if (V) {
             for (; i < n; i++) {
                 k = i * vstep;
@@ -1941,16 +1943,16 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         this.cache.put_buffer(indC_buff);
     }
     JacobiSVDImpl(At, astep, _W, Vt, vstep, m, n, n1) {
-        var eps = JSFEAT_CONSTANTS.EPSILON * 2.0;
-        var minval = JSFEAT_CONSTANTS.FLT_MIN;
-        var i = 0, j = 0, k = 0, iter = 0, max_iter = Math.max(m, 30);
-        var Ai = 0, Aj = 0, Vi = 0, Vj = 0, changed = 0;
-        var c = 0.0, s = 0.0, t = 0.0;
-        var t0 = 0.0, t1 = 0.0, sd = 0.0, beta = 0.0, gamma = 0.0, delta = 0.0, a = 0.0, p = 0.0, b = 0.0;
-        var seed = 0x1234;
-        var val = 0.0, val0 = 0.0, asum = 0.0;
-        var W_buff = this.cache.get_buffer(n << 3);
-        var W = W_buff.f64;
+        const eps = JSFEAT_CONSTANTS.EPSILON * 2.0;
+        const minval = JSFEAT_CONSTANTS.FLT_MIN;
+        let i = 0, j = 0, k = 0, iter = 0, max_iter = Math.max(m, 30);
+        let Ai = 0, Aj = 0, Vi = 0, Vj = 0, changed = 0;
+        let c = 0.0, s = 0.0, t = 0.0;
+        let t0 = 0.0, t1 = 0.0, sd = 0.0, beta = 0.0, gamma = 0.0, delta = 0.0, a = 0.0, p = 0.0, b = 0.0;
+        let seed = 0x1234;
+        let val = 0.0, val0 = 0.0, asum = 0.0;
+        const W_buff = this.cache.get_buffer(n << 3);
+        const W = W_buff.f64;
         for (; i < n; i++) {
             for (k = 0, sd = 0; k < m; k++) {
                 t = At[i * astep + k];
@@ -2110,9 +2112,9 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         this.cache.put_buffer(W_buff);
     }
     lu_solve(A, B) {
-        var i = 0, j = 0, k = 0, p = 1, astep = A.cols;
-        var ad = A.data, bd = B.data;
-        var t, alpha, d, s;
+        let i = 0, j = 0, k = 0, p = 1, astep = A.cols;
+        const ad = A.data, bd = B.data;
+        let t, alpha, d, s;
         for (i = 0; i < astep; i++) {
             k = i;
             for (j = i + 1; j < astep; j++) {
@@ -2150,10 +2152,10 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         return 1;
     }
     cholesky_solve(A, B) {
-        var col = 0, row = 0, col2 = 0, cs = 0, rs = 0, i = 0, j = 0;
-        var size = A.cols;
-        var ad = A.data, bd = B.data;
-        var val, inv_diag;
+        let col = 0, row = 0, col2 = 0, cs = 0, rs = 0, i = 0, j = 0;
+        const size = A.cols;
+        const ad = A.data, bd = B.data;
+        let val, inv_diag;
         for (col = 0; col < size; col++) {
             inv_diag = 1.0;
             cs = col * size;
@@ -2208,20 +2210,20 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         if (typeof options === "undefined") {
             options = 0;
         }
-        var at = 0, i = 0, j = 0, _m = A.rows, _n = A.cols, m = _m, n = _n;
-        var dt = A.type | JSFEAT_CONSTANTS.C1_t;
+        let at = 0, i = 0, j = 0, _m = A.rows, _n = A.cols, m = _m, n = _n;
+        const dt = A.type | JSFEAT_CONSTANTS.C1_t;
         if (m < n) {
             at = 1;
             i = m;
             m = n;
             n = i;
         }
-        var a_buff = this.cache.get_buffer((m * m) << 3);
-        var w_buff = this.cache.get_buffer(n << 3);
-        var v_buff = this.cache.get_buffer((n * n) << 3);
-        var a_mt = new matrix_t(m, m, dt, a_buff.data);
-        var w_mt = new matrix_t(1, n, dt, w_buff.data);
-        var v_mt = new matrix_t(n, n, dt, v_buff.data);
+        const a_buff = this.cache.get_buffer((m * m) << 3);
+        const w_buff = this.cache.get_buffer(n << 3);
+        const v_buff = this.cache.get_buffer((n * n) << 3);
+        const a_mt = new matrix_t(m, m, dt, a_buff.data);
+        const w_mt = new matrix_t(1, n, dt, w_buff.data);
+        const v_mt = new matrix_t(n, n, dt, v_buff.data);
         if (at == 0) {
             this.matmath.transpose(a_mt, A);
         }
@@ -2287,18 +2289,18 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         this.cache.put_buffer(v_buff);
     }
     svd_solve(A, X, B) {
-        var i = 0, j = 0, k = 0;
-        var pu = 0, pv = 0;
-        var nrows = A.rows, ncols = A.cols;
-        var sum = 0.0, xsum = 0.0, tol = 0.0;
-        var dt = A.type | JSFEAT_CONSTANTS.C1_t;
-        var u_buff = this.cache.get_buffer((nrows * nrows) << 3);
-        var w_buff = this.cache.get_buffer(ncols << 3);
-        var v_buff = this.cache.get_buffer((ncols * ncols) << 3);
-        var u_mt = new matrix_t(nrows, nrows, dt, u_buff.data);
-        var w_mt = new matrix_t(1, ncols, dt, w_buff.data);
-        var v_mt = new matrix_t(ncols, ncols, dt, v_buff.data);
-        var bd = B.data, ud = u_mt.data, wd = w_mt.data, vd = v_mt.data;
+        let i = 0, j = 0, k = 0;
+        let pu = 0, pv = 0;
+        const nrows = A.rows, ncols = A.cols;
+        let sum = 0.0, xsum = 0.0, tol = 0.0;
+        const dt = A.type | JSFEAT_CONSTANTS.C1_t;
+        const u_buff = this.cache.get_buffer((nrows * nrows) << 3);
+        const w_buff = this.cache.get_buffer(ncols << 3);
+        const v_buff = this.cache.get_buffer((ncols * ncols) << 3);
+        const u_mt = new matrix_t(nrows, nrows, dt, u_buff.data);
+        const w_mt = new matrix_t(1, ncols, dt, w_buff.data);
+        const v_mt = new matrix_t(ncols, ncols, dt, v_buff.data);
+        const bd = B.data, ud = u_mt.data, wd = w_mt.data, vd = v_mt.data;
         this.svd_decompose(A, w_mt, u_mt, v_mt, 0);
         tol = JSFEAT_CONSTANTS.EPSILON * wd[0] * ncols;
         for (; i < ncols; i++, pv += ncols) {
@@ -2318,18 +2320,18 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         this.cache.put_buffer(v_buff);
     }
     svd_invert(Ai, A) {
-        var i = 0, j = 0, k = 0;
-        var pu = 0, pv = 0, pa = 0;
-        var nrows = A.rows, ncols = A.cols;
-        var sum = 0.0, tol = 0.0;
-        var dt = A.type | JSFEAT_CONSTANTS.C1_t;
-        var u_buff = this.cache.get_buffer((nrows * nrows) << 3);
-        var w_buff = this.cache.get_buffer(ncols << 3);
-        var v_buff = this.cache.get_buffer((ncols * ncols) << 3);
-        var u_mt = new matrix_t(nrows, nrows, dt, u_buff.data);
-        var w_mt = new matrix_t(1, ncols, dt, w_buff.data);
-        var v_mt = new matrix_t(ncols, ncols, dt, v_buff.data);
-        var id = Ai.data, ud = u_mt.data, wd = w_mt.data, vd = v_mt.data;
+        let i = 0, j = 0, k = 0;
+        let pu = 0, pv = 0, pa = 0;
+        const nrows = A.rows, ncols = A.cols;
+        let sum = 0.0, tol = 0.0;
+        const dt = A.type | JSFEAT_CONSTANTS.C1_t;
+        const u_buff = this.cache.get_buffer((nrows * nrows) << 3);
+        const w_buff = this.cache.get_buffer(ncols << 3);
+        const v_buff = this.cache.get_buffer((ncols * ncols) << 3);
+        const u_mt = new matrix_t(nrows, nrows, dt, u_buff.data);
+        const w_mt = new matrix_t(1, ncols, dt, w_buff.data);
+        const v_mt = new matrix_t(ncols, ncols, dt, v_buff.data);
+        const id = Ai.data, ud = u_mt.data, wd = w_mt.data, vd = v_mt.data;
         this.svd_decompose(A, w_mt, u_mt, v_mt, 0);
         tol = JSFEAT_CONSTANTS.EPSILON * wd[0] * ncols;
         for (; i < ncols; i++, pv += ncols) {
@@ -2346,12 +2348,12 @@ jsfeatNext.linalg = class linalg extends jsfeatNext {
         this.cache.put_buffer(v_buff);
     }
     eigenVV(A, vects, vals) {
-        var n = A.cols, i = n * n;
-        var dt = A.type | JSFEAT_CONSTANTS.C1_t;
-        var a_buff = this.cache.get_buffer((n * n) << 3);
-        var w_buff = this.cache.get_buffer(n << 3);
-        var a_mt = new matrix_t(n, n, dt, a_buff.data);
-        var w_mt = new matrix_t(1, n, dt, w_buff.data);
+        let n = A.cols, i = n * n;
+        const dt = A.type | JSFEAT_CONSTANTS.C1_t;
+        const a_buff = this.cache.get_buffer((n * n) << 3);
+        const w_buff = this.cache.get_buffer(n << 3);
+        const a_mt = new matrix_t(n, n, dt, a_buff.data);
+        const w_mt = new matrix_t(1, n, dt, w_buff.data);
         while (--i >= 0) {
             a_mt.data[i] = A.data[i];
         }
@@ -2378,12 +2380,12 @@ jsfeatNext.orb = class orb extends jsfeatNext {
         this.imgproc = new jsfeatNext.imgproc();
     }
     describe(src, corners, count, descriptors) {
-        var DESCR_SIZE = 32;
-        var i = 0, b = 0, px = 0.0, py = 0.0, angle = 0.0;
-        var t0 = 0, t1 = 0, val = 0;
-        var patch_d = this.patch_img.data;
-        var patch_off = 16 * 32 + 16;
-        var patt = 0;
+        const DESCR_SIZE = 32;
+        let i = 0, b = 0, px = 0.0, py = 0.0, angle = 0.0;
+        let t0 = 0, t1 = 0, val = 0;
+        const patch_d = this.patch_img.data;
+        const patch_off = 16 * 32 + 16;
+        let patt = 0;
         if (!(descriptors.type & JSFEAT_CONSTANTS.U8_t)) {
             descriptors.type = JSFEAT_CONSTANTS.U8_t;
             descriptors.cols = DESCR_SIZE;
@@ -2394,8 +2396,8 @@ jsfeatNext.orb = class orb extends jsfeatNext {
         else {
             descriptors.resize(DESCR_SIZE, count, 1);
         }
-        var descr_d = descriptors.data;
-        var descr_off = 0;
+        const descr_d = descriptors.data;
+        let descr_off = 0;
         for (i = 0; i < count; ++i) {
             px = corners[i].x;
             py = corners[i].y;
@@ -2462,20 +2464,20 @@ jsfeatNext.yape06 = class yape06 extends jsfeatNext {
         if (typeof border === "undefined") {
             border = 5;
         }
-        var x = 0, y = 0;
-        var w = src.cols, h = src.rows, srd_d = src.data;
-        var Dxx = 5, Dyy = (5 * w) | 0;
-        var Dxy = (3 + 3 * w) | 0, Dyx = (3 - 3 * w) | 0;
-        var lap_buf = this.cache.get_buffer((w * h) << 2);
-        var laplacian = lap_buf.i32;
-        var lv = 0, row = 0, rowx = 0, min_eigen_value = 0, pt;
-        var number_of_points = 0;
-        var lap_thresh = this.laplacian_threshold;
-        var eigen_thresh = this.min_eigen_value_threshold;
-        var sx = Math.max(5, border) | 0;
-        var sy = Math.max(3, border) | 0;
-        var ex = Math.min(w - 5, w - border) | 0;
-        var ey = Math.min(h - 3, h - border) | 0;
+        let x = 0, y = 0;
+        const w = src.cols, h = src.rows, srd_d = src.data;
+        const Dxx = 5, Dyy = (5 * w) | 0;
+        const Dxy = (3 + 3 * w) | 0, Dyx = (3 - 3 * w) | 0;
+        const lap_buf = this.cache.get_buffer((w * h) << 2);
+        const laplacian = lap_buf.i32;
+        let lv = 0, row = 0, rowx = 0, min_eigen_value = 0, pt;
+        let number_of_points = 0;
+        const lap_thresh = this.laplacian_threshold;
+        const eigen_thresh = this.min_eigen_value_threshold;
+        const sx = Math.max(5, border) | 0;
+        const sy = Math.max(3, border) | 0;
+        const ex = Math.min(w - 5, w - border) | 0;
+        const ey = Math.min(h - 3, h - border) | 0;
         x = w * h;
         while (--x >= 0) {
             laplacian[x] = 0;
@@ -2522,9 +2524,9 @@ jsfeatNext.motion_estimator = class motion_estimator extends jsfeatNext {
         super();
     }
     get_subset(kernel, from, to, need_cnt, max_cnt, from_sub, to_sub) {
-        var max_try = 1000;
-        var indices = [];
-        var i = 0, j = 0, ssiter = 0, idx_i = 0, ok = false;
+        const max_try = 1000;
+        const indices = [];
+        let i = 0, j = 0, ssiter = 0, idx_i = 0, ok = false;
         for (; ssiter < max_try; ++ssiter) {
             i = 0;
             for (; i < need_cnt && ssiter < max_try;) {
@@ -2553,8 +2555,8 @@ jsfeatNext.motion_estimator = class motion_estimator extends jsfeatNext {
         return i == need_cnt && ssiter < max_try;
     }
     find_inliers(kernel, model, from, to, count, thresh, err, mask) {
-        var numinliers = 0, i = 0, f = 0;
-        var t = thresh * thresh;
+        let numinliers = 0, i = 0, f = 0;
+        const t = thresh * thresh;
         kernel.error(from, to, model, err, count);
         for (; i < count; ++i) {
             f = (err[i] <= t);
@@ -2569,22 +2571,22 @@ jsfeatNext.motion_estimator = class motion_estimator extends jsfeatNext {
         }
         if (count < params.size)
             return false;
-        var model_points = params.size;
-        var niters = max_iters, iter = 0;
-        var result = false;
-        var subset0 = [];
-        var subset1 = [];
-        var found = false;
-        var mc = model.cols, mr = model.rows;
-        var dt = model.type | JSFEAT_CONSTANTS.C1_t;
-        var m_buff = this.cache.get_buffer((mc * mr) << 3);
-        var ms_buff = this.cache.get_buffer(count);
-        var err_buff = this.cache.get_buffer(count << 2);
-        var M = new matrix_t(mc, mr, dt, m_buff.data);
-        var curr_mask = new matrix_t(count, 1, JSFEAT_CONSTANTS.U8C1_t, ms_buff.data);
-        var inliers_max = -1, numinliers = 0;
-        var nmodels = 0;
-        var err = err_buff.f32;
+        const model_points = params.size;
+        let niters = max_iters, iter = 0;
+        let result = false;
+        const subset0 = [];
+        const subset1 = [];
+        let found = false;
+        const mc = model.cols, mr = model.rows;
+        const dt = model.type | JSFEAT_CONSTANTS.C1_t;
+        const m_buff = this.cache.get_buffer((mc * mr) << 3);
+        const ms_buff = this.cache.get_buffer(count);
+        const err_buff = this.cache.get_buffer(count << 2);
+        const M = new matrix_t(mc, mr, dt, m_buff.data);
+        const curr_mask = new matrix_t(count, 1, JSFEAT_CONSTANTS.U8C1_t, ms_buff.data);
+        let inliers_max = -1, numinliers = 0;
+        let nmodels = 0;
+        const err = err_buff.f32;
         if (count == model_points) {
             if (kernel.run(from, to, M, count) <= 0) {
                 this.cache.put_buffer(m_buff);
@@ -2638,24 +2640,24 @@ jsfeatNext.motion_estimator = class motion_estimator extends jsfeatNext {
         }
         if (count < params.size)
             return false;
-        var model_points = params.size;
-        var niters = max_iters, iter = 0;
-        var result = false;
-        var _math = new jsfeatNext.math();
-        var subset0 = [];
-        var subset1 = [];
-        var found = false;
-        var mc = model.cols, mr = model.rows;
-        var dt = model.type | JSFEAT_CONSTANTS.C1_t;
-        var m_buff = this.cache.get_buffer((mc * mr) << 3);
-        var ms_buff = this.cache.get_buffer(count);
-        var err_buff = this.cache.get_buffer(count << 2);
-        var M = new matrix_t(mc, mr, dt, m_buff.data);
-        var curr_mask = new matrix_t(count, 1, JSFEAT_CONSTANTS.U8_t | JSFEAT_CONSTANTS.C1_t, ms_buff.data);
-        var numinliers = 0;
-        var nmodels = 0;
-        var err = err_buff.f32;
-        var min_median = 1000000000.0, sigma = 0.0, median = 0.0;
+        const model_points = params.size;
+        let niters = max_iters, iter = 0;
+        let result = false;
+        const _math = new jsfeatNext.math();
+        const subset0 = [];
+        const subset1 = [];
+        let found = false;
+        const mc = model.cols, mr = model.rows;
+        const dt = model.type | JSFEAT_CONSTANTS.C1_t;
+        const m_buff = this.cache.get_buffer((mc * mr) << 3);
+        const ms_buff = this.cache.get_buffer(count);
+        const err_buff = this.cache.get_buffer(count << 2);
+        const M = new matrix_t(mc, mr, dt, m_buff.data);
+        const curr_mask = new matrix_t(count, 1, JSFEAT_CONSTANTS.U8_t | JSFEAT_CONSTANTS.C1_t, ms_buff.data);
+        let numinliers = 0;
+        let nmodels = 0;
+        const err = err_buff.f32;
+        let min_median = 1000000000.0, sigma = 0.0, median = 0.0;
         params.eps = 0.45;
         niters = params.update_iters(params.eps, niters);
         if (count == model_points) {
@@ -2719,7 +2721,7 @@ jsfeatNext.optical_flow_lk = class optical_flow_lk extends jsfeatNext {
     scharr_deriv;
     constructor() {
         super();
-        var _imgproc = new jsfeatNext.imgproc();
+        const _imgproc = new jsfeatNext.imgproc();
         this.scharr_deriv = _imgproc.scharr_derivatives;
     }
     track(prev_pyr, curr_pyr, prev_xy, curr_xy, count, win_size, max_iter, status, eps, min_eigen_threshold) {
@@ -2735,41 +2737,41 @@ jsfeatNext.optical_flow_lk = class optical_flow_lk extends jsfeatNext {
         if (typeof min_eigen_threshold === "undefined") {
             min_eigen_threshold = 0.0001;
         }
-        var half_win = (win_size - 1) * 0.5;
-        var win_area = (win_size * win_size) | 0;
-        var win_area2 = win_area << 1;
-        var prev_imgs = prev_pyr.data, next_imgs = curr_pyr.data;
-        var img_prev = prev_imgs[0].data, img_next = next_imgs[0].data;
-        var w0 = prev_imgs[0].cols, h0 = prev_imgs[0].rows, lw = 0, lh = 0;
-        var iwin_node = this.cache.get_buffer(win_area << 2);
-        var deriv_iwin_node = this.cache.get_buffer(win_area2 << 2);
-        var deriv_lev_node = this.cache.get_buffer((h0 * (w0 << 1)) << 2);
-        var deriv_m = new matrix_t(w0, h0, JSFEAT_CONSTANTS.S32C2_t, deriv_lev_node.data);
-        var iwin_buf = iwin_node.i32;
-        var deriv_iwin = deriv_iwin_node.i32;
-        var deriv_lev = deriv_lev_node.i32;
-        var dstep = 0, src = 0, dsrc = 0, iptr = 0, diptr = 0, jptr = 0;
-        var lev_sc = 0.0, prev_x = 0.0, prev_y = 0.0, next_x = 0.0, next_y = 0.0;
-        var prev_delta_x = 0.0, prev_delta_y = 0.0, delta_x = 0.0, delta_y = 0.0;
-        var iprev_x = 0, iprev_y = 0, inext_x = 0, inext_y = 0;
-        var i = 0, j = 0, x = 0, y = 0, level = 0, ptid = 0, iter = 0;
-        var brd_tl = 0, brd_r = 0, brd_b = 0;
-        var a = 0.0, b = 0.0, b1 = 0.0, b2 = 0.0;
-        var W_BITS14 = 14;
-        var W_BITS4 = 14;
-        var W_BITS1m5 = W_BITS4 - 5;
-        var W_BITS1m51 = 1 << (W_BITS1m5 - 1);
-        var W_BITS14_ = 1 << W_BITS14;
-        var W_BITS41 = 1 << (W_BITS4 - 1);
-        var FLT_SCALE = 1.0 / (1 << 20);
-        var iw00 = 0, iw01 = 0, iw10 = 0, iw11 = 0, ival = 0, ixval = 0, iyval = 0;
-        var A11 = 0.0, A12 = 0.0, A22 = 0.0, D = 0.0, min_eig = 0.0;
-        var FLT_EPSILON = 0.00000011920929;
+        const half_win = (win_size - 1) * 0.5;
+        const win_area = (win_size * win_size) | 0;
+        const win_area2 = win_area << 1;
+        const prev_imgs = prev_pyr.data, next_imgs = curr_pyr.data;
+        let img_prev = prev_imgs[0].data, img_next = next_imgs[0].data;
+        let w0 = prev_imgs[0].cols, h0 = prev_imgs[0].rows, lw = 0, lh = 0;
+        const iwin_node = this.cache.get_buffer(win_area << 2);
+        const deriv_iwin_node = this.cache.get_buffer(win_area2 << 2);
+        const deriv_lev_node = this.cache.get_buffer((h0 * (w0 << 1)) << 2);
+        const deriv_m = new matrix_t(w0, h0, JSFEAT_CONSTANTS.S32C2_t, deriv_lev_node.data);
+        const iwin_buf = iwin_node.i32;
+        const deriv_iwin = deriv_iwin_node.i32;
+        const deriv_lev = deriv_lev_node.i32;
+        let dstep = 0, src = 0, dsrc = 0, iptr = 0, diptr = 0, jptr = 0;
+        let lev_sc = 0.0, prev_x = 0.0, prev_y = 0.0, next_x = 0.0, next_y = 0.0;
+        let prev_delta_x = 0.0, prev_delta_y = 0.0, delta_x = 0.0, delta_y = 0.0;
+        let iprev_x = 0, iprev_y = 0, inext_x = 0, inext_y = 0;
+        let i = 0, j = 0, x = 0, y = 0, level = 0, ptid = 0, iter = 0;
+        let brd_tl = 0, brd_r = 0, brd_b = 0;
+        let a = 0.0, b = 0.0, b1 = 0.0, b2 = 0.0;
+        const W_BITS14 = 14;
+        const W_BITS4 = 14;
+        const W_BITS1m5 = W_BITS4 - 5;
+        const W_BITS1m51 = 1 << (W_BITS1m5 - 1);
+        const W_BITS14_ = 1 << W_BITS14;
+        const W_BITS41 = 1 << (W_BITS4 - 1);
+        const FLT_SCALE = 1.0 / (1 << 20);
+        let iw00 = 0, iw01 = 0, iw10 = 0, iw11 = 0, ival = 0, ixval = 0, iyval = 0;
+        let A11 = 0.0, A12 = 0.0, A22 = 0.0, D = 0.0, min_eig = 0.0;
+        const FLT_EPSILON = 0.00000011920929;
         eps *= eps;
         for (; i < count; ++i) {
             status[i] = 1;
         }
-        var max_level = (prev_pyr.levels - 1) | 0;
+        const max_level = (prev_pyr.levels - 1) | 0;
         level = max_level;
         for (; level >= 0; --level) {
             lev_sc = 1.0 / (1 << level);

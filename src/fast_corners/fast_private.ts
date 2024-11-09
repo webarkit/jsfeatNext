@@ -6,10 +6,10 @@ export function _cmp_score_16(
     d: Uint8Array | Int32Array,
     threshold: number
 ): number {
-    var N = 25,
+    let N = 25,
         k = 0,
         v = src[off];
-    var a0 = threshold,
+    let a0 = threshold,
         a = 0,
         b0 = 0,
         b = 0;

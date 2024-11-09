@@ -1,6 +1,6 @@
 export function precompute_directions(step, dirs, R) {
-    var i = 0;
-    var x, y;
+    let i = 0;
+    let x, y;
     x = R;
     for (y = 0; y < x; y++, i++) {
         x = (Math.sqrt(R * R - y * y) + 0.5) | 0;
@@ -39,7 +39,7 @@ export function precompute_directions(step, dirs, R) {
     return i;
 }
 export function third_check(Sb, off, step) {
-    var n = 0;
+    let n = 0;
     if (Sb[off + 1] != 0)
         n++;
     if (Sb[off - 1] != 0)
@@ -59,7 +59,7 @@ export function third_check(Sb, off, step) {
     return n;
 }
 export function is_local_maxima(p, off, v, step, neighborhood) {
-    var x, y;
+    let x, y;
     if (v > 0) {
         off -= step * neighborhood;
         for (y = -neighborhood; y <= neighborhood; ++y) {
@@ -83,10 +83,10 @@ export function is_local_maxima(p, off, v, step, neighborhood) {
     return true;
 }
 export function perform_one_point(I, x, Scores, Im, Ip, dirs, opposite, dirs_nb) {
-    var score = 0;
-    var a = 0, b = (opposite - 1) | 0;
-    var A = 0, B0 = 0, B1 = 0, B2 = 0;
-    var state = 0;
+    let score = 0;
+    let a = 0, b = (opposite - 1) | 0;
+    let A = 0, B0 = 0, B1 = 0, B2 = 0;
+    let state = 0;
     A = I[x + dirs[a]];
     if (A <= Ip) {
         if (A >= Im) {

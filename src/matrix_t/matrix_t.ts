@@ -62,9 +62,9 @@ export class matrix_t implements IMatrix_T {
     }
 
     copy_to(other: IMatrix_T): void {
-        var od = other.data,
+        const od = other.data,
             td = this.data;
-        var i = 0,
+        let i = 0,
             n = (this.cols * this.rows * this.channel) | 0;
         for (; i < n - 4; i += 4) {
             od[i] = td[i];
@@ -82,7 +82,7 @@ export class matrix_t implements IMatrix_T {
             ch = this.channel;
         }
         // relocate buffer only if new size doesnt fit
-        var new_size = c * this.dt._get_data_type_size(this.type) * ch * r;
+        const new_size = c * this.dt._get_data_type_size(this.type) * ch * r;
         if (new_size > this.buffer.size) {
             this.cols = c;
             this.rows = r;

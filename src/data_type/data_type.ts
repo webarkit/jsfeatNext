@@ -5,7 +5,7 @@ export interface IData_Type {
 }
 
 export class data_type implements IData_Type {
-    private _data_type_size: Int32Array;
+    private readonly _data_type_size: Int32Array;
     constructor() {
         this._data_type_size = new Int32Array([-1, 1, 4, -1, 4, -1, -1, -1, 8, -1, -1, -1, -1, -1, -1, -1, 8]);
     }
