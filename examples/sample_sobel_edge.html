@@ -21,10 +21,10 @@
             </div>
 
             <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-        <script src="../dist/jsfeatNext.js"></script>
-        <script type="text/javascript" src="js/compatibility.js"></script>
-        <script type="text/javascript" src="js/profiler.js"></script>
-        <script type="text/javascript">
+            <script src="../dist/jsfeatNext.js"></script>
+            <script type="text/javascript" src="js/compatibility.js"></script>
+            <script type="text/javascript" src="js/profiler.js"></script>
+            <script type="text/javascript">
 
         $(window).on('load', function () {
             "use strict";
@@ -93,7 +93,7 @@
             function demo_app(videoWidth, videoHeight) {
                 canvasWidth  = canvas.width;
                 canvasHeight = canvas.height;
-                ctx = canvas.getContext('2d');
+                ctx = canvas.getContext('2d', {"willReadFrequently": true});
 
                 ctx.fillStyle = "rgb(0,255,0)";
                 ctx.strokeStyle = "rgb(0,255,0)";

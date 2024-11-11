@@ -17,7 +17,7 @@
         var jsfeat = jsfeatNext.jsfeatNext;
         var imgproc = new jsfeat.imgproc();
         var canvas = document.getElementById('canvas');
-        var ctx = canvas.getContext('2d');
+        var ctx = canvas.getContext('2d', {"willReadFrequently": true});
 
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
             var hint = {
