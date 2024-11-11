@@ -1,0 +1,35 @@
+name: Build JsfeatNext
+on:
+    - push
+    - pull_request
+
+jobs:
+    check-and-test:
+        runs-on: ubuntu-20.04
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Use Node.js from .nvmrc
+              uses: actions/setup-node@v4
+              with:
+                  node-version-file: ".nvmrc"
+
+            - name: Get npm cache directory
+              id: npm-cache-dir
+              shell: bash
+              run: echo "dir=$(npm config get cache)" >> ${GITHUB_OUTPUT}
+
+            - uses: actions/cache@v4
+              id: npm-cache # use this to check for `cache-hit` ==> if: steps.npm-cache.outputs.cache-hit != 'true'
+              with:
+                  path: ${{ steps.npm-cache-dir.outputs.dir }}
+                  key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+                  restore-keys: |
+                      ${{ runner.os }}-node-
+
+            - name: Install
+              run: |
+                  npm install
+            - name: Build
+              run: npm run build-ts
