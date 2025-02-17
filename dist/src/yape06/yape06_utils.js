@@ -1,8 +1,17 @@
-export function compute_laplacian(src, dst, w, h, Dxx, Dyy, sx, sy, ex, ey) {
-    let y = 0, x = 0, yrow = (sy * w + sx) | 0, row = yrow;
+export function compute_laplacian(src, dst, w, Dxx, Dyy, sx, sy, ex, ey) {
+    let y = 0;
+    let x = 0;
+    let yrow = (sy * w + sx) | 0;
+    let row = yrow;
     for (y = sy; y < ey; ++y, yrow += w, row = yrow) {
         for (x = sx; x < ex; ++x, ++row) {
-            dst[row] = -4 * src[row] + src[row + Dxx] + src[row - Dxx] + src[row + Dyy] + src[row - Dyy];
+            if (row + Dxx < src.length && row - Dxx >= 0 &&
+                row + Dyy < src.length && row - Dyy >= 0) {
+                dst[row] = -4 * src[row] + src[row + Dxx] + src[row - Dxx] + src[row + Dyy] + src[row - Dyy];
+            }
+            else {
+                dst[row] = 0;
+            }
         }
     }
 }

@@ -1796,7 +1796,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
             m21 = td[7],
             m22 = td[8];
 
-        for (var dptr = 0; y < dst_height; ++y) {
+        for (let dptr = 0; y < dst_height; ++y) {
             (xs0 = m01 * y + m02), (ys0 = m11 * y + m12), (ws = m21 * y + m22);
             for (x = 0; x < dst_width; ++x, ++dptr, xs0 += m00, ys0 += m10, ws += m20) {
                 sc = 1.0 / ws;
@@ -1847,7 +1847,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
             m11 = td[4],
             m12 = td[5];
 
-        for (var dptr = 0; y < dst_height; ++y) {
+        for (let dptr = 0; y < dst_height; ++y) {
             xs = m01 * y + m02;
             ys = m11 * y + m12;
             for (x = 0; x < dst_width; ++x, ++dptr, xs += m00, ys += m10) {
@@ -3271,7 +3271,7 @@ jsfeatNext.yape06 = class yape06 extends jsfeatNext {
         while (--x >= 0) {
             laplacian[x] = 0;
         }
-        compute_laplacian(srd_d, laplacian, w, h, Dxx, Dyy, sx, sy, ex, ey);
+        compute_laplacian(srd_d, laplacian, w, Dxx, Dyy, sx, sy, ex, ey);
 
         row = (sy * w + sx) | 0;
         for (y = sy; y < ey; ++y, row += w) {
