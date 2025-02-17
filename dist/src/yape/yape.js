@@ -6,21 +6,14 @@ export class yape {
         this.level_tables = [];
         this.tau = 7;
     }
-    init(width, height, radius, pyramid_levels) {
-        if (typeof pyramid_levels === "undefined") {
-            pyramid_levels = 1;
-        }
-        let i;
+    init(width, height, radius, pyramid_levels = 1) {
         radius = Math.min(radius, 7);
         radius = Math.max(radius, 3);
-        for (i = 0; i < pyramid_levels; ++i) {
+        for (let i = 0; i < pyramid_levels; ++i) {
             this.level_tables[i] = new lev_table_t(width >> i, height >> i, radius);
         }
     }
-    detect(src, points, border) {
-        if (typeof border === "undefined") {
-            border = 4;
-        }
+    detect(src, points, border = 4) {
         const t = this.level_tables[0];
         const R = t.radius | 0, Rm1 = (R - 1) | 0;
         const dirs = t.dirs;

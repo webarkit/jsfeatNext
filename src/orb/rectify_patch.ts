@@ -9,17 +9,17 @@ export function rectify_patch(
     py: number,
     psize: number,
     H: matrix_t,
-    imgproc: imgproc
+    imgProcessor: imgproc
 ) {
     const cosine = Math.cos(angle);
     const sine = Math.sin(angle);
 
-    (H.data[0] = cosine),
-        (H.data[1] = -sine),
-        (H.data[2] = (-cosine + sine) * psize * 0.5 + px),
-        (H.data[3] = sine),
-        (H.data[4] = cosine),
-        (H.data[5] = (-sine - cosine) * psize * 0.5 + py);
+    H.data[0] = cosine;
+    H.data[1] = -sine;
+    H.data[2] = (-cosine + sine) * psize * 0.5 + px;
+    H.data[3] = sine;
+    H.data[4] = cosine;
+    H.data[5] = (-sine - cosine) * psize * 0.5 + py;
 
-    imgproc.warp_affine(src, dst, H, 128);
+    imgProcessor.warp_affine(src, dst, H, 128);
 }

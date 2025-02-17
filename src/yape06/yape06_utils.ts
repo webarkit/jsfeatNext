@@ -2,7 +2,6 @@ export function compute_laplacian(
     src: Int32Array | Float32Array,
     dst: Int32Array | Float32Array,
     w: number,
-    h: any,
     Dxx: number,
     Dyy: number,
     sx: number,
@@ -10,16 +9,23 @@ export function compute_laplacian(
     ex: number,
     ey: number
 ): void {
-    let y = 0,
-        x = 0,
-        yrow = (sy * w + sx) | 0,
-        row = yrow;
+    let y = 0;
+    let x = 0;
+    let yrow = (sy * w + sx) | 0;
+    let row = yrow;
 
     for (y = sy; y < ey; ++y, yrow += w, row = yrow) {
         for (x = sx; x < ex; ++x, ++row) {
-            dst[row] = -4 * src[row] + src[row + Dxx] + src[row - Dxx] + src[row + Dyy] + src[row - Dyy];
-        }
+            if (
+                row + Dxx < src.length && row - Dxx >= 0 &&
+                row + Dyy < src.length && row - Dyy >= 0
+            ) {
+                dst[row] = -4 * src[row] + src[row + Dxx] + src[row - Dxx] + src[row + Dyy] + src[row - Dyy];
+            } else {
+                dst[row] = 0; // or some other default value or error handling
+            }
     }
+}
 }
 
 export function hessian_min_eigen_value(

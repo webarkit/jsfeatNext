@@ -1317,7 +1317,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         let x = 0, y = 0, off = 0, ixs = 0, iys = 0, xs = 0.0, ys = 0.0, xs0 = 0.0, ys0 = 0.0, ws = 0.0, sc = 0.0, a = 0.0, b = 0.0, p0 = 0.0, p1 = 0.0;
         const td = transform.data;
         const m00 = td[0], m01 = td[1], m02 = td[2], m10 = td[3], m11 = td[4], m12 = td[5], m20 = td[6], m21 = td[7], m22 = td[8];
-        for (var dptr = 0; y < dst_height; ++y) {
+        for (let dptr = 0; y < dst_height; ++y) {
             (xs0 = m01 * y + m02), (ys0 = m11 * y + m12), (ws = m21 * y + m22);
             for (x = 0; x < dst_width; ++x, ++dptr, xs0 += m00, ys0 += m10, ws += m20) {
                 sc = 1.0 / ws;
@@ -1345,7 +1345,7 @@ jsfeatNext.imgproc = class imgproc extends jsfeatNext {
         let x = 0, y = 0, off = 0, ixs = 0, iys = 0, xs = 0.0, ys = 0.0, a = 0.0, b = 0.0, p0 = 0.0, p1 = 0.0;
         const td = transform.data;
         const m00 = td[0], m01 = td[1], m02 = td[2], m10 = td[3], m11 = td[4], m12 = td[5];
-        for (var dptr = 0; y < dst_height; ++y) {
+        for (let dptr = 0; y < dst_height; ++y) {
             xs = m01 * y + m02;
             ys = m11 * y + m12;
             for (x = 0; x < dst_width; ++x, ++dptr, xs += m00, ys += m10) {
@@ -2482,7 +2482,7 @@ jsfeatNext.yape06 = class yape06 extends jsfeatNext {
         while (--x >= 0) {
             laplacian[x] = 0;
         }
-        compute_laplacian(srd_d, laplacian, w, h, Dxx, Dyy, sx, sy, ex, ey);
+        compute_laplacian(srd_d, laplacian, w, Dxx, Dyy, sx, sy, ex, ey);
         row = (sy * w + sx) | 0;
         for (y = sy; y < ey; ++y, row += w) {
             for (x = sx, rowx = row; x < ex; ++x, ++rowx) {

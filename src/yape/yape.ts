@@ -9,22 +9,15 @@ export class yape {
         this.tau = 7;
     }
 
-    init(width: number, height: number, radius: number, pyramid_levels: number): void {
-        if (typeof pyramid_levels === "undefined") {
-            pyramid_levels = 1;
-        }
-        let i;
+    init(width: number, height: number, radius: number, pyramid_levels: number = 1): void {
         radius = Math.min(radius, 7);
         radius = Math.max(radius, 3);
-        for (i = 0; i < pyramid_levels; ++i) {
+        for (let i = 0; i < pyramid_levels; ++i) {
             this.level_tables[i] = new lev_table_t(width >> i, height >> i, radius);
         }
     }
 
-    detect(src: matrix_t, points: keypoint_t[], border: number): number {
-        if (typeof border === "undefined") {
-            border = 4;
-        }
+    detect(src: matrix_t, points: keypoint_t[], border: number = 4): number {
         const t = this.level_tables[0];
         const R = t.radius | 0,
             Rm1 = (R - 1) | 0;

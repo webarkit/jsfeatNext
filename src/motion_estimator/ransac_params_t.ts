@@ -3,20 +3,7 @@ export class ransac_params_t {
     public thresh: number;
     public eps: number;
     public prob: number;
-    constructor(size: number, thresh: number, eps: number, prob: number) {
-        if (typeof size === "undefined") {
-            size = 0;
-        }
-        if (typeof thresh === "undefined") {
-            thresh = 0.5;
-        }
-        if (typeof eps === "undefined") {
-            eps = 0.5;
-        }
-        if (typeof prob === "undefined") {
-            prob = 0.99;
-        }
-
+    constructor(size: number = 0, thresh: number = 0.5, eps: number = 0.5, prob: number = 0.99) {
         this.size = size;
         this.thresh = thresh;
         this.eps = eps;
