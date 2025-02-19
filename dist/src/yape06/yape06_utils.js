@@ -5,8 +5,7 @@ export function compute_laplacian(src, dst, w, Dxx, Dyy, sx, sy, ex, ey) {
     let row = yrow;
     for (y = sy; y < ey; ++y, yrow += w, row = yrow) {
         for (x = sx; x < ex; ++x, ++row) {
-            if (row + Dxx < src.length && row - Dxx >= 0 &&
-                row + Dyy < src.length && row - Dyy >= 0) {
+            if (row + Dxx < src.length && row - Dxx >= 0 && row + Dyy < src.length && row - Dyy >= 0) {
                 dst[row] = -4 * src[row] + src[row + Dxx] + src[row - Dxx] + src[row + Dyy] + src[row - Dyy];
             }
             else {
