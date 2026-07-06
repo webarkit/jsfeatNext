@@ -41,6 +41,13 @@ The runtime is centered on one large file: **`src/jsfeatNext.ts` (~3,900 lines)*
 - Preserve the **public API surface** (`jsfeatNext.<module>` + method signatures) unless a change is explicitly approved.
 - License: **LGPL-3.0-or-later** (keep headers/attribution).
 
+## Git & contribution workflow
+
+- **Open PRs against the `dev` branch — never `main`.** `dev` is the integration branch; `main` is stable/release. Branch your work off `dev`.
+- **Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/):** `type(scope): summary`, e.g. `feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`, `perf:`, `ci:`. Keep the subject imperative and concise.
+- One feature branch per issue; reference the issue in the PR body.
+- Never commit `.idea/` (JetBrains IDE files).
+
 ## Before you make changes
 
 - Small, incremental, reviewable diffs. Match surrounding code style.
