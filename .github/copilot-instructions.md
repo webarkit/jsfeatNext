@@ -8,3 +8,4 @@ The full guidance is in **[`AGENTS.md`](../AGENTS.md)** (source of truth) and th
 - **⚠️ Trap:** several `src/<module>/<module>.ts` files are **type-only stubs** that `throw new Error("Method not implemented.")` (e.g. `src/imgproc/imgproc.ts`). Do not treat them as the implementation and never instantiate them.
 - **API notes:** consumers use `jsfeatNext.jsfeatNext` (double namespace); algorithm modules require `new` (instance methods), unlike jsfeat's static namespace; each `new` allocates its own cache. `haar` and `bbf` are not ported.
 - **Conventions:** keep numeric/behavioral parity with jsfeat (typed-array/bitwise hot loops); preserve the public `jsfeatNext.<module>` API; avoid `any` in new code; LGPL-3.0-or-later.
+- **Git workflow:** open PRs against **`dev`**, never `main` (`dev` = integration, `main` = release). Commit messages follow **Conventional Commits** (`feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`, `ci:` …).
