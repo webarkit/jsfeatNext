@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import jsfeatNext from "../../src/jsfeatNext";
-import jsfeat from "jsfeat";
+import jsfeat from "../vendor/oracle.cjs";
 
 /**
  * Characterization test (Phase 0, issue #39).
