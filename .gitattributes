@@ -1,0 +1,5 @@
+# Normalize all text files to LF, including in Windows working trees.
+# Prettier (endOfLine: lf, its default) and the CI format-check assume LF;
+# without this, Windows checkouts get CRLF and local format-checks disagree
+# with CI.
+* text=auto eol=lf
