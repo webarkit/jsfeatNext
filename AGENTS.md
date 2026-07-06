@@ -9,12 +9,12 @@
 
 ## Environment & commands
 
-- **Node:** v20.18.0 (see `.nvmrc`). **Package manager:** npm.
+- **Node:** v24.18.0 (see `.nvmrc`; npm 11). **Package manager:** npm.
 - Install: `npm install`
 - Build (prod): `npm run build-ts` → runs `tsc` (emits `.d.ts` to `types/`) then webpack → `dist/jsfeatNext.js`
 - Watch/dev: `npm run dev-ts`
 - Format: `npm run format` (write) · `npm run format-check` (verify) — Prettier, config in `.prettierrc.json`
-- **Tests:** none yet. The only verification is manual: open `examples/*.html` in a browser after building. Do **not** claim behavior is verified without a real check.
+- **Test:** `npm test` (Vitest) runs characterization tests asserting parity against the original `jsfeat` (see `tests/`). Also verify visually via `examples/*.html` after building. Do **not** claim behavior is verified without a real check.
 
 ## Architecture — read this before editing
 
