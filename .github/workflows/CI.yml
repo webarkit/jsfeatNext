@@ -30,11 +30,7 @@ jobs:
                       ${{ runner.os }}-node-
 
             - name: Install
-              # Resolve from package.json rather than the committed lockfile: it is generated
-              # on Windows, so npm otherwise skips the Linux-only native binaries (rolldown,
-              # pulled in by vitest 4) on the CI runner. Revisit during the Vite migration (#42).
-              run: |
-                  npm install --no-package-lock
+              run: npm ci
 
             - name: Format check
               run: npm run format-check
