@@ -38,10 +38,22 @@ describe("parity: transform vs original jsfeat", () => {
     function forwardNext(model: ReturnType<typeof mat3x3>) {
         tr.perspective_4point_transform(
             model,
-            s[0], s[1], d[0], d[1],
-            s[2], s[3], d[2], d[3],
-            s[4], s[5], d[4], d[5],
-            s[6], s[7], d[6], d[7]
+            s[0],
+            s[1],
+            d[0],
+            d[1],
+            s[2],
+            s[3],
+            d[2],
+            d[3],
+            s[4],
+            s[5],
+            d[4],
+            d[5],
+            s[6],
+            s[7],
+            d[6],
+            d[7]
         );
     }
 
@@ -51,10 +63,22 @@ describe("parity: transform vs original jsfeat", () => {
         const orig = new Float32Array(9);
         jsfeat.transform.perspective_4point_transform(
             orig,
-            s[0], s[1], d[0], d[1],
-            s[2], s[3], d[2], d[3],
-            s[4], s[5], d[4], d[5],
-            s[6], s[7], d[6], d[7]
+            s[0],
+            s[1],
+            d[0],
+            d[1],
+            s[2],
+            s[3],
+            d[2],
+            d[3],
+            s[4],
+            s[5],
+            d[4],
+            d[5],
+            s[6],
+            s[7],
+            d[6],
+            d[7]
         );
         expectClose(next.data, orig, 9);
     });
@@ -65,10 +89,22 @@ describe("parity: transform vs original jsfeat", () => {
         const orig = new jsfeat.matrix_t(3, 3, jsfeat.F32_t | jsfeat.C1_t);
         jsfeat.math.perspective_4point_transform(
             orig,
-            s[0], s[1], d[0], d[1],
-            s[2], s[3], d[2], d[3],
-            s[4], s[5], d[4], d[5],
-            s[6], s[7], d[6], d[7]
+            s[0],
+            s[1],
+            d[0],
+            d[1],
+            s[2],
+            s[3],
+            d[2],
+            d[3],
+            s[4],
+            s[5],
+            d[4],
+            d[5],
+            s[6],
+            s[7],
+            d[6],
+            d[7]
         );
         expectClose(next.data, orig.data, 9);
     });
