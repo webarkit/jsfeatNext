@@ -2186,13 +2186,13 @@ jsfeatNext.math = class math extends jsfeatNext {
                             ? cmp(tb, tc)
                                 ? b
                                 : cmp(ta, tc)
-                                ? c
-                                : a
+                                  ? c
+                                  : a
                             : cmp(tc, tb)
-                            ? b
-                            : cmp(ta, tc)
-                            ? a
-                            : c;
+                              ? b
+                              : cmp(ta, tc)
+                                ? a
+                                : c;
 
                         (a = pivot - d), (b = pivot), (c = pivot + d);
                         (ta = array[a]), (tb = array[b]), (tc = array[c]);
@@ -2200,13 +2200,13 @@ jsfeatNext.math = class math extends jsfeatNext {
                             ? cmp(tb, tc)
                                 ? b
                                 : cmp(ta, tc)
-                                ? c
-                                : a
+                                  ? c
+                                  : a
                             : cmp(tc, tb)
-                            ? b
-                            : cmp(ta, tc)
-                            ? a
-                            : c;
+                              ? b
+                              : cmp(ta, tc)
+                                ? a
+                                : c;
 
                         (a = right - (d << 1)), (b = right - d), (c = right);
                         (ta = array[a]), (tb = array[b]), (tc = array[c]);
@@ -2214,13 +2214,13 @@ jsfeatNext.math = class math extends jsfeatNext {
                             ? cmp(tb, tc)
                                 ? b
                                 : cmp(ta, tc)
-                                ? c
-                                : a
+                                  ? c
+                                  : a
                             : cmp(tc, tb)
-                            ? b
-                            : cmp(ta, tc)
-                            ? a
-                            : c;
+                              ? b
+                              : cmp(ta, tc)
+                                ? a
+                                : c;
                     }
 
                     (a = left), (b = pivot), (c = right);
@@ -2229,13 +2229,13 @@ jsfeatNext.math = class math extends jsfeatNext {
                         ? cmp(tb, tc)
                             ? b
                             : cmp(ta, tc)
-                            ? c
-                            : a
+                              ? c
+                              : a
                         : cmp(tc, tb)
-                        ? b
-                        : cmp(ta, tc)
-                        ? a
-                        : c;
+                          ? b
+                          : cmp(ta, tc)
+                            ? a
+                            : c;
                     if (pivot != left0) {
                         t = array[pivot];
                         array[pivot] = array[left0];
