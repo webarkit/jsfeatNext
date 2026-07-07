@@ -149,11 +149,10 @@ describe("parity: motion_estimator vs original jsfeat.motion_estimator", () => {
             to.push({ x: X, y: Y });
         }
 
-        // BUG FOUND BY THIS SUITE (documented divergence, see the tracking
-        // issue): jsfeatNext's motion_model base class lost the default
-        // check_subset() (original jsfeat returns true there; only
-        // homography2d overrides it), so RANSAC with an affine2d kernel
-        // throws TypeError in jsfeatNext while it works in original jsfeat.
+        // Regression test for #51: jsfeatNext's motion_model base class was
+        // missing the default check_subset() (original jsfeat returns true
+        // there; only homography2d overrides it), which made RANSAC with an
+        // affine2d kernel throw TypeError. Now fixed — full parity check.
         const params = new jsfeatNext.ransac_params_t(3, 3.0, 0.5, 0.99);
         const me = new jsfeatNext.motion_estimator();
         const kernel = new jsfeatNext.affine2d();
@@ -161,23 +160,29 @@ describe("parity: motion_estimator vs original jsfeat.motion_estimator", () => {
         const mask = new jsfeatNext.matrix_t(N, 1, U8C1);
 
         seededRandom(31337);
-        expect(() => me.ransac(params, kernel, from, to, N, model, mask, 1000)).toThrow(TypeError);
+        const okN = me.ransac(params, kernel, from, to, N, model, mask, 1000);
         vi.restoreAllMocks();
 
-        // ...whereas the original jsfeat succeeds on the same data:
         const paramsO = new jsfeat.ransac_params_t(3, 3.0, 0.5, 0.99);
         const kernelO = new jsfeat.motion_model.affine2d();
         const modelO = new jsfeat.matrix_t(3, 3, jsfeat.F32_t | jsfeat.C1_t);
         const maskO = new jsfeat.matrix_t(N, 1, jsfeat.U8_t | jsfeat.C1_t);
 
-        seededRandom(31337);
+        seededRandom(31337); // identical random sequence for the oracle
         const okO = jsfeat.motion_estimator.ransac(paramsO, kernelO, from, to, N, modelO, maskO, 1000);
         vi.restoreAllMocks();
 
-        expect(okO).toBe(true);
-        // the oracle also rejects the synthetic outliers
+        expect(okN).toBe(okO);
+        expect(okN).toBe(true);
+        for (let i = 0; i < N; i++) {
+            expect(mask.data[i]).toBe(maskO.data[i]);
+        }
+        for (let i = 0; i < 9; i++) {
+            expect(model.data[i]).toBeCloseTo(modelO.data[i], 4);
+        }
+        // the outliers must be rejected on both sides
         for (let i = 0; i < OUT; i++) {
-            expect(maskO.data[i]).toBe(0);
+            expect(mask.data[i]).toBe(0);
         }
     });
 });
