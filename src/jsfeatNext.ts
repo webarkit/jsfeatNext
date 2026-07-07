@@ -271,6 +271,28 @@ class affine2d extends motion_model {
 
         return 1;
     }
+
+    // Per-point reprojection error for the affine model. Ported from original
+    // jsfeat's affine2d; jsfeatNext was missing it, which made RANSAC/LMEDS
+    // with an affine2d kernel throw. See issue #51.
+    error(from: point_t[], to: point_t[], model: matrix_t, err: Int32Array | Float32Array, count: number): void {
+        let i = 0;
+        let pt0, pt1;
+        const m = model.data;
+
+        for (; i < count; ++i) {
+            pt0 = from[i];
+            pt1 = to[i];
+
+            err[i] =
+                this.sqr(pt1.x - m[0] * pt0.x - m[1] * pt0.y - m[2]) +
+                this.sqr(pt1.y - m[3] * pt0.x - m[4] * pt0.y - m[5]);
+        }
+    }
+
+    check_subset(from: point_t[], to: point_t[], count: number): boolean {
+        return true; // all good
+    }
 }
 
 class homography2d extends motion_model {
@@ -2164,13 +2186,13 @@ jsfeatNext.math = class math extends jsfeatNext {
                             ? cmp(tb, tc)
                                 ? b
                                 : cmp(ta, tc)
-                                  ? c
-                                  : a
+                                ? c
+                                : a
                             : cmp(tc, tb)
-                              ? b
-                              : cmp(ta, tc)
-                                ? a
-                                : c;
+                            ? b
+                            : cmp(ta, tc)
+                            ? a
+                            : c;
 
                         (a = pivot - d), (b = pivot), (c = pivot + d);
                         (ta = array[a]), (tb = array[b]), (tc = array[c]);
@@ -2178,13 +2200,13 @@ jsfeatNext.math = class math extends jsfeatNext {
                             ? cmp(tb, tc)
                                 ? b
                                 : cmp(ta, tc)
-                                  ? c
-                                  : a
+                                ? c
+                                : a
                             : cmp(tc, tb)
-                              ? b
-                              : cmp(ta, tc)
-                                ? a
-                                : c;
+                            ? b
+                            : cmp(ta, tc)
+                            ? a
+                            : c;
 
                         (a = right - (d << 1)), (b = right - d), (c = right);
                         (ta = array[a]), (tb = array[b]), (tc = array[c]);
@@ -2192,13 +2214,13 @@ jsfeatNext.math = class math extends jsfeatNext {
                             ? cmp(tb, tc)
                                 ? b
                                 : cmp(ta, tc)
-                                  ? c
-                                  : a
+                                ? c
+                                : a
                             : cmp(tc, tb)
-                              ? b
-                              : cmp(ta, tc)
-                                ? a
-                                : c;
+                            ? b
+                            : cmp(ta, tc)
+                            ? a
+                            : c;
                     }
 
                     (a = left), (b = pivot), (c = right);
@@ -2207,13 +2229,13 @@ jsfeatNext.math = class math extends jsfeatNext {
                         ? cmp(tb, tc)
                             ? b
                             : cmp(ta, tc)
-                              ? c
-                              : a
+                            ? c
+                            : a
                         : cmp(tc, tb)
-                          ? b
-                          : cmp(ta, tc)
-                            ? a
-                            : c;
+                        ? b
+                        : cmp(ta, tc)
+                        ? a
+                        : c;
                     if (pivot != left0) {
                         t = array[pivot];
                         array[pivot] = array[left0];
