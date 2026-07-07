@@ -1760,7 +1760,7 @@ var E = class {
 	}
 }, D = {
 	name: "@webarkit/jsfeat-next",
-	version: "0.7.5",
+	version: "0.7.6",
 	description: "Typescript version of jsfeat for WebARKit",
 	main: "dist/jsfeatNext.js",
 	module: "dist/jsfeatNext.mjs",
