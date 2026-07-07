@@ -17,7 +17,7 @@ A testing repository to develop a ES6 version of [jsfeat](https://github.com/ins
 
 - ES6 support
 
-- webpack bundler
+- Vite-built UMD + ESM bundles
 
 - npm package
 
@@ -39,6 +39,15 @@ These public classes were implemented:
 - transform
 - yape
 - yape06
+
+## Requirements & building 🛠️
+
+- **Node.js** v24 (see `.nvmrc`; npm 11)
+- Build (UMD + ESM + type declarations): `npm install` then `npm run build-ts`
+  - Produces `dist/jsfeatNext.js` (UMD, browser global `jsfeatNext`), `dist/jsfeatNext.mjs` (ESM), and `types/`
+  - Built with **Vite** library mode (as of the webpack → Vite migration); webpack/babel are no longer used
+- Watch mode: `npm run dev-ts`
+- Tests: `npm test` (Vitest — characterization tests against the original jsfeat)
 
 ## npm package 📦
 You can install the package with:

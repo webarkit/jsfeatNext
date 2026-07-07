@@ -1,20 +1,20 @@
-import { cache } from "./cache/cache";
-import { imgproc } from "./imgproc/imgproc";
-import { linalg } from "./linalg/linalg";
-import { fast_corners } from "./fast_corners/fast_corners";
-import { math } from "./math/math";
-import matmath from "./matmath/matmath";
-import { matrix_t } from "./matrix_t/matrix_t";
-import { pyramid_t } from "./pyramid_t/pyramid_t";
-import { point_t } from "./point_t/point_t";
-import { transform } from "./transform/transform";
-import { keypoint_t } from "./keypoint_t/keypoint_t";
-import { orb } from "./orb/orb";
-import { yape } from "./yape/yape";
-import { yape06 } from "./yape06/yape06";
-import { ransac_params_t } from "./motion_estimator/ransac_params_t";
-import { motion_estimator } from "./motion_estimator/motion_estimator";
-import { optical_flow_lk } from "./optical_flow_lk/optical_flow_lk";
+import { cache } from './cache/cache';
+import { imgproc } from './imgproc/imgproc';
+import { linalg } from './linalg/linalg';
+import { fast_corners } from './fast_corners/fast_corners';
+import { math } from './math/math';
+import { default as matmath } from './matmath/matmath';
+import { matrix_t } from './matrix_t/matrix_t';
+import { pyramid_t } from './pyramid_t/pyramid_t';
+import { point_t } from './point_t/point_t';
+import { transform } from './transform/transform';
+import { keypoint_t } from './keypoint_t/keypoint_t';
+import { orb } from './orb/orb';
+import { yape } from './yape/yape';
+import { yape06 } from './yape06/yape06';
+import { ransac_params_t } from './motion_estimator/ransac_params_t';
+import { motion_estimator } from './motion_estimator/motion_estimator';
+import { optical_flow_lk } from './optical_flow_lk/optical_flow_lk';
 export default class jsfeatNext {
     private dt;
     protected cache: cache;
@@ -80,6 +80,8 @@ declare class motion_model extends jsfeatNext {
 declare class affine2d extends motion_model {
     constructor();
     run(from: point_t[], to: point_t[], model: matrix_t, count: number): number;
+    error(from: point_t[], to: point_t[], model: matrix_t, err: Int32Array | Float32Array, count: number): void;
+    check_subset(from: point_t[], to: point_t[], count: number): boolean;
 }
 declare class homography2d extends motion_model {
     mLtL: matrix_t;

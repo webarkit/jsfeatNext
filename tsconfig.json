@@ -1,35 +1,20 @@
 {
   "compilerOptions": {
-    "target": "ESnext",
-    "module": "ESnext",
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ESNext", "DOM"],
     "allowJs": true,
     "allowSyntheticDefaultImports": true,
-    "sourceMap": true,
-    "removeComments": true,
-    "downlevelIteration": true,
-    "declaration": true,
-    "declarationDir": "./types",
-    "outDir": "dist",
-    "strictNullChecks": false,
-    "strict": true,
-    "noImplicitAny": true,
-    "moduleResolution": "node",
-    "baseUrl": ".",
     "esModuleInterop": true,
     "resolveJsonModule": true,
+    "removeComments": true,
+    "strict": true,
+    "strictNullChecks": false,
+    "noImplicitAny": true,
     "forceConsistentCasingInFileNames": true,
-    "paths": {
-      "*": [
-        "../node_modules/*",
-      ],
-    }
+    "skipLibCheck": true,
+    "noEmit": true
   },
-  "lib": [
-    "esNext",
-    "dom",
-    "es5"
-  ],
-  "include": [
-    "src/**/*"
-  ]
+  "include": ["src/**/*"]
 }

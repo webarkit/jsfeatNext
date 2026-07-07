@@ -3,10 +3,26 @@
   "version": "0.7.5",
   "description": "Typescript version of jsfeat for WebARKit",
   "main": "dist/jsfeatNext.js",
+  "module": "dist/jsfeatNext.mjs",
   "types": "types/src/index.d.ts",
+  "unpkg": "dist/jsfeatNext.js",
+  "jsdelivr": "dist/jsfeatNext.js",
+  "exports": {
+    ".": {
+      "types": "./types/src/index.d.ts",
+      "import": "./dist/jsfeatNext.mjs",
+      "require": "./dist/jsfeatNext.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "types",
+    "src"
+  ],
   "scripts": {
-    "build-ts": "rimraf ./build && tsc && webpack --mode production",
-    "dev-ts": "rimraf ./build && tsc && webpack --mode development --progress --watch",
+    "build-ts": "vite build",
+    "dev-ts": "vite build --watch",
     "format-check": "prettier --check .",
     "format": "prettier --write .",
     "test": "vitest run",
@@ -32,19 +48,10 @@
   },
   "homepage": "https://github.com/webarkit/jsfeatNext#readme",
   "devDependencies": {
-    "@babel/core": "^7.27.1",
-    "@babel/plugin-transform-runtime": "^7.27.1",
-    "@babel/preset-env": "^7.27.1",
-    "babel-loader": "^9.2.1",
     "prettier": "~3.5.3",
-    "rimraf": "^6.0.1",
-    "ts-loader": "^9.5.2",
-    "typescript": "^5.8.3",
-    "vitest": "^4.1.9",
-    "webpack": "5.98.0",
-    "webpack-cli": "6.0.1"
-  },
-  "dependencies": {
-    "@babel/runtime": "^7.27.1"
+    "typescript": "^6.0.3",
+    "vite": "^8.1.3",
+    "vite-plugin-dts": "^5.0.3",
+    "vitest": "^4.1.10"
   }
 }

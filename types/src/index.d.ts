@@ -1,4 +1,4 @@
-import jsfeatNext from "./jsfeatNext";
+import { default as jsfeatNext } from './jsfeatNext';
 declare const _default: {
     jsfeatNext: typeof jsfeatNext;
 };
