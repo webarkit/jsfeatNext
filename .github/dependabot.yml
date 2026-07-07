@@ -7,11 +7,14 @@ version: 2
 updates:
     - package-ecosystem: "npm" # See documentation for possible values
       directory: "/" # Location of package manifests
+      # Open version-update PRs against the integration branch, not main.
+      target-branch: "dev"
       schedule:
           interval: "weekly"
 
     - package-ecosystem: "github-actions"
       # Workflow files stored in the default location of `.github/workflows`. (You don't need to specify `/.github/workflows` for `directory`. You can use `directory: "/"`.)
       directory: "/"
+      target-branch: "dev"
       schedule:
           interval: "weekly"
