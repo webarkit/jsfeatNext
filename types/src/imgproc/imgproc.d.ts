@@ -1,10 +1,12 @@
+import { default as jsfeatNext } from '../core/core';
 import { matrix_t } from '../matrix_t/matrix_t';
-export declare class imgproc {
+export declare class imgproc extends jsfeatNext {
+    constructor();
     grayscale(src: Uint8Array | Uint8ClampedArray, w: number, h: number, dst: matrix_t, code?: number): void;
     resample(src: matrix_t, dst: matrix_t, nw: number, nh: number): void;
     box_blur_gray(src: matrix_t, dst: matrix_t, radius: number, options: number): void;
     gaussian_blur(src: matrix_t, dst: matrix_t, kernel_size: number, sigma: number): void;
-    hough_transform(img: matrix_t, rho_res: number, theta_res: number, threshold: number): Array<number>;
+    hough_transform(img: matrix_t, rho_res: number, theta_res: number, threshold: number): number[];
     pyrdown(src: matrix_t, dst: matrix_t, sx?: number, sy?: number): void;
     scharr_derivatives(src: matrix_t, dst: matrix_t): void;
     sobel_derivatives(src: matrix_t, dst: matrix_t): void;

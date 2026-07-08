@@ -1,5 +1,9 @@
+import { default as jsfeatNext } from '../core/core';
 import { matrix_t } from '../matrix_t/matrix_t';
-export declare class linalg {
+import { default as matmath } from '../matmath/matmath';
+export declare class linalg extends jsfeatNext {
+    matmath: matmath;
+    constructor();
     JacobiImpl(A: Int32Array | Float32Array | Float64Array, astep: number, W: Int32Array | Float32Array | Float64Array, V: Int32Array | Float32Array | Float64Array, vstep: number, n: number): void;
     JacobiSVDImpl(At: Int32Array | Float32Array | Float64Array, astep: number, _W: Int32Array | Float32Array | Float64Array, Vt: Int32Array | Float32Array | Float64Array, vstep: number, m: number, n: number, n1: number): void;
     lu_solve(A: matrix_t, B: matrix_t): number;
