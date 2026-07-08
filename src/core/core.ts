@@ -17,6 +17,7 @@ import type { ransac_params_t } from "../motion_estimator/ransac_params_t";
 import type { motion_estimator } from "../motion_estimator/motion_estimator";
 import type { optical_flow_lk } from "../optical_flow_lk/optical_flow_lk";
 import type { orb } from "../orb/orb";
+import type { affine2d, homography2d } from "../motion_model/motion_model";
 
 /**
  * Base class of the library: holds the shared constants, the per-instance
@@ -43,10 +44,8 @@ export default class jsfeatNext {
     static yape: typeof yape;
     static yape06: typeof yape06;
     static ransac_params_t: typeof ransac_params_t;
-    // affine2d / homography2d are still implemented inline in src/jsfeatNext.ts;
-    // these slots get precise `typeof` types as #47 extracts them into modules.
-    static affine2d: any;
-    static homography2d: any;
+    static affine2d: typeof affine2d;
+    static homography2d: typeof homography2d;
     static motion_estimator: typeof motion_estimator;
     static optical_flow_lk: typeof optical_flow_lk;
     static orb: typeof orb;
