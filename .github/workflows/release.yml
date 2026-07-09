@@ -1,0 +1,74 @@
+name: Release
+
+# Triggers on a bare X.Y.Z tag push (jsfeatNext's tag convention -- never
+# vX.Y.Z, see MAINTAINERS.md), or manually via workflow_dispatch to retry a
+# failed publish without re-tagging.
+on:
+    push:
+        tags:
+            - "[0-9]+.[0-9]+.[0-9]+"
+    workflow_dispatch:
+        inputs:
+            tag:
+                description: "Existing tag to (re-)publish, e.g. 0.8.0"
+                required: true
+
+permissions:
+    contents: write # to create the GitHub Release
+    id-token: write # for npm provenance
+
+jobs:
+    release:
+        runs-on: ubuntu-24.04
+
+        steps:
+            - name: Resolve tag
+              id: tag
+              run: echo "name=${{ github.event.inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
+
+            - name: Checkout repository
+              uses: actions/checkout@v7
+              with:
+                  ref: ${{ steps.tag.outputs.name }}
+                  fetch-depth: 0 # full history: git-cliff needs every commit since the previous tag
+
+            - name: Use Node.js from .nvmrc
+              uses: actions/setup-node@v6
+              with:
+                  node-version-file: ".nvmrc"
+                  registry-url: "https://registry.npmjs.org"
+
+            - name: Install
+              run: npm ci
+
+            - name: Test
+              run: npm test
+
+            - name: Build (rebuild dist/ + types/ fresh from this tag's source)
+              run: npm run build-ts
+
+            - name: Inspect published package contents (informational, see #60)
+              run: npm pack --dry-run
+
+            - name: Generate release notes with git-cliff
+              uses: orhun/git-cliff-action@v4
+              id: changelog
+              with:
+                  config: cliff.toml
+                  args: --latest --strip header
+                  # ref is the tag, so --latest resolves to the range since
+                  # the previous tag automatically.
+                  output: release-notes.md
+
+            - name: Create GitHub Release
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  gh release create "${{ steps.tag.outputs.name }}" \
+                    --title "${{ steps.tag.outputs.name }}" \
+                    --notes-file release-notes.md
+
+            - name: Publish to npm
+              run: npm publish --provenance --access public
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
