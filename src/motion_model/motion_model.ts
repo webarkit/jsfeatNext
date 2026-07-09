@@ -187,10 +187,20 @@ export class affine2d extends motion_model {
             py = t0d[3] * pt0.x + t0d[4] * pt0.y + t0d[5];
 
             j = i * 2 * 6;
-            (ad[j] = px), (ad[j + 1] = py), (ad[j + 2] = 1.0), (ad[j + 3] = 0.0), (ad[j + 4] = 0.0), (ad[j + 5] = 0.0);
+            ((ad[j] = px),
+                (ad[j + 1] = py),
+                (ad[j + 2] = 1.0),
+                (ad[j + 3] = 0.0),
+                (ad[j + 4] = 0.0),
+                (ad[j + 5] = 0.0));
 
             j += 6;
-            (ad[j] = 0.0), (ad[j + 1] = 0.0), (ad[j + 2] = 0.0), (ad[j + 3] = px), (ad[j + 4] = py), (ad[j + 5] = 1.0);
+            ((ad[j] = 0.0),
+                (ad[j + 1] = 0.0),
+                (ad[j + 2] = 0.0),
+                (ad[j + 3] = px),
+                (ad[j + 4] = py),
+                (ad[j + 5] = 1.0));
 
             bd[i << 1] = t1d[0] * pt1.x + t1d[1] * pt1.y + t1d[2];
             bd[(i << 1) + 1] = t1d[3] * pt1.x + t1d[4] * pt1.y + t1d[5];
@@ -201,9 +211,9 @@ export class affine2d extends motion_model {
 
         _linalg.lu_solve(this.AtA, this.AtB);
 
-        (md[0] = this.AtB.data[0]), (md[1] = this.AtB.data[1]), (md[2] = this.AtB.data[2]);
-        (md[3] = this.AtB.data[3]), (md[4] = this.AtB.data[4]), (md[5] = this.AtB.data[5]);
-        (md[6] = 0.0), (md[7] = 0.0), (md[8] = 1.0); // fill last row
+        ((md[0] = this.AtB.data[0]), (md[1] = this.AtB.data[1]), (md[2] = this.AtB.data[2]));
+        ((md[3] = this.AtB.data[3]), (md[4] = this.AtB.data[4]), (md[5] = this.AtB.data[5]));
+        ((md[6] = 0.0), (md[7] = 0.0), (md[8] = 1.0)); // fill last row
 
         // denormalize
         _matmath.invert_3x3(this.T1, this.T1);
@@ -421,9 +431,9 @@ export class homography2d extends motion_model {
 
         _linalg.eigenVV(this.mLtL, this.Evec);
 
-        (md[0] = evd[72]), (md[1] = evd[73]), (md[2] = evd[74]);
-        (md[3] = evd[75]), (md[4] = evd[76]), (md[5] = evd[77]);
-        (md[6] = evd[78]), (md[7] = evd[79]), (md[8] = evd[80]);
+        ((md[0] = evd[72]), (md[1] = evd[73]), (md[2] = evd[74]));
+        ((md[3] = evd[75]), (md[4] = evd[76]), (md[5] = evd[77]));
+        ((md[6] = evd[78]), (md[7] = evd[79]), (md[8] = evd[80]));
 
         // denormalize
         _matmath.multiply_3x3(model, this.T1, model);
@@ -525,13 +535,13 @@ export class homography2d extends motion_model {
             if (detA * detB < 0) negative++;
 
             // set2
-            (A11 = fp1.x), (A12 = fp1.y);
-            (A21 = fp2.x), (A22 = fp2.y);
-            (A31 = fp3.x), (A32 = fp3.y);
+            ((A11 = fp1.x), (A12 = fp1.y));
+            ((A21 = fp2.x), (A22 = fp2.y));
+            ((A31 = fp3.x), (A32 = fp3.y));
 
-            (B11 = tp1.x), (B12 = tp1.y);
-            (B21 = tp2.x), (B22 = tp2.y);
-            (B31 = tp3.x), (B32 = tp3.y);
+            ((B11 = tp1.x), (B12 = tp1.y));
+            ((B21 = tp2.x), (B22 = tp2.y));
+            ((B31 = tp3.x), (B32 = tp3.y));
 
             detA = _matmath.determinant_3x3(A11, A12, A13, A21, A22, A23, A31, A32, A33);
             detB = _matmath.determinant_3x3(B11, B12, B13, B21, B22, B23, B31, B32, B33);
@@ -539,13 +549,13 @@ export class homography2d extends motion_model {
             if (detA * detB < 0) negative++;
 
             // set3
-            (A11 = fp0.x), (A12 = fp0.y);
-            (A21 = fp2.x), (A22 = fp2.y);
-            (A31 = fp3.x), (A32 = fp3.y);
+            ((A11 = fp0.x), (A12 = fp0.y));
+            ((A21 = fp2.x), (A22 = fp2.y));
+            ((A31 = fp3.x), (A32 = fp3.y));
 
-            (B11 = tp0.x), (B12 = tp0.y);
-            (B21 = tp2.x), (B22 = tp2.y);
-            (B31 = tp3.x), (B32 = tp3.y);
+            ((B11 = tp0.x), (B12 = tp0.y));
+            ((B21 = tp2.x), (B22 = tp2.y));
+            ((B31 = tp3.x), (B32 = tp3.y));
 
             detA = _matmath.determinant_3x3(A11, A12, A13, A21, A22, A23, A31, A32, A33);
             detB = _matmath.determinant_3x3(B11, B12, B13, B21, B22, B23, B31, B32, B33);
@@ -553,13 +563,13 @@ export class homography2d extends motion_model {
             if (detA * detB < 0) negative++;
 
             // set4
-            (A11 = fp0.x), (A12 = fp0.y);
-            (A21 = fp1.x), (A22 = fp1.y);
-            (A31 = fp3.x), (A32 = fp3.y);
+            ((A11 = fp0.x), (A12 = fp0.y));
+            ((A21 = fp1.x), (A22 = fp1.y));
+            ((A31 = fp3.x), (A32 = fp3.y));
 
-            (B11 = tp0.x), (B12 = tp0.y);
-            (B21 = tp1.x), (B22 = tp1.y);
-            (B31 = tp3.x), (B32 = tp3.y);
+            ((B11 = tp0.x), (B12 = tp0.y));
+            ((B21 = tp1.x), (B22 = tp1.y));
+            ((B31 = tp3.x), (B32 = tp3.y));
 
             detA = _matmath.determinant_3x3(A11, A12, A13, A21, A22, A23, A31, A32, A33);
             detB = _matmath.determinant_3x3(B11, B12, B13, B21, B22, B23, B31, B32, B33);

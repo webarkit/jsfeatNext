@@ -52,7 +52,7 @@ export class motion_estimator extends jsfeatNext {
             ok = false;
         for (; ssiter < max_try; ++ssiter) {
             i = 0;
-            for (; i < need_cnt && ssiter < max_try; ) {
+            for (; i < need_cnt && ssiter < max_try;) {
                 ok = false;
                 idx_i = 0;
                 while (!ok) {

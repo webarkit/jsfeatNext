@@ -48,8 +48,8 @@ export function _resample_u8(src: matrix_t, dst: matrix_t, cache: cache, nw: num
     const xofs = xofs_node.i32;
 
     for (; dx < nw; dx++) {
-        (fsx1 = dx * scale_x), (fsx2 = fsx1 + scale_x);
-        (sx1 = (fsx1 + 1.0 - 1e-6) | 0), (sx2 = fsx2 | 0);
+        ((fsx1 = dx * scale_x), (fsx2 = fsx1 + scale_x));
+        ((sx1 = (fsx1 + 1.0 - 1e-6) | 0), (sx2 = fsx2 | 0));
         sx1 = Math.min(sx1, w - 1);
         sx2 = Math.min(sx2, w - 1);
 
@@ -163,8 +163,8 @@ export function _resample(src: matrix_t, dst: matrix_t, cache: cache, nw: number
     const xofs = xofs_node.f32;
 
     for (; dx < nw; dx++) {
-        (fsx1 = dx * scale_x), (fsx2 = fsx1 + scale_x);
-        (sx1 = (fsx1 + 1.0 - 1e-6) | 0), (sx2 = fsx2 | 0);
+        ((fsx1 = dx * scale_x), (fsx2 = fsx1 + scale_x));
+        ((sx1 = (fsx1 + 1.0 - 1e-6) | 0), (sx2 = fsx2 | 0));
         sx1 = Math.min(sx1, w - 1);
         sx2 = Math.min(sx2, w - 1);
 
