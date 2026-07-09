@@ -1,0 +1,15 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "name": "jsfeatNext",
+  "entryPoints": ["src"],
+  "entryPointStrategy": "expand",
+  "exclude": ["**/node_modules/**"],
+  "out": "docs/api",
+  "readme": "README.md",
+  "includeVersion": true,
+  "excludePrivate": false,
+  "excludeInternal": false,
+  "navigationLinks": {
+    "GitHub": "https://github.com/webarkit/jsfeatNext"
+  }
+}

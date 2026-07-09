@@ -6,16 +6,20 @@ import matmath from "../matmath/matmath";
 import { linalg } from "../linalg/linalg";
 
 /**
- * Motion-model kernels for motion_estimator (issue #47): the motion_model
- * base plus the affine2d and homography2d kernels, moved verbatim from the
- * src/jsfeatNext.ts monolith (the only change: kernels instantiate linalg
- * via direct module import instead of the jsfeatNext.linalg static slot).
- * In original jsfeat these live under the jsfeat.motion_model namespace.
+ * Shared base of the motion-model kernels ({@link affine2d},
+ * {@link homography2d}): scratch matrices plus the point-normalization and
+ * degeneracy helpers both kernels use. In original jsfeat these classes live
+ * under the `jsfeat.motion_model` namespace.
+ * (Moved out of the src/jsfeatNext.ts monolith in issue #47.)
  */
 export class motion_model extends jsfeatNext {
+    /** 3×3 normalization transform for the source points. */
     public T0: matrix_t;
+    /** 3×3 normalization transform for the destination points. */
     public T1: matrix_t;
+    /** 6×6 normal-equations matrix scratch (`Aᵀ·A`). */
     public AtA: matrix_t;
+    /** 6×1 normal-equations right-hand side scratch (`Aᵀ·B`). */
     public AtB: matrix_t;
 
     constructor() {
@@ -26,11 +30,22 @@ export class motion_model extends jsfeatNext {
         this.AtB = new matrix_t(6, 1, JSFEAT_CONSTANTS.F32_t | JSFEAT_CONSTANTS.C1_t);
     }
 
+    /** @returns `x²`. */
     sqr(x: number): number {
         return x * x;
     }
 
-    // does isotropic normalization
+    /**
+     * Computes isotropic (Hartley) normalization transforms for both point
+     * sets: each is translated to its centroid and scaled so the mean
+     * distance from the origin is √2 — the standard conditioning step before
+     * solving for a transform.
+     *
+     * @param from  Source points. @param to Destination points.
+     * @param T0    Output 3×3 transform (row-major array) for `from`.
+     * @param T1    Output 3×3 transform (row-major array) for `to`.
+     * @param count Number of points.
+     */
     iso_normalize_points(from: point_t[], to: point_t[], T0: number[], T1: number[], count: number): void {
         let i = 0;
         let cx0 = 0.0,
@@ -84,6 +99,14 @@ export class motion_model extends jsfeatNext {
         T1[8] = 1.0;
     }
 
+    /**
+     * Checks whether the last point of a minimal sample lies on a line
+     * through any two previously selected points (a degenerate
+     * configuration for transform estimation).
+     *
+     * @param points The sampled points. @param count Sample size.
+     * @returns `true` when a collinear triple exists.
+     */
     have_collinear_points(points: point_t[], count: number): boolean {
         let j = 0,
             k = 0,
@@ -112,11 +135,26 @@ export class motion_model extends jsfeatNext {
     }
 }
 
+/**
+ * Affine (6-DOF) motion-model kernel for {@link motion_estimator}: estimates
+ * the 2×3 affine transform (stored in a 3×3 matrix with `[0,0,1]` bottom
+ * row) by least squares over normalized points. Minimal sample size: 3.
+ */
 export class affine2d extends motion_model {
     constructor() {
         super();
     }
 
+    /**
+     * Estimates the affine transform mapping `from` → `to` by solving the
+     * normal equations (`lu_solve`) over isotropically normalized points,
+     * then denormalizes into `model`.
+     *
+     * @param from  Source points. @param to Destination points.
+     * @param model Output 3×3 matrix (last row set to `[0, 0, 1]`).
+     * @param count Number of correspondences (≥ 3).
+     * @returns 1 (one model produced).
+     */
     run(from: point_t[], to: point_t[], model: matrix_t, count: number): number {
         let i = 0,
             j = 0;
@@ -179,9 +217,17 @@ export class affine2d extends motion_model {
         return 1;
     }
 
-    // Per-point reprojection error for the affine model. Ported from original
-    // jsfeat's affine2d; jsfeatNext was missing it, which made RANSAC/LMEDS
-    // with an affine2d kernel throw. See issue #51.
+    /**
+     * Per-point squared reprojection error of the affine model:
+     * `err[i] = |to[i] - A·from[i]|²`. (Ported from original jsfeat's
+     * affine2d; jsfeatNext was missing it, which made RANSAC/LMEDS with an
+     * affine2d kernel throw — see issue #51.)
+     *
+     * @param from  Source points. @param to Destination points.
+     * @param model 3×3 affine model (first 6 entries used).
+     * @param err   Output per-point squared errors.
+     * @param count Number of correspondences.
+     */
     error(from: point_t[], to: point_t[], model: matrix_t, err: Int32Array | Float32Array, count: number): void {
         let i = 0;
         let pt0, pt1;
@@ -197,13 +243,27 @@ export class affine2d extends motion_model {
         }
     }
 
+    /**
+     * Affine sampling has no degenerate-quad check — every minimal sample is
+     * accepted (matches original jsfeat).
+     *
+     * @returns Always `true`.
+     */
     check_subset(from: point_t[], to: point_t[], count: number): boolean {
         return true; // all good
     }
 }
 
+/**
+ * Homography (8-DOF perspective) motion-model kernel for
+ * {@link motion_estimator}: estimates the 3×3 homography by the normalized
+ * DLT method (smallest eigenvector of `LᵀL` via `linalg.eigenVV`).
+ * Minimal sample size: 4.
+ */
 export class homography2d extends motion_model {
+    /** 9×9 scratch for the DLT normal matrix `LᵀL`. */
     public mLtL: matrix_t;
+    /** 9×9 scratch for its eigenvectors. */
     public Evec: matrix_t;
 
     constructor() {
@@ -212,6 +272,17 @@ export class homography2d extends motion_model {
         this.Evec = new matrix_t(9, 9, JSFEAT_CONSTANTS.F32_t | JSFEAT_CONSTANTS.C1_t);
     }
 
+    /**
+     * Estimates the homography mapping `from` -> `to` by normalized DLT:
+     * builds the 9x9 normal matrix over normalized points, takes the
+     * eigenvector of the smallest eigenvalue as the model, denormalizes and
+     * scales so `model[8] === 1`.
+     *
+     * @param from  Source points. @param to Destination points.
+     * @param model Output 3x3 homography.
+     * @param count Number of correspondences (>= 4).
+     * @returns 1 on success, 0 on a degenerate (zero-spread) configuration.
+     */
     run(from: point_t[], to: point_t[], model: matrix_t, count: number): number {
         let i = 0,
             j = 0;
@@ -373,6 +444,15 @@ export class homography2d extends motion_model {
         return 1;
     }
 
+    /**
+     * Per-point squared reprojection error of the homography:
+     * `err[i] = |to[i] - project(model, from[i])|^2`.
+     *
+     * @param from  Source points. @param to Destination points.
+     * @param model 3x3 homography to evaluate.
+     * @param err   Output per-point squared errors.
+     * @param count Number of correspondences.
+     */
     error(from: point_t[], to: point_t[], model: matrix_t, err: Int32Array | Float32Array, count: number): void {
         let i = 0;
         let pt0,
@@ -393,6 +473,13 @@ export class homography2d extends motion_model {
         }
     }
 
+    /**
+     * Rejects minimal samples whose four points are not consistently
+     * oriented (mixed triangle-orientation signs between the source and
+     * destination quads), which would produce a flipped homography.
+     *
+     * @returns `true` when the 4-point sample is usable.
+     */
     check_subset(from: point_t[], to: point_t[], count: number): boolean {
         // seems to reject good subsets actually
         //if( have_collinear_points(from, count) || have_collinear_points(to, count) ) {

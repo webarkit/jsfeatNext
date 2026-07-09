@@ -7,16 +7,23 @@ import { bit_pattern_31 } from "./bit_pattern_31";
 import { rectify_patch } from "./rectify_patch";
 
 /**
- * Real implementation, moved out of the src/jsfeatNext.ts monolith (issue #47).
- * This file previously held a type-only stub — the implementation below is the
- * inline code from the monolith, verbatim (the only change: the constructor
- * instantiates the imgproc module directly instead of via the
- * jsfeatNext.imgproc static slot).
+ * ORB binary descriptor extractor (Oriented FAST and Rotated BRIEF): for
+ * each keypoint a rotation-rectified 32×32 patch is sampled and 256
+ * pixel-pair comparisons from the learned {@link bit_pattern_31} pattern are
+ * packed into a 32-byte binary descriptor. Descriptors are matched with
+ * Hamming distance.
+ *
+ * Mirrors `jsfeat.orb` from the original library.
+ * (Moved out of the src/jsfeatNext.ts monolith in issue #47.)
  */
 export class orb extends jsfeatNext {
+    /** The learned 256-pair sampling pattern (flat `[x1,y1,x2,y2,…]`). */
     public bit_pattern_31_: Int32Array;
+    /** Scratch 3×3 matrix for the per-keypoint rectification transform. */
     public H: matrix_t;
+    /** Scratch 32×32 patch the keypoint neighborhood is warped into. */
     public patch_img: matrix_t;
+    /** Image-processing helper used for the affine patch warp. */
     public imgproc: imgproc;
 
     constructor() {
@@ -27,6 +34,17 @@ export class orb extends jsfeatNext {
         this.imgproc = new imgproc();
     }
 
+    /**
+     * Computes 256-bit (32-byte) binary descriptors for `count` keypoints.
+     * Each keypoint's `angle` is used to rotation-rectify its patch, making
+     * the descriptor rotation-invariant.
+     *
+     * @param src         Source grayscale image the keypoints live in.
+     * @param corners     Keypoints to describe (uses `x`, `y`, `angle`).
+     * @param count       Number of keypoints to process.
+     * @param descriptors Destination matrix, resized to 32×`count` `U8` —
+     *                    one 32-byte descriptor per row.
+     */
     describe(src: matrix_t, corners: keypoint_t[], count: number, descriptors: matrix_t): void {
         const DESCR_SIZE = 32; // bytes;
         let i = 0,
