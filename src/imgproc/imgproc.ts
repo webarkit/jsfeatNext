@@ -541,16 +541,16 @@ export class imgproc extends jsfeatNext {
             drow = (y * dstep) | 0;
             // do vertical convolution
             for (x = 0, x1 = 1; x <= w - 2; x += 2, x1 += 2) {
-                (a = img[srow0 + x]), (b = img[srow2 + x]);
+                ((a = img[srow0 + x]), (b = img[srow2 + x]));
                 trow0[x1] = (a + b) * 3 + img[srow1 + x] * 10;
                 trow1[x1] = b - a;
                 //
-                (a = img[srow0 + x + 1]), (b = img[srow2 + x + 1]);
+                ((a = img[srow0 + x + 1]), (b = img[srow2 + x + 1]));
                 trow0[x1 + 1] = (a + b) * 3 + img[srow1 + x + 1] * 10;
                 trow1[x1 + 1] = b - a;
             }
             for (; x < w; ++x, ++x1) {
-                (a = img[srow0 + x]), (b = img[srow2 + x]);
+                ((a = img[srow0 + x]), (b = img[srow2 + x]));
                 trow0[x1] = (a + b) * 3 + img[srow1 + x] * 10;
                 trow1[x1] = b - a;
             }
@@ -562,12 +562,12 @@ export class imgproc extends jsfeatNext {
             trow1[x] = trow1[w];
             // do horizontal convolution, interleave the results and store them
             for (x = 0; x <= w - 4; x += 4) {
-                (a = trow1[x + 2]),
+                ((a = trow1[x + 2]),
                     (b = trow1[x + 1]),
                     (c = trow1[x + 3]),
                     (d = trow1[x + 4]),
                     (e = trow0[x + 2]),
-                    (f = trow0[x + 3]);
+                    (f = trow0[x + 3]));
                 gxgy[drow++] = e - trow0[x];
                 gxgy[drow++] = (a + trow1[x]) * 3 + b * 10;
                 gxgy[drow++] = f - trow0[x + 1];
@@ -636,16 +636,16 @@ export class imgproc extends jsfeatNext {
             drow = (y * dstep) | 0;
             // do vertical convolution
             for (x = 0, x1 = 1; x <= w - 2; x += 2, x1 += 2) {
-                (a = img[srow0 + x]), (b = img[srow2 + x]);
+                ((a = img[srow0 + x]), (b = img[srow2 + x]));
                 trow0[x1] = a + b + img[srow1 + x] * 2;
                 trow1[x1] = b - a;
                 //
-                (a = img[srow0 + x + 1]), (b = img[srow2 + x + 1]);
+                ((a = img[srow0 + x + 1]), (b = img[srow2 + x + 1]));
                 trow0[x1 + 1] = a + b + img[srow1 + x + 1] * 2;
                 trow1[x1 + 1] = b - a;
             }
             for (; x < w; ++x, ++x1) {
-                (a = img[srow0 + x]), (b = img[srow2 + x]);
+                ((a = img[srow0 + x]), (b = img[srow2 + x]));
                 trow0[x1] = a + b + img[srow1 + x] * 2;
                 trow1[x1] = b - a;
             }
@@ -657,12 +657,12 @@ export class imgproc extends jsfeatNext {
             trow1[x] = trow1[w];
             // do horizontal convolution, interleave the results and store them
             for (x = 0; x <= w - 4; x += 4) {
-                (a = trow1[x + 2]),
+                ((a = trow1[x + 2]),
                     (b = trow1[x + 1]),
                     (c = trow1[x + 3]),
                     (d = trow1[x + 4]),
                     (e = trow0[x + 2]),
-                    (f = trow0[x + 3]);
+                    (f = trow0[x + 3]));
                 gxgy[drow++] = e - trow0[x];
                 gxgy[drow++] = a + trow1[x] + b * 2;
                 gxgy[drow++] = f - trow0[x + 1];
@@ -712,25 +712,25 @@ export class imgproc extends jsfeatNext {
         if (dst_sum && dst_sqsum) {
             // fill first row with zeros
             for (; i < w1; ++i) {
-                (dst_sum[i] = 0), (dst_sqsum[i] = 0);
+                ((dst_sum[i] = 0), (dst_sqsum[i] = 0));
             }
-            (p = (w1 + 1) | 0), (pup = 1);
+            ((p = (w1 + 1) | 0), (pup = 1));
             for (i = 0, k = 0; i < h0; ++i, ++p, ++pup) {
                 s = s2 = 0;
                 for (j = 0; j <= w0 - 2; j += 2, k += 2, p += 2, pup += 2) {
                     v = src_d[k];
-                    (s += v), (s2 += v * v);
+                    ((s += v), (s2 += v * v));
                     dst_sum[p] = dst_sum[pup] + s;
                     dst_sqsum[p] = dst_sqsum[pup] + s2;
 
                     v = src_d[k + 1];
-                    (s += v), (s2 += v * v);
+                    ((s += v), (s2 += v * v));
                     dst_sum[p + 1] = dst_sum[pup + 1] + s;
                     dst_sqsum[p + 1] = dst_sqsum[pup + 1] + s2;
                 }
                 for (; j < w0; ++j, ++k, ++p, ++pup) {
                     v = src_d[k];
-                    (s += v), (s2 += v * v);
+                    ((s += v), (s2 += v * v));
                     dst_sum[p] = dst_sum[pup] + s;
                     dst_sqsum[p] = dst_sqsum[pup] + s2;
                 }
@@ -740,7 +740,7 @@ export class imgproc extends jsfeatNext {
             for (; i < w1; ++i) {
                 dst_sum[i] = 0;
             }
-            (p = (w1 + 1) | 0), (pup = 1);
+            ((p = (w1 + 1) | 0), (pup = 1));
             for (i = 0, k = 0; i < h0; ++i, ++p, ++pup) {
                 s = 0;
                 for (j = 0; j <= w0 - 2; j += 2, k += 2, p += 2, pup += 2) {
@@ -759,7 +759,7 @@ export class imgproc extends jsfeatNext {
             for (; i < w1; ++i) {
                 dst_sqsum[i] = 0;
             }
-            (p = (w1 + 1) | 0), (pup = 1);
+            ((p = (w1 + 1) | 0), (pup = 1));
             for (i = 0, k = 0; i < h0; ++i, ++p, ++pup) {
                 s2 = 0;
                 for (j = 0; j <= w0 - 2; j += 2, k += 2, p += 2, pup += 2) {
@@ -784,7 +784,7 @@ export class imgproc extends jsfeatNext {
                 dst_tilted[i] = 0;
             }
             // diagonal
-            (p = (w1 + 1) | 0), (pup = 0);
+            ((p = (w1 + 1) | 0), (pup = 0));
             for (i = 0, k = 0; i < h0; ++i, ++p, ++pup) {
                 for (j = 0; j <= w0 - 2; j += 2, k += 2, p += 2, pup += 2) {
                     dst_tilted[p] = src_d[k] + dst_tilted[pup];
@@ -795,13 +795,13 @@ export class imgproc extends jsfeatNext {
                 }
             }
             // diagonal
-            (p = (w1 + w0) | 0), (pup = w0);
+            ((p = (w1 + w0) | 0), (pup = w0));
             for (i = 0; i < h0; ++i, p += w1, pup += w1) {
                 dst_tilted[p] += dst_tilted[pup];
             }
 
             for (j = w0 - 1; j > 0; --j) {
-                (p = j + h0 * w1), (pup = p - w1);
+                ((p = j + h0 * w1), (pup = p - w1));
                 for (i = h0; i > 0; --i, p -= w1, pup -= w1) {
                     dst_tilted[p] += dst_tilted[pup] + dst_tilted[pup + 1];
                 }
@@ -918,7 +918,7 @@ export class imgproc extends jsfeatNext {
 
         for (; j < w; ++j, grad += 2) {
             //buf[row1+j] = Math.abs(dxdy[grad]) + Math.abs(dxdy[grad+1]);
-            (x = dxdy[grad]), (y = dxdy[grad + 1]);
+            ((x = dxdy[grad]), (y = dxdy[grad + 1]));
             //buf[row1+j] = x*x + y*y;
             buf[row1 + j] = (x ^ (x >> 31)) - (x >> 31) + ((y ^ (y >> 31)) - (y >> 31));
         }
@@ -932,7 +932,7 @@ export class imgproc extends jsfeatNext {
             } else {
                 for (j = 0; j < w; j++) {
                     //buf[row2+j] =  Math.abs(dxdy[grad+(j<<1)]) + Math.abs(dxdy[grad+(j<<1)+1]);
-                    (x = dxdy[grad + (j << 1)]), (y = dxdy[grad + (j << 1) + 1]);
+                    ((x = dxdy[grad + (j << 1)]), (y = dxdy[grad + (j << 1) + 1]));
                     //buf[row2+j] = x*x + y*y;
                     buf[row2 + j] = (x ^ (x >> 31)) - (x >> 31) + ((y ^ (y >> 31)) - (y >> 31));
                 }
@@ -1008,21 +1008,21 @@ export class imgproc extends jsfeatNext {
         while (stack_i > 0) {
             map_i = stack[--stack_i];
             map_i -= map_w + 1;
-            if (map[map_i] == 1) (map[map_i] = 2), (stack[stack_i++] = map_i);
+            if (map[map_i] == 1) ((map[map_i] = 2), (stack[stack_i++] = map_i));
             map_i += 1;
-            if (map[map_i] == 1) (map[map_i] = 2), (stack[stack_i++] = map_i);
+            if (map[map_i] == 1) ((map[map_i] = 2), (stack[stack_i++] = map_i));
             map_i += 1;
-            if (map[map_i] == 1) (map[map_i] = 2), (stack[stack_i++] = map_i);
+            if (map[map_i] == 1) ((map[map_i] = 2), (stack[stack_i++] = map_i));
             map_i += map_w;
-            if (map[map_i] == 1) (map[map_i] = 2), (stack[stack_i++] = map_i);
+            if (map[map_i] == 1) ((map[map_i] = 2), (stack[stack_i++] = map_i));
             map_i -= 2;
-            if (map[map_i] == 1) (map[map_i] = 2), (stack[stack_i++] = map_i);
+            if (map[map_i] == 1) ((map[map_i] = 2), (stack[stack_i++] = map_i));
             map_i += map_w;
-            if (map[map_i] == 1) (map[map_i] = 2), (stack[stack_i++] = map_i);
+            if (map[map_i] == 1) ((map[map_i] = 2), (stack[stack_i++] = map_i));
             map_i += 1;
-            if (map[map_i] == 1) (map[map_i] = 2), (stack[stack_i++] = map_i);
+            if (map[map_i] == 1) ((map[map_i] = 2), (stack[stack_i++] = map_i));
             map_i += 1;
-            if (map[map_i] == 1) (map[map_i] = 2), (stack[stack_i++] = map_i);
+            if (map[map_i] == 1) ((map[map_i] = 2), (stack[stack_i++] = map_i));
         }
 
         map_i = map_w + 1;
@@ -1088,11 +1088,11 @@ export class imgproc extends jsfeatNext {
             m22 = td[8];
 
         for (let dptr = 0; y < dst_height; ++y) {
-            (xs0 = m01 * y + m02), (ys0 = m11 * y + m12), (ws = m21 * y + m22);
+            ((xs0 = m01 * y + m02), (ys0 = m11 * y + m12), (ws = m21 * y + m22));
             for (x = 0; x < dst_width; ++x, ++dptr, xs0 += m00, ys0 += m10, ws += m20) {
                 sc = 1.0 / ws;
-                (xs = xs0 * sc), (ys = ys0 * sc);
-                (ixs = xs | 0), (iys = ys | 0);
+                ((xs = xs0 * sc), (ys = ys0 * sc));
+                ((ixs = xs | 0), (iys = ys | 0));
 
                 if (xs > 0 && ys > 0 && ixs < src_width - 1 && iys < src_height - 1) {
                     a = Math.max(xs - ixs, 0.0);

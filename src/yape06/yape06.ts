@@ -96,9 +96,9 @@ export class yape06 extends jsfeatNext {
                     min_eigen_value = hessian_min_eigen_value(srd_d, rowx, lv, Dxx, Dyy, Dxy, Dyx);
                     if (min_eigen_value > eigen_thresh) {
                         pt = points[number_of_points];
-                        (pt.x = x), (pt.y = y), (pt.score = min_eigen_value);
+                        ((pt.x = x), (pt.y = y), (pt.score = min_eigen_value));
                         ++number_of_points;
-                        ++x, ++rowx; // skip next pixel since this is maxima in 3x3
+                        (++x, ++rowx); // skip next pixel since this is maxima in 3x3
                     }
                 }
             }

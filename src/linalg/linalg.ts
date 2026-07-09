@@ -82,14 +82,14 @@ export class linalg extends jsfeatNext {
             if (k < n - 1) {
                 for (m = k + 1, mv = Math.abs(A[astep * k + m]), i = k + 2; i < n; i++) {
                     val = Math.abs(A[astep * k + i]);
-                    if (mv < val) (mv = val), (m = i);
+                    if (mv < val) ((mv = val), (m = i));
                 }
                 indR[k] = m;
             }
             if (k > 0) {
                 for (m = 0, mv = Math.abs(A[k]), i = 1; i < k; i++) {
                     val = Math.abs(A[astep * i + k]);
-                    if (mv < val) (mv = val), (m = i);
+                    if (mv < val) ((mv = val), (m = i));
                 }
                 indC[k] = m;
             }
@@ -100,12 +100,12 @@ export class linalg extends jsfeatNext {
                 // find index (k,l) of pivot p
                 for (k = 0, mv = Math.abs(A[indR[0]]), i = 1; i < n - 1; i++) {
                     val = Math.abs(A[astep * i + indR[i]]);
-                    if (mv < val) (mv = val), (k = i);
+                    if (mv < val) ((mv = val), (k = i));
                 }
                 l = indR[k];
                 for (i = 1; i < n; i++) {
                     val = Math.abs(A[astep * indC[i] + i]);
-                    if (mv < val) (mv = val), (k = indC[i]), (l = i);
+                    if (mv < val) ((mv = val), (k = indC[i]), (l = i));
                 }
 
                 p = A[astep * k + l];
@@ -118,7 +118,7 @@ export class linalg extends jsfeatNext {
                 c = t / s;
                 s = p / s;
                 t = (p / t) * p;
-                if (y < 0) (s = -s), (t = -t);
+                if (y < 0) ((s = -s), (t = -t));
                 A[astep * k + l] = 0;
 
                 W[k] -= t;
@@ -168,14 +168,14 @@ export class linalg extends jsfeatNext {
                     if (idx < n - 1) {
                         for (m = idx + 1, mv = Math.abs(A[astep * idx + m]), i = idx + 2; i < n; i++) {
                             val = Math.abs(A[astep * idx + i]);
-                            if (mv < val) (mv = val), (m = i);
+                            if (mv < val) ((mv = val), (m = i));
                         }
                         indR[idx] = m;
                     }
                     if (idx > 0) {
                         for (m = 0, mv = Math.abs(A[idx]), i = 1; i < idx; i++) {
                             val = Math.abs(A[astep * i + idx]);
-                            if (mv < val) (mv = val), (m = i);
+                            if (mv < val) ((mv = val), (m = i));
                         }
                         indC[idx] = m;
                     }
@@ -279,8 +279,8 @@ export class linalg extends jsfeatNext {
 
             for (i = 0; i < n - 1; i++) {
                 for (j = i + 1; j < n; j++) {
-                    (Ai = (i * astep) | 0), (Aj = (j * astep) | 0);
-                    (a = W[i]), (p = 0), (b = W[j]);
+                    ((Ai = (i * astep) | 0), (Aj = (j * astep) | 0));
+                    ((a = W[i]), (p = 0), (b = W[j]));
 
                     k = 2;
                     p += At[Ai] * At[Aj];
@@ -291,7 +291,7 @@ export class linalg extends jsfeatNext {
                     if (Math.abs(p) <= eps * Math.sqrt(a * b)) continue;
 
                     p *= 2.0;
-                    (beta = a - b), (gamma = hypot(p, beta));
+                    ((beta = a - b), (gamma = hypot(p, beta)));
                     if (beta < 0) {
                         delta = (gamma - beta) * 0.5;
                         s = Math.sqrt(delta / gamma);
@@ -301,7 +301,7 @@ export class linalg extends jsfeatNext {
                         s = p / (gamma * c * 2.0);
                     }
 
-                    (a = 0.0), (b = 0.0);
+                    ((a = 0.0), (b = 0.0));
 
                     k = 2; // unroll
                     t0 = c * At[Ai] + s * At[Aj];
@@ -334,7 +334,7 @@ export class linalg extends jsfeatNext {
                     changed = 1;
 
                     if (Vt) {
-                        (Vi = (i * vstep) | 0), (Vj = (j * vstep) | 0);
+                        ((Vi = (i * vstep) | 0), (Vj = (j * vstep) | 0));
 
                         k = 2;
                         t0 = c * Vt[Vi] + s * Vt[Vj];

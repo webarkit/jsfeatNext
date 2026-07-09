@@ -55,7 +55,7 @@ export function _convol_u8(
             buf[j + half_kernel] = sum;
         }
         for (j = 0; j <= w - 4; j += 4) {
-            (sum = buf[j] * f0), (sum1 = buf[j + 1] * f0), (sum2 = buf[j + 2] * f0), (sum3 = buf[j + 3] * f0);
+            ((sum = buf[j] * f0), (sum1 = buf[j + 1] * f0), (sum2 = buf[j + 2] * f0), (sum3 = buf[j + 3] * f0));
             for (k = 1; k < kernel_size; ++k) {
                 fk = filter[k];
                 sum += buf[k + j] * fk;
@@ -99,7 +99,7 @@ export function _convol_u8(
         }
         dp = i;
         for (j = 0; j <= h - 4; j += 4, dp += w4) {
-            (sum = buf[j] * f0), (sum1 = buf[j + 1] * f0), (sum2 = buf[j + 2] * f0), (sum3 = buf[j + 3] * f0);
+            ((sum = buf[j] * f0), (sum1 = buf[j + 1] * f0), (sum2 = buf[j + 2] * f0), (sum3 = buf[j + 3] * f0));
             for (k = 1; k < kernel_size; ++k) {
                 fk = filter[k];
                 sum += buf[k + j] * fk;
@@ -178,7 +178,7 @@ export function _convol(
             buf[j + half_kernel] = sum;
         }
         for (j = 0; j <= w - 4; j += 4) {
-            (sum = buf[j] * f0), (sum1 = buf[j + 1] * f0), (sum2 = buf[j + 2] * f0), (sum3 = buf[j + 3] * f0);
+            ((sum = buf[j] * f0), (sum1 = buf[j + 1] * f0), (sum2 = buf[j + 2] * f0), (sum3 = buf[j + 3] * f0));
             for (k = 1; k < kernel_size; ++k) {
                 fk = filter[k];
                 sum += buf[k + j] * fk;
@@ -222,7 +222,7 @@ export function _convol(
         }
         dp = i;
         for (j = 0; j <= h - 4; j += 4, dp += w4) {
-            (sum = buf[j] * f0), (sum1 = buf[j + 1] * f0), (sum2 = buf[j + 2] * f0), (sum3 = buf[j + 3] * f0);
+            ((sum = buf[j] * f0), (sum1 = buf[j + 1] * f0), (sum2 = buf[j + 2] * f0), (sum3 = buf[j + 3] * f0));
             for (k = 1; k < kernel_size; ++k) {
                 fk = filter[k];
                 sum += buf[k + j] * fk;

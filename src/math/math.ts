@@ -45,25 +45,25 @@ export class math extends jsfeatNext {
                     sum = 1.0;
                     break;
                 case 1:
-                    (_kernel[0] = 0.25), (_kernel[1] = 0.5), (_kernel[2] = 0.25);
+                    ((_kernel[0] = 0.25), (_kernel[1] = 0.5), (_kernel[2] = 0.25));
                     sum = 0.25 + 0.5 + 0.25;
                     break;
                 case 2:
-                    (_kernel[0] = 0.0625),
+                    ((_kernel[0] = 0.0625),
                         (_kernel[1] = 0.25),
                         (_kernel[2] = 0.375),
                         (_kernel[3] = 0.25),
-                        (_kernel[4] = 0.0625);
+                        (_kernel[4] = 0.0625));
                     sum = 0.0625 + 0.25 + 0.375 + 0.25 + 0.0625;
                     break;
                 case 3:
-                    (_kernel[0] = 0.03125),
+                    ((_kernel[0] = 0.03125),
                         (_kernel[1] = 0.109375),
                         (_kernel[2] = 0.21875),
                         (_kernel[3] = 0.28125),
                         (_kernel[4] = 0.21875),
                         (_kernel[5] = 0.109375),
-                        (_kernel[6] = 0.03125);
+                        (_kernel[6] = 0.03125));
                     sum = 0.03125 + 0.109375 + 0.21875 + 0.28125 + 0.21875 + 0.109375 + 0.03125;
                     break;
             }
@@ -313,8 +313,8 @@ export class math extends jsfeatNext {
 
                     if (n > 40) {
                         d = n >> 3;
-                        (a = left), (b = left + d), (c = left + (d << 1));
-                        (ta = array[a]), (tb = array[b]), (tc = array[c]);
+                        ((a = left), (b = left + d), (c = left + (d << 1)));
+                        ((ta = array[a]), (tb = array[b]), (tc = array[c]));
                         left = cmp(ta, tb)
                             ? cmp(tb, tc)
                                 ? b
@@ -327,8 +327,8 @@ export class math extends jsfeatNext {
                                 ? a
                                 : c;
 
-                        (a = pivot - d), (b = pivot), (c = pivot + d);
-                        (ta = array[a]), (tb = array[b]), (tc = array[c]);
+                        ((a = pivot - d), (b = pivot), (c = pivot + d));
+                        ((ta = array[a]), (tb = array[b]), (tc = array[c]));
                         pivot = cmp(ta, tb)
                             ? cmp(tb, tc)
                                 ? b
@@ -341,8 +341,8 @@ export class math extends jsfeatNext {
                                 ? a
                                 : c;
 
-                        (a = right - (d << 1)), (b = right - d), (c = right);
-                        (ta = array[a]), (tb = array[b]), (tc = array[c]);
+                        ((a = right - (d << 1)), (b = right - d), (c = right));
+                        ((ta = array[a]), (tb = array[b]), (tc = array[c]));
                         right = cmp(ta, tb)
                             ? cmp(tb, tc)
                                 ? b
@@ -356,8 +356,8 @@ export class math extends jsfeatNext {
                                 : c;
                     }
 
-                    (a = left), (b = pivot), (c = right);
-                    (ta = array[a]), (tb = array[b]), (tc = array[c]);
+                    ((a = left), (b = pivot), (c = right));
+                    ((ta = array[a]), (tb = array[b]), (tc = array[c]));
                     pivot = cmp(ta, tb)
                         ? cmp(tb, tc)
                             ? b
@@ -417,7 +417,7 @@ export class math extends jsfeatNext {
                     }
 
                     if (swap_cnt == 0) {
-                        (left = left0), (right = right0);
+                        ((left = left0), (right = right0));
                         //goto insert_sort;
                         for (ptr = left + 1; ptr <= right; ptr++) {
                             for (ptr2 = ptr; ptr2 > left && cmp(array[ptr2], array[ptr2 - 1]); ptr2--) {
@@ -452,17 +452,17 @@ export class math extends jsfeatNext {
                                 ++sp;
                                 stack[sp << 1] = left0;
                                 stack[(sp << 1) + 1] = left0 + n - 1;
-                                (left = right0 - m + 1), (right = right0);
+                                ((left = right0 - m + 1), (right = right0));
                             } else {
                                 ++sp;
                                 stack[sp << 1] = right0 - m + 1;
                                 stack[(sp << 1) + 1] = right0;
-                                (left = left0), (right = left0 + n - 1);
+                                ((left = left0), (right = left0 + n - 1));
                             }
                         } else {
-                            (left = left0), (right = left0 + n - 1);
+                            ((left = left0), (right = left0 + n - 1));
                         }
-                    } else if (m > 1) (left = right0 - m + 1), (right = right0);
+                    } else if (m > 1) ((left = right0 - m + 1), (right = right0));
                     else break;
                 }
             }

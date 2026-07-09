@@ -82,7 +82,7 @@ export class yape {
         row = (sy * w + sx) | 0;
         for (y = sy; y < ey; ++y, row += w) {
             for (x = sx, rowx = row; x < ex; ++x, ++rowx) {
-                (ip = img[rowx] + tau), (im = img[rowx] - tau);
+                ((ip = img[rowx] + tau), (im = img[rowx] - tau));
 
                 if (im < img[rowx + R] && img[rowx + R] < ip && im < img[rowx - R] && img[rowx - R] < ip) {
                     scores[rowx] = 0;
@@ -100,14 +100,14 @@ export class yape {
                 abs_score = Math.abs(score);
                 if (abs_score < 5) {
                     // if this pixel is 0, the next one will not be good enough. Skip it.
-                    ++x, ++rowx;
+                    (++x, ++rowx);
                 } else {
                     if (third_check(scores, rowx, w) >= 3 && is_local_maxima(scores, rowx, score, hw, R)) {
                         pt = points[number_of_points];
-                        (pt.x = x), (pt.y = y), (pt.score = abs_score);
+                        ((pt.x = x), (pt.y = y), (pt.score = abs_score));
                         ++number_of_points;
 
-                        (x += Rm1), (rowx += Rm1);
+                        ((x += Rm1), (rowx += Rm1));
                     }
                 }
             }

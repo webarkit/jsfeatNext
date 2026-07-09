@@ -237,7 +237,7 @@ export class fast_corners extends jsfeatNext {
                 ) {
                     // save corner
                     pt = corners[corners_cnt];
-                    (pt.x = j), (pt.y = i - 1), (pt.score = score);
+                    ((pt.x = j), (pt.y = i - 1), (pt.score = score));
                     corners_cnt++;
                 }
             }

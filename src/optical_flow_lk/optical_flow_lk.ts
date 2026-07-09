@@ -208,7 +208,7 @@ export class optical_flow_lk extends jsfeatNext {
                 iw10 = ((1.0 - a) * b * W_BITS14_ + 0.5) | 0;
                 iw11 = W_BITS14_ - iw00 - iw01 - iw10;
 
-                (A11 = 0.0), (A12 = 0.0), (A22 = 0.0);
+                ((A11 = 0.0), (A12 = 0.0), (A22 = 0.0));
 
                 // extract the patch from the first image, compute covariation matrix of derivatives
                 for (y = 0; y < win_size; ++y) {
@@ -290,7 +290,7 @@ export class optical_flow_lk extends jsfeatNext {
                     iw01 = (a * (1.0 - b) * W_BITS14_ + 0.5) | 0;
                     iw10 = ((1.0 - a) * b * W_BITS14_ + 0.5) | 0;
                     iw11 = W_BITS14_ - iw00 - iw01 - iw10;
-                    (b1 = 0.0), (b2 = 0.0);
+                    ((b1 = 0.0), (b2 = 0.0));
 
                     for (y = 0; y < win_size; ++y) {
                         jptr = ((y + inext_y) * lw + inext_x) | 0;
