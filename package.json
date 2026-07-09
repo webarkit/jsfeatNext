@@ -17,8 +17,7 @@
   },
   "files": [
     "dist",
-    "types",
-    "src"
+    "types"
   ],
   "scripts": {
     "build-ts": "vite build",
