@@ -1,3 +1,10 @@
+/**
+ * The learned ORB sampling pattern: 256 pixel-pair comparisons inside a
+ * 31×31 patch, stored flat as `[x1, y1, x2, y2, …]` (1024 numbers). Each
+ * pair contributes one bit of the 256-bit binary descriptor produced by
+ * `orb.describe`. Taken verbatim from the original ORB paper / OpenCV
+ * implementation (the inline comments carry the training statistics).
+ */
 export const bit_pattern_31 = [
     8, -3, 9, 5 /*mean (0), correlation (0)*/, 4, 2, 7, -12 /*mean (1.12461e-05), correlation (0.0437584)*/, -11, 9, -8,
     2 /*mean (3.37382e-05), correlation (0.0617409)*/, 7, -12, 12, -13 /*mean (5.62303e-05), correlation (0.0636977)*/,

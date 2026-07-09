@@ -4,16 +4,24 @@ import { point_t } from "../point_t/point_t";
 import { _cmp_score_16 } from "./fast_private";
 
 /**
- * Real implementation, moved out of the src/jsfeatNext.ts monolith (issue #47).
- * This file previously held a type-only stub whose methods threw
- * "Method not implemented." — the implementation below is the inline code
- * from the monolith, verbatim.
+ * FAST-16 corner detector (Features from Accelerated Segment Test): a pixel
+ * is a corner when ≥9 contiguous pixels on the 16-pixel Bresenham circle
+ * around it are all brighter or all darker than the center by the threshold.
+ * Detection is followed by score-based non-maximum suppression.
+ *
+ * Mirrors `jsfeat.fast_corners` from the original library.
+ * (Moved out of the src/jsfeatNext.ts monolith in issue #47.)
  */
 export class fast_corners extends jsfeatNext {
+    /** The 16 (x, y) circle offsets, interleaved, for radius 3. */
     private offsets16: Int32Array;
+    /** Current detection threshold (0–255); set via {@link set_threshold}. */
     public _threshold: number;
+    /** 512-entry lookup: intensity difference (+255) → darker(1)/brighter(2)/similar(0). */
     public threshold_tab: Uint8Array;
+    /** Circle offsets converted to flat pixel offsets for the current row stride. */
     public pixel_off: Int32Array;
+    /** Scratch array used by the corner-score function. */
     public score_diff: Int32Array;
 
     constructor() {
@@ -28,6 +36,13 @@ export class fast_corners extends jsfeatNext {
         this.score_diff = new Int32Array(25);
     }
 
+    /**
+     * Sets the detection threshold and rebuilds the classification lookup
+     * table. Must be called at least once before {@link detect}.
+     *
+     * @param threshold Minimum center-vs-circle intensity difference, clamped to [0, 255].
+     * @returns The clamped threshold actually stored.
+     */
     set_threshold(threshold: number): number {
         this._threshold = Math.min(Math.max(threshold, 0), 255);
         for (let i = -255; i <= 255; ++i) {
@@ -36,6 +51,16 @@ export class fast_corners extends jsfeatNext {
         return this._threshold;
     }
 
+    /**
+     * Detects FAST corners in a grayscale image, applying 3×3 non-maximum
+     * suppression on the corner scores. Results are written into the
+     * pre-allocated `corners` array (each entry gets `x`, `y`, `score`).
+     *
+     * @param src     Source grayscale image (`U8C1`).
+     * @param corners Pre-allocated point pool to fill.
+     * @param border  Pixels to skip along each edge (min 3). Default 3.
+     * @returns The number of corners written into `corners`.
+     */
     detect(src: matrix_t, corners: point_t[], border: number): number {
         if (typeof border === "undefined") {
             border = 3;

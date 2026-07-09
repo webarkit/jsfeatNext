@@ -29,7 +29,13 @@ import type { affine2d, homography2d } from "../motion_model/motion_model";
  * aggregator.
  */
 export default class jsfeatNext {
+    /** Decoder for packed matrix type signatures. */
     private dt: IData_Type;
+    /**
+     * Per-instance scratch-buffer pool (30 buffers of 2560 bytes, growable).
+     * NOTE: original jsfeat shares ONE global cache; jsfeatNext currently
+     * allocates a pool per module instance (see the parity audit, Axis 2).
+     */
     protected cache: cache;
     static cache: typeof cache;
     static fast_corners: typeof fast_corners;
@@ -56,7 +62,7 @@ export default class jsfeatNext {
         this.cache.allocate(30, 640 * 4);
     }
 
-    // VERSION
+    /** Library version, read from package.json at build time. */
     static VERSION: string = pkg.version;
 
     // CONSTANTS
@@ -94,14 +100,26 @@ export default class jsfeatNext {
     static S32C1_t = this.S32_t | this.C1_t;
     static S32C2_t = this.S32_t | this.C2_t;
 
+    /**
+     * @param type Packed type signature (e.g. `U8_t | C1_t`).
+     * @returns The data-type component alone (e.g. `U8_t`).
+     */
     get_data_type(type: number): number {
         return this.dt._get_data_type(type);
     }
 
+    /**
+     * @param type Packed type signature.
+     * @returns The channel count (1–4).
+     */
     get_channel(type: number): number {
         return this.dt._get_channel(type);
     }
 
+    /**
+     * @param type Packed type signature.
+     * @returns Bytes per element of the signature's data type (1, 4 or 8).
+     */
     get_data_type_size(type: number): number {
         return this.dt._get_data_type_size(type);
     }

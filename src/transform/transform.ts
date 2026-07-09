@@ -1,4 +1,13 @@
 import { matrix_t } from "../matrix_t/matrix_t";
+
+/**
+ * 2D geometric transform construction and inversion.
+ *
+ * NOTE (parity): the original jsfeat `transform` module was never included
+ * in any distributed jsfeat build, and its functions take RAW ARRAYS —
+ * jsfeatNext's methods take {@link matrix_t} instead (same math, different
+ * calling convention; see the parity audit, Axis 2).
+ */
 export class transform {
     constructor() {}
 
@@ -8,6 +17,17 @@ export class transform {
         // we need linear algebra module first
     };*/
 
+    /**
+     * Computes the 3×3 perspective transform (homography) that maps four
+     * source points onto four destination points, via the closed-form
+     * `R = Hl · Hr⁻¹` construction (both quads are first mapped to the unit
+     * square). Writes the 9 coefficients into `model`.
+     *
+     * @param model 3×3 destination matrix.
+     *
+     * The remaining sixteen number arguments are the four `(src, dst)` point
+     * pairs, interleaved as `src_x0, src_y0, dst_x0, dst_y0, …` for points 0–3.
+     */
     perspective_4point_transform(
         model: matrix_t,
         src_x0: number,
@@ -139,6 +159,13 @@ export class transform {
         mat[8] = -Hl6 * t50 - Hl7 * (t44 * t15) + t47 * t15;
     }
 
+    /**
+     * Inverts a 2×3 affine transform in closed form (via the 2×2 linear
+     * part's determinant). Only the first 6 entries of `src`/`dst` are used.
+     *
+     * @param src Source affine transform (2×3 coefficients).
+     * @param dst Destination for the inverse (2×3 coefficients).
+     */
     invert_affine_transform(src: matrix_t, dst: matrix_t): void {
         const src_d = src.data;
         const dst_d = dst.data;
@@ -161,6 +188,13 @@ export class transform {
         dst_d[5] = det * (m13 * m21 - m11 * m23);
     }
 
+    /**
+     * Inverts a 3×3 perspective transform (homography) by the
+     * adjugate/determinant closed form. The input must be non-singular.
+     *
+     * @param src Source 3×3 transform.
+     * @param dst Destination for the inverse (3×3).
+     */
     invert_perspective_transform(src: matrix_t, dst: matrix_t): void {
         const src_d = src.data;
         const dst_d = dst.data;

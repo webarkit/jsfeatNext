@@ -1,3 +1,13 @@
+/**
+ * Precomputes the flat pixel offsets of a Bresenham-style circle of radius
+ * `R` for an image with row stride `step`, walking the circle once around.
+ * The first two offsets are duplicated at the end for wrap-around access.
+ *
+ * @param step Image row stride (width).
+ * @param dirs Output offset table (must hold the circle + 2 entries).
+ * @param R    Circle radius in pixels.
+ * @returns The number of unique circle offsets written.
+ */
 export function precompute_directions(step: number, dirs: Int32Array, R: number): number {
     let i = 0;
     let x, y;
@@ -41,6 +51,14 @@ export function precompute_directions(step: number, dirs: Int32Array, R: number)
     return i;
 }
 
+/**
+ * Counts how many of the 8 neighbors of a score-map pixel are non-zero —
+ * YAPE's "third check" requiring a candidate to be supported by at least 3
+ * responding neighbors.
+ *
+ * @param Sb   Score map. @param off Pixel index. @param step Row stride.
+ * @returns The number of non-zero neighbors (0–8).
+ */
 export function third_check(Sb: Int32Array | number[], off: number, step: number) {
     let n = 0;
     if (Sb[off + 1] != 0) n++;
@@ -55,6 +73,16 @@ export function third_check(Sb: Int32Array | number[], off: number, step: number
     return n;
 }
 
+/**
+ * Signed local-extremum test over a square neighborhood: for positive `v`
+ * no neighbor may exceed it; for negative `v` no neighbor may be smaller.
+ *
+ * @param p            Score map. @param off Pixel index.
+ * @param v            Score value at `off`.
+ * @param step         Row stride of the neighborhood scan.
+ * @param neighborhood Half-size of the square window.
+ * @returns `true` when the pixel is a local extremum of its sign.
+ */
 export function is_local_maxima(p: Int32Array, off: number, v: number, step: number, neighborhood: number) {
     let x, y;
 
@@ -78,6 +106,21 @@ export function is_local_maxima(p: Int32Array, off: number, v: number, step: num
     return true;
 }
 
+/**
+ * Scores one candidate pixel with the YAPE circle test: walks the sampling
+ * circle as a small state machine tracking runs of brighter/darker/similar
+ * samples (relative to the `[Im, Ip]` tolerance band) and writes the
+ * accumulated signed score — or 0 when the pattern disqualifies the pixel —
+ * into `Scores[x]`.
+ *
+ * @param I        Image data. @param x Candidate pixel index.
+ * @param Scores   Output score map.
+ * @param Im       Lower tolerance bound (`center - tau`).
+ * @param Ip       Upper tolerance bound (`center + tau`).
+ * @param dirs     Precomputed circle offsets (from {@link precompute_directions}).
+ * @param opposite Index offset of the diametrically opposite sample.
+ * @param dirs_nb  Number of circle samples.
+ */
 export function perform_one_point(
     I: { [x: string]: number },
     x: number,
@@ -627,10 +670,18 @@ export function perform_one_point(
     Scores[x] = score + dirs_nb * I[x];
 }
 
+/**
+ * Per-pyramid-level lookup table for the YAPE detector: the precomputed
+ * sampling circle plus a full-frame score buffer for the level's dimensions.
+ */
 export class lev_table_t {
+    /** Flat pixel offsets of the sampling circle (with wrap-around entries). */
     public dirs: Int32Array;
+    /** Number of unique circle offsets in {@link dirs}. */
     public dirs_count: number;
+    /** Per-pixel signed score map (`w · h`). */
     public scores: Int32Array;
+    /** Circle radius the table was built for. */
     public radius: number;
     constructor(w: number, h: number, r: number) {
         this.dirs = new Int32Array(1024);
