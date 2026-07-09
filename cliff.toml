@@ -19,7 +19,7 @@ body = """
     ## Unreleased
 {% endif %}\
 {% for group, commits in commits | group_by(attribute="group") %}
-    ### {{ group | upper_first }}
+    ### {{ group }}
     {% for commit in commits %}
         - {{ commit.message | upper_first | trim }} ({{ commit.id | truncate(length=7, end="") }})
     {% endfor %}
@@ -39,15 +39,16 @@ tag_pattern = "^[0-9]+\\.[0-9]+\\.[0-9]+$"
 sort_commits = "oldest"
 
 commit_parsers = [
-    { message = "^feat", group = "Features" },
-    { message = "^fix", group = "Bug Fixes" },
-    { message = "^refactor", group = "Refactoring" },
-    { message = "^perf", group = "Performance" },
-    { message = "^doc", group = "Documentation" },
-    { message = "^test", group = "Testing" },
-    { message = "^build", group = "Build" },
-    { message = "^ci", group = "CI" },
+    { message = "^feat", group = "🚀 Features" },
+    { message = "^fix", group = "🐛 Bug Fixes" },
+    { message = "^refactor", group = "♻️ Refactoring" },
+    { message = "^perf", group = "⚡ Performance" },
+    { message = "^doc", group = "📚 Documentation" },
+    { message = "^style", group = "🎨 Style" },
+    { message = "^test", group = "🧪 Testing" },
+    { message = "^build", group = "📦 Build" },
+    { message = "^ci", group = "👷 CI" },
     { message = "^chore\\(release\\)", skip = true },
-    { message = "^chore", group = "Miscellaneous" },
-    { message = "^revert", group = "Reverted" },
+    { message = "^chore", group = "🧹 Miscellaneous" },
+    { message = "^revert", group = "⏪ Reverted" },
 ]
