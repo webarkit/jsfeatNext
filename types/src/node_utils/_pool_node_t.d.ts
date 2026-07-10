@@ -5,7 +5,7 @@ export interface IPool_Node_T {
     resize: (size_in_bytes: number) => void;
 }
 /**
- * One node of the {@link cache} buffer pool: a linked-list entry wrapping a
+ * One node of the `cache` buffer pool: a linked-list entry wrapping a
  * {@link data_t} and mirroring its typed-array views directly on the node,
  * so borrowers can use `node.f32`, `node.i32`, etc. without indirection.
  */

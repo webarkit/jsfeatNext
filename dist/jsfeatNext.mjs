@@ -87,7 +87,7 @@ var e = class {
 	S32C2_t: 514
 }, a = {
 	name: "@webarkit/jsfeat-next",
-	version: "0.7.6",
+	version: "0.8.0",
 	description: "Typescript version of jsfeat for WebARKit",
 	main: "dist/jsfeatNext.js",
 	module: "dist/jsfeatNext.mjs",
@@ -102,18 +102,15 @@ var e = class {
 		},
 		"./package.json": "./package.json"
 	},
-	files: [
-		"dist",
-		"types",
-		"src"
-	],
+	files: ["dist", "types"],
 	scripts: {
 		"build-ts": "vite build",
 		"dev-ts": "vite build --watch",
 		"format-check": "prettier --check .",
 		format: "prettier --write .",
 		test: "vitest run",
-		"test:watch": "vitest"
+		"test:watch": "vitest",
+		docs: "typedoc"
 	},
 	repository: {
 		type: "git",
@@ -133,9 +130,10 @@ var e = class {
 	bugs: { url: "https://github.com/webarkit/jsfeatNext/issues" },
 	homepage: "https://github.com/webarkit/jsfeatNext#readme",
 	devDependencies: {
-		prettier: "~3.5.3",
+		prettier: "~3.9.4",
+		typedoc: "^0.28.20",
 		typescript: "^6.0.3",
-		vite: "^8.1.3",
+		vite: "^8.1.4",
 		"vite-plugin-dts": "^5.0.3",
 		vitest: "^4.1.10"
 	}

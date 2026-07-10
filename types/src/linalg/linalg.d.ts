@@ -35,7 +35,7 @@ export declare class linalg extends jsfeatNext {
      *
      * @param At    Input matrix data, transposed (mutated into U·diag(W)).
      * @param astep Row stride of `At`.
-     * @param W     Output singular values.
+     * @param _W    Output singular values.
      * @param Vt    Output right singular vectors (transposed), or null.
      * @param vstep Row stride of `Vt`.
      * @param m     Rows of the original matrix. @param n Columns.
