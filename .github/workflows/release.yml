@@ -58,7 +58,20 @@ jobs:
                   args: --latest --strip header
                   # ref is the tag, so --latest resolves to the range since
                   # the previous tag automatically.
-                  output: release-notes.md
+                  # NB: this action has no "output" input (a prior version of
+                  # this workflow passed one and it was silently ignored --
+                  # confirmed via action.yml, valid inputs are only version/
+                  # config/args/github_token). The changelog text comes back
+                  # via the `content` output instead and is written to a file
+                  # in the next step, via an env var (not inline ${{ }} in the
+                  # run: string) so special characters in commit messages
+                  # can't break the shell command.
+                  github_token: ${{ github.token }}
+
+            - name: Write release notes to file
+              env:
+                  RELEASE_NOTES: ${{ steps.changelog.outputs.content }}
+              run: printf '%s\n' "$RELEASE_NOTES" > release-notes.md
 
             - name: Create GitHub Release
               env:
