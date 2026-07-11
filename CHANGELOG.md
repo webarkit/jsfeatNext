@@ -1,5 +1,23 @@
 
-## Unreleased
+## 0.9.0 - 2026-07-11
+
+### 🐛 Bug Fixes
+
+- Git-cliff-action has no 'output' input; write notes via content output (5159e61)
+
+
+### 📚 Documentation
+
+- Fix broken Twitter/X follow badge (closes #78) (2fafa6e)
+
+- Add any-avoidance rule and refresh roadmap/instructions (ce76796)
+
+
+### 🚀 Features
+
+- Singleton modules, shared cache, direct namespace export (#41) (3b9eb95)
+
+## 0.8.0 - 2026-07-10
 
 ### ♻️ Refactoring
 

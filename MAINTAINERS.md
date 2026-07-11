@@ -34,8 +34,12 @@ Publishing a new version is a two-phase process: a **manual** phase you control 
    npm run build-ts
    ```
    This regenerates `dist/jsfeatNext.js` (UMD), `dist/jsfeatNext.mjs` (ESM) and `types/`. All three are committed to the repo.
-4. **Commit and PR to `dev`.** Commit the version bump + rebuilt `dist/`/`types/` (Conventional Commit, e.g. `chore(release): bump version to X.Y.Z and rebuild dist`), push a branch, open a PR **against `dev`**, get it green, merge.
-5. **Promote `dev` to `main`.** Once `dev` has everything intended for the release:
+4. **Generate the local changelog.** We use git-cliff to parse the conventional commits and update the historical changelog. Run the following command in the root directory:
+   ```bash
+   npx git-cliff -u --prepend CHANGELOG.md
+   ```
+5. **Commit and PR to `dev`.** Commit the version bump + rebuilt `dist/`/`types/` (Conventional Commit, e.g. `chore(release): bump version to X.Y.Z and rebuild dist`), push a branch, open a PR **against `dev`**, get it green, merge.
+6. **Promote `dev` to `main`.** Once `dev` has everything intended for the release:
    ```bash
    git checkout main
    git pull origin main
@@ -46,7 +50,7 @@ Publishing a new version is a two-phase process: a **manual** phase you control 
 
 ### Phase B — Automated: tag, changelog, release, publish
 
-6. **Tag the release** on `main`, using the **bare** version number (no `v` prefix):
+7. **Tag the release** on `main`, using the **bare** version number (no `v` prefix):
    ```bash
    git tag -a X.Y.Z -m "X.Y.Z"
    git push origin X.Y.Z
@@ -60,7 +64,7 @@ Publishing a new version is a two-phase process: a **manual** phase you control 
 
    You can watch it under the repo's **Actions** tab. If a step fails (e.g. a transient npm registry error during publish), you do **not** need to re-tag — re-run it manually via **Actions → Release → Run workflow**, entering the existing tag.
 
-7. **Verify.** Check:
+8. **Verify.** Check:
    - the new [GitHub Release](https://github.com/webarkit/jsfeatNext/releases) has sensible notes
    - `npm view @webarkit/jsfeat-next version` shows the new version
    - `npm view @webarkit/jsfeat-next dist-tags` shows `latest` pointing at it
