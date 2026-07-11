@@ -20,7 +20,7 @@ function rng(seed: number): () => number {
     };
 }
 
-const m = new jsfeatNext.math();
+const m = jsfeatNext.math;
 // identical "less than" comparator for both implementations
 const lt = (a: number, b: number) => (a < b ? 1 : 0);
 

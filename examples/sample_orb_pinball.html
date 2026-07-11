@@ -52,14 +52,14 @@
                 // lets do some fun
                 var video = document.getElementById('webcam');
                 var canvas = document.getElementById('canvas');
-                var jsfeat = jsfeatNext.jsfeatNext;
-                var imgproc = new jsfeat.imgproc();
-                var orb = new jsfeat.orb();
-                var math = new jsfeat.math();
-                var yape06 = new jsfeat.yape06();
-                var motion_estimator = new jsfeat.motion_estimator();
-                var homography2d = new jsfeat.homography2d();
-                var matmath = new jsfeat.matmath();
+                var jsfeat = jsfeatNext;
+                var imgproc = jsfeat.imgproc;
+                var orb = jsfeat.orb;
+                var math = jsfeat.math;
+                var yape06 = jsfeat.yape06;
+                var motion_estimator = jsfeat.motion_estimator;
+                var homography2d = jsfeat.homography2d;
+                var matmath = jsfeat.matmath;
                 try {
                     var attempts = 0;
                     var readyListener = function (event) {

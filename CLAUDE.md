@@ -6,7 +6,8 @@ The canonical, tool-agnostic guidance for this repo lives in **AGENTS.md**. It i
 
 ## Claude-specific notes
 
-- When editing an algorithm module (`imgproc`, `fast_corners`, `math`, `linalg`, `orb`, `yape06`, `motion_estimator`, `optical_flow_lk`, `pyramid_t`), remember the implementation is **inline in `src/jsfeatNext.ts`**, not in the same-named `src/<module>/<module>.ts` stub. Grep `jsfeatNext.<module> = class` to jump to it.
-- There are **no automated tests**. Do not report a change as "verified" unless you actually built (`npm run build-ts`) and checked the relevant `examples/*.html`, or the user confirms.
-- The audit/roadmap is in [`docs/jsfeat-parity-and-refactor-audit.md`](docs/jsfeat-parity-and-refactor-audit.md). Consult it before structural refactors, the Vite migration, or porting `haar`/`bbf`.
+- Every algorithm lives in its own module under `src/<module>/<module>.ts`, extending the base in `src/core/core.ts`; `src/jsfeatNext.ts` is only the aggregator that attaches the singletons (the old inline monolith and its type-only stubs are gone since #47).
+- **Always run `npm test`** (Vitest parity suite vs a vendored original-jsfeat oracle) before claiming an algorithm change is verified; for consumer-facing changes also build (`npm run build-ts`) and check the relevant `examples/*.html`, or ask the user to confirm.
+- On this Windows machine: verify formatting with `node_modules/.bin/prettier` directly (bare `npx prettier` can resolve the wrong version) and regenerate `package-lock.json` only with `npx npm@11`.
+- The audit/roadmap is in [`docs/jsfeat-parity-and-refactor-audit.md`](docs/jsfeat-parity-and-refactor-audit.md); the 0.9.0 API break is documented in [`docs/migration-0.9.md`](docs/migration-0.9.md); the release runbook is in [`MAINTAINERS.md`](MAINTAINERS.md).
 - Keep numeric/behavioral parity with the original jsfeat; preserve the public `jsfeatNext.<module>` API.

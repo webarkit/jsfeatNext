@@ -11,18 +11,15 @@
 <body>
     <script src="../dist/jsfeatNext.js"></script>
     <script>
-        var jsfeat = jsfeatNext.jsfeatNext;
-        var orb = new jsfeat.orb()
-        console.log(orb);
         var screen_corners = [];
         var num_corners = 20;
-        var img_u8_smooth = new jsfeat.matrix_t(640, 480, jsfeat.U8_t | jsfeat.C1_t);
-        var screen_descriptors = new jsfeat.matrix_t(32, 500, jsfeat.U8_t | jsfeat.C1_t);
+        var img_u8_smooth = new jsfeatNext.matrix_t(640, 480, jsfeatNext.U8_t | jsfeatNext.C1_t);
+        var screen_descriptors = new jsfeatNext.matrix_t(32, 500, jsfeatNext.U8_t | jsfeatNext.C1_t);
         var i = 640 * 480;
         while (--i >= 0) {
-            screen_corners[i] = new jsfeat.keypoint_t(0, 0, 0, 0, -1);
+            screen_corners[i] = new jsfeatNext.keypoint_t(0, 0, 0, 0, -1);
         }
-        orb.describe(img_u8_smooth, screen_corners, num_corners, screen_descriptors);
+        jsfeatNext.orb.describe(img_u8_smooth, screen_corners, num_corners, screen_descriptors);
     </script>
 
 </body>

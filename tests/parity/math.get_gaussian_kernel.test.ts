@@ -24,7 +24,7 @@ describe("parity: math.get_gaussian_kernel vs original jsfeat", () => {
             jsfeat.math.get_gaussian_kernel(size, sigma, expected, jsfeat.F32_t | jsfeat.C1_t);
 
             const actual = new Float32Array(size);
-            const m = new jsfeatNext.math();
+            const m = jsfeatNext.math;
             m.get_gaussian_kernel(size, sigma, actual, jsfeatNext.F32_t | jsfeatNext.C1_t);
 
             for (let i = 0; i < size; i++) {

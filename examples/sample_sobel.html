@@ -33,8 +33,6 @@
             // lets do some fun
             var video = document.getElementById('webcam');
             var canvas = document.getElementById('canvas');
-            var jsfeat = jsfeatNext.jsfeatNext;
-            var imgproc = new jsfeat.imgproc();
             try {
                 var attempts = 0;
                 var readyListener = function(event) {
@@ -99,8 +97,8 @@
                 ctx.fillStyle = "rgb(0,255,0)";
                 ctx.strokeStyle = "rgb(0,255,0)";
 
-                img_u8 = new jsfeat.matrix_t(640, 480, jsfeat.U8C1_t);
-                img_gxgy = new jsfeat.matrix_t(640, 480, jsfeat.S32C2_t);
+                img_u8 = new jsfeatNext.matrix_t(640, 480, jsfeatNext.U8C1_t);
+                img_gxgy = new jsfeatNext.matrix_t(640, 480, jsfeatNext.S32C2_t);
 
                 stat.add("grayscale");
                 stat.add("sobel");
@@ -114,11 +112,11 @@
                     var imageData = ctx.getImageData(0, 0, 640, 480);
 
                     stat.start("grayscale");
-                    imgproc.grayscale(imageData.data, 640, 480, img_u8);
+                    jsfeatNext.imgproc.grayscale(imageData.data, 640, 480, img_u8);
                     stat.stop("grayscale");
 
                     stat.start("sobel");
-                    imgproc.sobel_derivatives(img_u8, img_gxgy);
+                    jsfeatNext.imgproc.sobel_derivatives(img_u8, img_gxgy);
                     stat.stop("sobel");
 
                     // render result back to canvas

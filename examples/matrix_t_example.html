@@ -11,11 +11,10 @@
 <body>
     <script src="../dist/jsfeatNext.js"></script>
     <script>
-        var jsfeat = jsfeatNext.jsfeatNext
-        var columns = 320, rows = 240, data_type = jsfeat.U8_t | jsfeat.C1_t;
+        var columns = 320, rows = 240, data_type = jsfeatNext.U8_t | jsfeatNext.C1_t;
         console.log("data_type is:", data_type);
         console.assert(data_type === 257, "Wrong data_type");
-        var matrix = new jsfeat.matrix_t(columns, rows, data_type);
+        var matrix = new jsfeatNext.matrix_t(columns, rows, data_type);
         console.log("matrix infos: ", matrix);
     </script>
 

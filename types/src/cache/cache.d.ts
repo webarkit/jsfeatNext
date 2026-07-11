@@ -17,10 +17,9 @@ export interface ICache {
  * views (`u8`/`i32`/`f32`/`f64`), and must hand it back with
  * {@link put_buffer} when done.
  *
- * Mirrors `jsfeat.cache` from the original library, with one difference:
- * the original keeps a single global pool, while jsfeatNext currently
- * allocates one pool per module instance (see the base-class constructor
- * in `src/core/core.ts`).
+ * Mirrors `jsfeat.cache` from the original library: since 0.9.0 (issue #41)
+ * jsfeatNext keeps a single library-wide pool too — the `shared_cache`
+ * exported by `src/core/core.ts` and exposed publicly as `jsfeatNext.cache`.
  */
 export declare class cache implements ICache {
     /** First free node in the pool (borrow end of the list). */

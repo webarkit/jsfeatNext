@@ -33,8 +33,6 @@
             // lets do some fun
             var video = document.getElementById('webcam');
             var canvas = document.getElementById('canvas');
-            var jsfeat = jsfeatNext.jsfeatNext;
-            var imgproc = new jsfeat.imgproc();
             try {
                 var attempts = 0;
                 var readyListener = function(event) {
@@ -105,7 +103,7 @@
                 ctx.fillStyle = "rgb(0,255,0)";
                 ctx.strokeStyle = "rgb(0,255,0)";
 
-                img_u8 = new jsfeat.matrix_t(640, 480, jsfeat.U8C1_t);
+                img_u8 = new jsfeatNext.matrix_t(640, 480, jsfeatNext.U8C1_t);
 
                 options = new demo_opt();
                 gui = new dat.GUI();
@@ -127,18 +125,18 @@
                     var imageData = ctx.getImageData(0, 0, 640, 480);
 
                     stat.start("grayscale");
-                    imgproc.grayscale(imageData.data, 640, 480, img_u8);
+                    jsfeatNext.imgproc.grayscale(imageData.data, 640, 480, img_u8);
                     stat.stop("grayscale");
 
                     var r = options.blur_radius|0;
                     var kernel_size = (r+1) << 1;
 
                     stat.start("gauss blur");
-                    imgproc.gaussian_blur(img_u8, img_u8, kernel_size, 0);
+                    jsfeatNext.imgproc.gaussian_blur(img_u8, img_u8, kernel_size, 0);
                     stat.stop("gauss blur");
 
                     stat.start("canny edge");
-                    imgproc.canny(img_u8, img_u8, options.low_threshold|0, options.high_threshold|0);
+                    jsfeatNext.imgproc.canny(img_u8, img_u8, options.low_threshold|0, options.high_threshold|0);
                     stat.stop("canny edge");
 
                     // render result back to canvas

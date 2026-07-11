@@ -68,8 +68,8 @@ describe("parity: motion_estimator vs original jsfeat.motion_estimator", () => {
         const { from, to } = makeCorrespondences(N, OUT);
 
         const params = new jsfeatNext.ransac_params_t(4, 3.0, 0.5, 0.99);
-        const me = new jsfeatNext.motion_estimator();
-        const kernel = new jsfeatNext.homography2d();
+        const me = jsfeatNext.motion_estimator;
+        const kernel = jsfeatNext.homography2d;
         const model = new jsfeatNext.matrix_t(3, 3, F32C1);
         const mask = new jsfeatNext.matrix_t(N, 1, U8C1);
 
@@ -104,8 +104,8 @@ describe("parity: motion_estimator vs original jsfeat.motion_estimator", () => {
         const { from, to } = makeCorrespondences(N, OUT);
 
         const params = new jsfeatNext.ransac_params_t(4, 0, 0.45, 0.99);
-        const me = new jsfeatNext.motion_estimator();
-        const kernel = new jsfeatNext.homography2d();
+        const me = jsfeatNext.motion_estimator;
+        const kernel = jsfeatNext.homography2d;
         const model = new jsfeatNext.matrix_t(3, 3, F32C1);
         const mask = new jsfeatNext.matrix_t(N, 1, U8C1);
 
@@ -154,8 +154,8 @@ describe("parity: motion_estimator vs original jsfeat.motion_estimator", () => {
         // there; only homography2d overrides it), which made RANSAC with an
         // affine2d kernel throw TypeError. Now fixed — full parity check.
         const params = new jsfeatNext.ransac_params_t(3, 3.0, 0.5, 0.99);
-        const me = new jsfeatNext.motion_estimator();
-        const kernel = new jsfeatNext.affine2d();
+        const me = jsfeatNext.motion_estimator;
+        const kernel = jsfeatNext.affine2d;
         const model = new jsfeatNext.matrix_t(3, 3, F32C1);
         const mask = new jsfeatNext.matrix_t(N, 1, U8C1);
 

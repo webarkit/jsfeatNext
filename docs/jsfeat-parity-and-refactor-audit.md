@@ -13,16 +13,16 @@ jsfeatNext is a TypeScript port of jsfeat for WebARKit. The core algorithms are 
 
 ### Severity-ranked issues (to be confirmed/expanded during execution)
 
-| # | Severity | Issue | Axis |
-|---|----------|-------|------|
-| 1 | 🔴 High | **Not drop-in compatible** with jsfeat: algorithm modules require `new` (instance methods) vs jsfeat's static namespace functions | 2 |
-| 2 | 🔴 High | **Type-only stub files** (`src/**/<module>.ts` throw `"Method not implemented"`); real logic is duplicated inline in `src/jsfeatNext.ts` | 3, 4 |
-| 3 | 🟠 Med-High | **Missing modules**: `haar` (Haar cascade) and `bbf` (BBF) object/face detection | 1 |
-| 4 | 🟠 Med | **Per-instance cache allocation** — each `new jsfeatNext.imgproc()` builds its own 30-buffer pool; jsfeat shares one global cache | 2, 4 |
-| 5 | 🟠 Med | **Double namespace** `jsfeatNext.jsfeatNext` forced on every consumer | 2, 5 |
-| 6 | 🟡 Low-Med | **Dead / trap code**: `src/orb/rectify_patch.ts` imports the *stub* `imgproc` (throws or is unused) | 3 |
-| 7 | 🟡 Low | **Build/deps**: double transpile (ts-loader→babel), `prettier`/`ts-loader` mis-listed as runtime deps, `rimraf ./build` clears the wrong dir, UMD-only output | 5 |
-| 8 | 🟡 Low | **No automated tests** — only manual HTML examples; blocks safe refactoring | 4, App. B |
+| # | Severity | Issue | Axis | Status |
+|---|----------|-------|------|--------|
+| 1 | 🔴 High | **Not drop-in compatible** with jsfeat: algorithm modules require `new` (instance methods) vs jsfeat's static namespace functions | 2 | ✅ **resolved in 0.9.0** — singletons, no `new` (#41, `docs/migration-0.9.md`) |
+| 2 | 🔴 High | **Type-only stub files** (`src/**/<module>.ts` throw `"Method not implemented"`); real logic is duplicated inline in `src/jsfeatNext.ts` | 3, 4 | ✅ resolved in 0.8.0 (#47) |
+| 3 | 🟠 Med-High | **Missing modules**: `haar` (Haar cascade) and `bbf` (BBF) object/face detection | 1 | ⬜ open (#43/#44) |
+| 4 | 🟠 Med | **Per-instance cache allocation** — each `new jsfeatNext.imgproc()` builds its own 30-buffer pool; jsfeat shares one global cache | 2, 4 | ✅ **resolved in 0.9.0** — one `shared_cache` (#41) |
+| 5 | 🟠 Med | **Double namespace** `jsfeatNext.jsfeatNext` forced on every consumer | 2, 5 | ✅ **resolved in 0.9.0** — default export is the namespace (#41) |
+| 6 | 🟡 Low-Med | **Dead / trap code**: `src/orb/rectify_patch.ts` imports the *stub* `imgproc` (throws or is unused) | 3 | ✅ resolved in 0.8.0 (#47) |
+| 7 | 🟡 Low | **Build/deps**: double transpile (ts-loader→babel), `prettier`/`ts-loader` mis-listed as runtime deps, `rimraf ./build` clears the wrong dir, UMD-only output | 5 | ✅ resolved in 0.8.0 (#42/#53/#60) |
+| 8 | 🟡 Low | **No automated tests** — only manual HTML examples; blocks safe refactoring | 4, App. B | ✅ resolved in 0.8.0 (#39/#49) |
 
 ---
 
@@ -69,6 +69,14 @@ For **each** module, produce a table: `jsfeat symbol → jsfeatNext symbol → s
 ---
 
 ## 2. Axis 2 — API / behavioral parity
+
+> **✅ Status update (0.9.0, issue #41):** rows 1–4 below are RESOLVED — algorithm
+> modules are now singletons (`jsfeatNext.imgproc.grayscale(...)`, no `new`),
+> the double namespace is gone (the default export is the namespace itself),
+> all modules share ONE buffer pool (`jsfeatNext.cache`), and stateful modules
+> behave like jsfeat's (`jsfeatNext.yape06.laplacian_threshold = 30`).
+> Full mapping + motivation: [`docs/migration-0.9.md`](migration-0.9.md).
+> The table below is kept as the historical record of the pre-0.9.0 state.
 
 Even where algorithms match, **how you call them differs** — so jsfeat code is *not* copy-paste compatible, contradicting the README claim ("if it works on jsfeat it works on jsfeatNext").
 

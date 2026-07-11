@@ -13,7 +13,7 @@ const H = 48;
 const U8C1 = jsfeatNext.U8_t | jsfeatNext.C1_t;
 const OU8C1 = jsfeat.U8_t | jsfeat.C1_t;
 
-const ip = new jsfeatNext.imgproc();
+const ip = jsfeatNext.imgproc;
 
 /** deterministic grayscale test pattern with edges, gradients and texture */
 function grayValue(x: number, y: number): number {
@@ -178,7 +178,7 @@ describe("parity: imgproc vs original jsfeat.imgproc", () => {
         const F32C1 = jsfeatNext.F32_t | jsfeatNext.C1_t;
         const tN = new jsfeatNext.matrix_t(3, 3, F32C1);
         const tO = new jsfeat.matrix_t(3, 3, jsfeat.F32_t | jsfeat.C1_t);
-        const tr = new jsfeatNext.transform();
+        const tr = jsfeatNext.transform;
         tr.perspective_4point_transform(tN, 0, 0, 4, 2, 63, 0, 60, 1, 63, 47, 62, 46, 0, 47, 2, 44);
         for (let i = 0; i < 9; i++) tO.data[i] = tN.data[i];
         const dstN = new jsfeatNext.matrix_t(W, H, U8C1);
