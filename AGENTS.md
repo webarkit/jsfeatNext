@@ -33,7 +33,8 @@
 
 ## Conventions
 
-- TypeScript `strict: true` **but** `strictNullChecks: false`; `noImplicitAny: true`. Prefer real types over `any` in new code.
+- TypeScript `strict: true` **but** `strictNullChecks: false`; `noImplicitAny: true`.
+- **Avoid `any`.** Do not introduce new `any` (explicit or via casts like `as any`) in `src/`. Reach for the real type, and when a shape recurs, define a shared alias or interface instead of repeating `any` — e.g. a `TypedArray` union for buffer payloads, a `MotionKernel` interface for the `motion_estimator` kernels, `_pool_node_t` for cache nodes. `strictNullChecks` being off is not licence for `any`. Existing `any`s are tracked for removal in #85; don't add to them.
 - Preserve **numeric/behavioral parity with jsfeat** — algorithms use typed arrays and bitwise math in hot loops; do not "clean up" arithmetic without a parity check.
 - Preserve the **public API surface** (`jsfeatNext.<module>` + method signatures) unless a change is explicitly approved.
 - License: **LGPL-3.0-or-later** (keep headers/attribution).
@@ -55,4 +56,4 @@
 ## Roadmap pointers
 
 - **Remaining vs jsfeat:** port `haar` (#43) and `bbf` (#44); exhaustive per-symbol parity audit (#45).
-- **Toward 1.0:** prerelease-tag support in the release pipeline (#81); examples modernization (#79); new descriptors like FREAK (#80).
+- **Toward 1.0:** prerelease-tag support in the release pipeline (#81); examples modernization (#79); new descriptors like FREAK (#80); replace remaining `any` usages with shared types/interfaces (#85); performance-benchmark suite with result storage (#86); strengthen tests beyond parity — property/invariant + edge-case + third-party ground-truth (#87).
