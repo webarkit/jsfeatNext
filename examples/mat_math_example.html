@@ -11,14 +11,12 @@
 <body>
     <script src="../dist/jsfeatNext.js"></script>
     <script>
-        var jsfeat = jsfeatNext.jsfeatNext
-        var columns = 320, rows = 240, data_type = jsfeat.U8_t | jsfeat.C1_t;
+        var columns = 320, rows = 240, data_type = jsfeatNext.U8_t | jsfeatNext.C1_t;
         console.log("data_type is:", data_type);
         console.assert(data_type === 257, "Wrong data_type");
-        var homo3x3 = new jsfeat.matrix_t(3,3,jsfeat.F32C1_t);
+        var homo3x3 = new jsfeatNext.matrix_t(3,3,jsfeatNext.F32C1_t);
         console.log(homo3x3);
-        var matmath = new jsfeat.matmath()
-        matmath.identity_3x3(homo3x3, 1.0);
+        jsfeatNext.matmath.identity_3x3(homo3x3, 1.0);
         console.log(homo3x3);
     </script>
 

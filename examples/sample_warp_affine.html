@@ -31,8 +31,6 @@
             // lets do some fun
             var video = document.getElementById('webcam');
             var canvas = document.getElementById('canvas');
-            var jsfeat = jsfeatNext.jsfeatNext;
-            var imgproc = new jsfeat.imgproc();
             try {
                 var attempts = 0;
                 var readyListener = function(event) {
@@ -97,9 +95,9 @@
                 ctx.fillStyle = "rgb(0,255,0)";
                 ctx.strokeStyle = "rgb(0,255,0)";
 
-                img_u8 = new jsfeat.matrix_t(640, 480, jsfeat.U8_t | jsfeat.C1_t);
-                img_u8_warp = new jsfeat.matrix_t(640, 480, jsfeat.U8_t | jsfeat.C1_t);
-                mat_affine = new jsfeat.matrix_t(3, 2, jsfeat.F32_t | jsfeat.C1_t);
+                img_u8 = new jsfeatNext.matrix_t(640, 480, jsfeatNext.U8_t | jsfeatNext.C1_t);
+                img_u8_warp = new jsfeatNext.matrix_t(640, 480, jsfeatNext.U8_t | jsfeatNext.C1_t);
+                mat_affine = new jsfeatNext.matrix_t(3, 2, jsfeatNext.F32_t | jsfeatNext.C1_t);
 
                 mat_affine.data[0] = 1.1548494156391083;
                 mat_affine.data[1] = 0.4783542904563622;
@@ -120,11 +118,11 @@
                     var imageData = ctx.getImageData(0, 0, 640, 480);
 
                     stat.start("grayscale");
-                    imgproc.grayscale(imageData.data, 640, 480, img_u8);
+                    jsfeatNext.imgproc.grayscale(imageData.data, 640, 480, img_u8);
                     stat.stop("grayscale");
 
                     stat.start("warp affine");
-                    imgproc.warp_affine(img_u8, img_u8_warp, mat_affine, 0);
+                    jsfeatNext.imgproc.warp_affine(img_u8, img_u8_warp, mat_affine, 0);
                     stat.stop("warp affine");
 
                     // render result back to canvas

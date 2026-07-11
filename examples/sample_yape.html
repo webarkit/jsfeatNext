@@ -32,9 +32,6 @@
             // lets do some fun
             var video = document.getElementById('webcam');
             var canvas = document.getElementById('canvas');
-            var jsfeat = jsfeatNext.jsfeatNext;
-            var imgproc = new jsfeat.imgproc();
-            var yape = new jsfeat.yape();
             try {
                 var attempts = 0;
                 var readyListener = function(event) {
@@ -99,16 +96,16 @@
                 ctx.fillStyle = "rgb(0,255,0)";
                 ctx.strokeStyle = "rgb(0,255,0)";
 
-                img_u8 = new jsfeat.matrix_t(640, 480, jsfeat.U8_t | jsfeat.C1_t);
+                img_u8 = new jsfeatNext.matrix_t(640, 480, jsfeatNext.U8_t | jsfeatNext.C1_t);
 
                 corners = [];
                 var i = 640*480;
                 while(--i >= 0) {
-                    corners[i] = new jsfeat.keypoint_t(0,0,0,0);
+                    corners[i] = new jsfeatNext.keypoint_t(0,0,0,0);
                 }
 
                 // YAPE detector needs init first
-                yape.init(canvasWidth, canvasHeight, 5, 1);
+                jsfeatNext.yape.init(canvasWidth, canvasHeight, 5, 1);
 
                 stat.add("grayscale");
                 stat.add("box blur");
@@ -123,15 +120,15 @@
                     var imageData = ctx.getImageData(0, 0, 640, 480);
 
                     stat.start("grayscale");
-                    imgproc.grayscale(imageData.data, 640, 480, img_u8);
+                    jsfeatNext.imgproc.grayscale(imageData.data, 640, 480, img_u8);
                     stat.stop("grayscale");
 
                     stat.start("box blur");
-                    imgproc.box_blur_gray(img_u8, img_u8, 2, 0);
+                    jsfeatNext.imgproc.box_blur_gray(img_u8, img_u8, 2, 0);
                     stat.stop("box blur");
 
                     stat.start("yape");
-                    var count = yape.detect(img_u8, corners, 5);
+                    var count = jsfeatNext.yape.detect(img_u8, corners, 5);
                     stat.stop("yape");
 
                     // render result back to canvas

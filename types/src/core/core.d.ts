@@ -16,41 +16,50 @@ import { optical_flow_lk } from '../optical_flow_lk/optical_flow_lk';
 import { orb } from '../orb/orb';
 import { affine2d, homography2d } from '../motion_model/motion_model';
 /**
- * Base class of the library: holds the shared constants, the per-instance
- * cache/data-type helpers, and the static slots the algorithm modules are
- * attached to (in src/jsfeatNext.ts, the aggregator).
+ * The ONE shared scratch-buffer pool of the library (30 buffers of 2560
+ * bytes, growable), matching original jsfeat's design where every module
+ * borrows from the single global `jsfeat.cache`. Exposed publicly as
+ * `jsfeatNext.cache`. Until 0.9.0 each module instance allocated its own
+ * pool — a diagnosed memory/GC cost (see docs/migration-0.9.md, issue #41).
+ */
+export declare const shared_cache: cache;
+/**
+ * Base class of the library: holds the shared constants, the cache/data-type
+ * helpers, and the static slots the algorithm singletons are attached to
+ * (in src/jsfeatNext.ts, the aggregator).
  *
  * Extracted from the src/jsfeatNext.ts monolith (issue #47) so that module
  * files can `extend` it without creating a circular import with the
  * aggregator.
+ *
+ * Since 0.9.0 (issue #41) the algorithm slots hold SINGLETON INSTANCES —
+ * consumers call `jsfeatNext.imgproc.grayscale(...)` with no `new`, exactly
+ * like original jsfeat's static namespaces. The data-structure slots
+ * (matrix_t, keypoint_t, pyramid_t, ransac_params_t) remain constructors.
  */
 export default class jsfeatNext {
     /** Decoder for packed matrix type signatures. */
     private dt;
-    /**
-     * Per-instance scratch-buffer pool (30 buffers of 2560 bytes, growable).
-     * NOTE: original jsfeat shares ONE global cache; jsfeatNext currently
-     * allocates a pool per module instance (see the parity audit, Axis 2).
-     */
+    /** The library-wide shared buffer pool (same object as {@link shared_cache}). */
     protected cache: cache;
-    static cache: typeof cache;
-    static fast_corners: typeof fast_corners;
-    static imgproc: typeof imgproc;
-    static linalg: typeof linalg;
-    static math: typeof math;
-    static matmath: typeof matmath;
+    static cache: cache;
+    static fast_corners: fast_corners;
+    static imgproc: imgproc;
+    static linalg: linalg;
+    static math: math;
+    static matmath: matmath;
     static matrix_t: typeof matrix_t;
     static pyramid_t: typeof pyramid_t;
-    static transform: typeof transform;
+    static transform: transform;
     static keypoint_t: typeof keypoint_t;
-    static yape: typeof yape;
-    static yape06: typeof yape06;
+    static yape: yape;
+    static yape06: yape06;
     static ransac_params_t: typeof ransac_params_t;
-    static affine2d: typeof affine2d;
-    static homography2d: typeof homography2d;
-    static motion_estimator: typeof motion_estimator;
-    static optical_flow_lk: typeof optical_flow_lk;
-    static orb: typeof orb;
+    static affine2d: affine2d;
+    static homography2d: homography2d;
+    static motion_estimator: motion_estimator;
+    static optical_flow_lk: optical_flow_lk;
+    static orb: orb;
     constructor();
     /** Library version, read from package.json at build time. */
     static VERSION: string;

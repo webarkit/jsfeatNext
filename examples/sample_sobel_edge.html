@@ -32,8 +32,8 @@
             // lets do some fun
             var video = document.getElementById('webcam');
             var canvas = document.getElementById('canvas');
-            var jsfeat = jsfeatNext.jsfeatNext;
-            var imgproc = new jsfeat.imgproc();
+            var jsfeat = jsfeatNext;
+            var imgproc = jsfeat.imgproc;
             try {
                 var attempts = 0;
                 var readyListener = function(event) {
@@ -98,9 +98,9 @@
                 ctx.fillStyle = "rgb(0,255,0)";
                 ctx.strokeStyle = "rgb(0,255,0)";
 
-                img_u8 = new jsfeat.matrix_t(640, 480, jsfeat.U8C1_t);
-                img_gxgy = new jsfeat.matrix_t(640, 480, jsfeat.S32C2_t);
-                img_mag = new jsfeat.matrix_t(640, 480, jsfeat.S32C1_t);
+                img_u8 = new jsfeatNext.matrix_t(640, 480, jsfeatNext.U8C1_t);
+                img_gxgy = new jsfeatNext.matrix_t(640, 480, jsfeatNext.S32C2_t);
+                img_mag = new jsfeatNext.matrix_t(640, 480, jsfeatNext.S32C1_t);
 
                 stat.add("grayscale");
                 stat.add("blur");
@@ -116,15 +116,15 @@
                     var imageData = ctx.getImageData(0, 0, 640, 480);
 
                     stat.start("grayscale");
-                    imgproc.grayscale(imageData.data, 640, 480, img_u8);
+                    jsfeatNext.imgproc.grayscale(imageData.data, 640, 480, img_u8);
                     stat.stop("grayscale");
 
                     stat.start("blur");
-                    imgproc.gaussian_blur(img_u8, img_u8, 3);
+                    jsfeatNext.imgproc.gaussian_blur(img_u8, img_u8, 3);
                     stat.stop("blur");
 
                     stat.start("sobel");
-                    imgproc.sobel_derivatives(img_u8, img_gxgy);
+                    jsfeatNext.imgproc.sobel_derivatives(img_u8, img_gxgy);
                     stat.stop("sobel");
 
                     stat.start("edges");

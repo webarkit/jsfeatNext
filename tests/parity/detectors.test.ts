@@ -84,7 +84,7 @@ describe("parity: fast_corners vs original jsfeat.fast_corners", () => {
         const { next, orig } = grayPair();
         const { nextC, origC } = makeCorners(W * H);
 
-        const fc = new jsfeatNext.fast_corners();
+        const fc = jsfeatNext.fast_corners;
         fc.set_threshold(20);
         jsfeat.fast_corners.set_threshold(20);
 
@@ -102,7 +102,7 @@ describe("parity: yape06 vs original jsfeat.yape06", () => {
         const { next, orig } = grayPair();
         const { nextC, origC } = makeCorners(W * H);
 
-        const y06 = new jsfeatNext.yape06();
+        const y06 = jsfeatNext.yape06;
         // original is a static namespace with mutable thresholds; align them
         jsfeat.yape06.laplacian_threshold = y06.laplacian_threshold;
         jsfeat.yape06.min_eigen_value_threshold = y06.min_eigen_value_threshold;
@@ -142,7 +142,7 @@ describe("parity: orb.describe vs original jsfeat.orb", () => {
 
         // corners from the (already parity-verified) FAST detector
         const { nextC, origC } = makeCorners(W * H);
-        const fc = new jsfeatNext.fast_corners();
+        const fc = jsfeatNext.fast_corners;
         fc.set_threshold(20);
         jsfeat.fast_corners.set_threshold(20);
         const count = fc.detect(next, nextC, 20); // generous border for 32px patches
@@ -158,7 +158,7 @@ describe("parity: orb.describe vs original jsfeat.orb", () => {
 
         const descN = new jsfeatNext.matrix_t(32, count, U8C1);
         const descO = new jsfeat.matrix_t(32, count, OU8C1);
-        const orb = new jsfeatNext.orb();
+        const orb = jsfeatNext.orb;
         orb.describe(next, nextC, count, descN);
         jsfeat.orb.describe(orig, origC, count, descO);
 
@@ -194,7 +194,7 @@ describe("parity: optical_flow_lk vs original jsfeat.optical_flow_lk", () => {
         // background fail the min-eigenvalue check on both sides — aperture
         // problem — so corners are the meaningful trackable set)
         const { nextC } = makeCorners(W * H);
-        const fc = new jsfeatNext.fast_corners();
+        const fc = jsfeatNext.fast_corners;
         fc.set_threshold(20);
         const nCorners = fc.detect(prevN, nextC, 16);
         const pts: number[] = [];
@@ -210,7 +210,7 @@ describe("parity: optical_flow_lk vs original jsfeat.optical_flow_lk", () => {
         const currXYO = new Float32Array(count * 2);
         const statusO = new Uint8Array(count);
 
-        const lk = new jsfeatNext.optical_flow_lk();
+        const lk = jsfeatNext.optical_flow_lk;
         lk.track(prevPyrN, currPyrN, prevXYN, currXYN, count, 9, 30, statusN, 0.01, 0.0001);
         jsfeat.optical_flow_lk.track(prevPyrO, currPyrO, prevXYO, currXYO, count, 9, 30, statusO, 0.01, 0.0001);
 

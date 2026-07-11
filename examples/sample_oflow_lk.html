@@ -36,9 +36,6 @@
             // lets do some fun
             var video = document.getElementById('webcam');
             var canvas = document.getElementById('canvas');
-            var jsfeat = jsfeatNext.jsfeatNext;
-            var imgproc = new jsfeat.imgproc();
-            var optical_flow_lk = new jsfeat.optical_flow_lk();
             try {
                 var attempts = 0;
                 var readyListener = function (event) {
@@ -110,10 +107,10 @@
                 ctx.fillStyle = "rgb(0,255,0)";
                 ctx.strokeStyle = "rgb(0,255,0)";
 
-                curr_img_pyr = new jsfeat.pyramid_t(3);
-                prev_img_pyr = new jsfeat.pyramid_t(3);
-                curr_img_pyr.allocate(640, 480, jsfeat.U8_t | jsfeat.C1_t);
-                prev_img_pyr.allocate(640, 480, jsfeat.U8_t | jsfeat.C1_t);
+                curr_img_pyr = new jsfeatNext.pyramid_t(3);
+                prev_img_pyr = new jsfeatNext.pyramid_t(3);
+                curr_img_pyr.allocate(640, 480, jsfeatNext.U8_t | jsfeatNext.C1_t);
+                prev_img_pyr.allocate(640, 480, jsfeatNext.U8_t | jsfeatNext.C1_t);
 
                 point_count = 0;
                 point_status = new Uint8Array(100);
@@ -149,7 +146,7 @@
                     curr_img_pyr = _pyr;
 
                     stat.start("grayscale");
-                    imgproc.grayscale(imageData.data, 640, 480, curr_img_pyr.data[0]);
+                    jsfeatNext.imgproc.grayscale(imageData.data, 640, 480, curr_img_pyr.data[0]);
                     stat.stop("grayscale");
 
                     stat.start("build image pyramid");
@@ -157,7 +154,7 @@
                     stat.stop("build image pyramid");
 
                     stat.start("optical flow lk");
-                    optical_flow_lk.track(prev_img_pyr, curr_img_pyr, prev_xy, curr_xy, point_count, options.win_size | 0, options.max_iterations | 0, point_status, options.epsilon, options.min_eigen);
+                    jsfeatNext.optical_flow_lk.track(prev_img_pyr, curr_img_pyr, prev_xy, curr_xy, point_count, options.win_size | 0, options.max_iterations | 0, point_status, options.epsilon, options.min_eigen);
                     stat.stop("optical flow lk");
 
                     prune_oflow_points(ctx);

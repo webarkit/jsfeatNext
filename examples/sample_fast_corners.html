@@ -35,9 +35,6 @@
             // lets do some fun
             var video = document.getElementById('webcam');
             var canvas = document.getElementById('canvas');
-            var jsfeat = jsfeatNext.jsfeatNext;
-            var imgproc = new jsfeat.imgproc();
-            var fast_corners = new jsfeat.fast_corners();
             try {
                 var attempts = 0;
                 var readyListener = function (event) {
@@ -108,17 +105,17 @@
                 ctx.fillStyle = "rgb(0,255,0)";
                 ctx.strokeStyle = "rgb(0,255,0)";
 
-                img_u8 = new jsfeat.matrix_t(640, 480, jsfeat.U8_t | jsfeat.C1_t);
+                img_u8 = new jsfeatNext.matrix_t(640, 480, jsfeatNext.U8_t | jsfeatNext.C1_t);
 
                 corners = [];
                 var i = 640 * 480;
                 while (--i >= 0) {
-                    corners[i] = new jsfeat.keypoint_t(0, 0, 0, 0);
+                    corners[i] = new jsfeatNext.keypoint_t(0, 0, 0, 0);
                 }
 
                 threshold = 20;
 
-                fast_corners.set_threshold(threshold);
+                jsfeatNext.fast_corners.set_threshold(threshold);
 
                 options = new demo_opt();
                 gui = new dat.GUI();
@@ -137,16 +134,16 @@
                     var imageData = ctx.getImageData(0, 0, 640, 480);
 
                     stat.start("grayscale");
-                    imgproc.grayscale(imageData.data, 640, 480, img_u8);
+                    jsfeatNext.imgproc.grayscale(imageData.data, 640, 480, img_u8);
                     stat.stop("grayscale");
 
                     if (threshold != options.threshold) {
                         threshold = options.threshold | 0;
-                        fast_corners.set_threshold(threshold);
+                        jsfeatNext.fast_corners.set_threshold(threshold);
                     }
 
                     stat.start("fast corners");
-                    var count = fast_corners.detect(img_u8, corners, 5);
+                    var count = jsfeatNext.fast_corners.detect(img_u8, corners, 5);
                     stat.stop("fast corners");
 
                     // render result back to canvas

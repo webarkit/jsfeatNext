@@ -18,28 +18,25 @@ npm install @webarkit/jsfeat-next
 ```
 
 ```js
-import pkg from "@webarkit/jsfeat-next";
+import jsfeatNext from "@webarkit/jsfeat-next";
 
-// consumers unwrap the double namespace: pkg.jsfeatNext, not pkg directly
-// (a known wart, tracked for a future breaking-change cleanup — see #41)
-const jsfeatNext = pkg.jsfeatNext;
-
-const imgproc = new jsfeatNext.imgproc();
+// algorithm modules are singletons — call them directly, no `new` (since 0.9.0)
 const src = new jsfeatNext.matrix_t(width, height, jsfeatNext.U8_t | jsfeatNext.C1_t);
-imgproc.grayscale(rgbaPixelData, width, height, src);
+jsfeatNext.imgproc.grayscale(rgbaPixelData, width, height, src);
 ```
 
-In the browser (UMD build), the same shape applies via the global:
+In the browser (UMD build), the global is the namespace directly:
 
 ```html
 <script src="dist/jsfeatNext.js"></script>
 <script>
-    // note: reuse a *different* variable name — `var jsfeatNext = jsfeatNext.jsfeatNext`
-    // would shadow the global with itself and break.
-    var jsfeat = jsfeatNext.jsfeatNext;
-    var imgproc = new jsfeat.imgproc();
+    jsfeatNext.imgproc.grayscale(rgbaPixelData, width, height, src);
 </script>
 ```
+
+> **Upgrading from ≤ 0.8.x?** The `jsfeatNext.jsfeatNext` double namespace and the
+> `new jsfeatNext.imgproc()` calling convention were removed in 0.9.0 — see the
+> [migration guide](docs/migration-0.9.md).
 
 ## List of features ✨
 
@@ -73,7 +70,7 @@ npm install @webarkit/jsfeat-next
 ## Known limitations 🔍
 
 - Not every original jsfeat class is ported yet — `haar` and `bbf` (Haar-cascade / BBF object detection) are not implemented. Tracked in [#43](https://github.com/webarkit/jsfeatNext/issues/43) and [#44](https://github.com/webarkit/jsfeatNext/issues/44).
-- jsfeatNext is **not a drop-in replacement** for jsfeat: algorithm modules are instantiated (`new jsfeatNext.imgproc()`) rather than called as static namespace functions, and consumers must unwrap the `jsfeatNext.jsfeatNext` double namespace. Tracked in [#41](https://github.com/webarkit/jsfeatNext/issues/41).
+- The `transform` module takes `matrix_t` arguments where original jsfeat's (never-shipped) `transform` module used raw arrays — same math, slightly different calling convention (see the parity audit, Axis 2).
 
 ## Examples 🧪
 

@@ -11,12 +11,10 @@
 <body>
     <script src="../dist/jsfeatNext.js"></script>
     <script>
-        var jsfeat = jsfeatNext.jsfeatNext
-        var linalg = new jsfeat.linalg();
-        console.log(linalg);
-        var m3x4 = new jsfeat.matrix_t(3,4,jsfeat.F32C1_t);
-        var m4x3 = new jsfeat.matrix_t(4,3,jsfeat.F32C1_t);
-        var res = linalg.svd_invert(m3x4, m4x3);
+        console.log(jsfeatNext.linalg);
+        var m3x4 = new jsfeatNext.matrix_t(3,4,jsfeatNext.F32C1_t);
+        var m4x3 = new jsfeatNext.matrix_t(4,3,jsfeatNext.F32C1_t);
+        var res = jsfeatNext.linalg.svd_invert(m3x4, m4x3);
         console.log(res);
     </script>
 

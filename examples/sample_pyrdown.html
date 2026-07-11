@@ -32,8 +32,6 @@
             // lets do some fun
             var video = document.getElementById('webcam');
             var canvas = document.getElementById('canvas');
-            var jsfeat = jsfeatNext.jsfeatNext;
-            var imgproc = new jsfeat.imgproc();
             try {
                 var attempts = 0;
                 var readyListener = function(event) {
@@ -98,8 +96,8 @@
                 ctx.fillStyle = "rgb(0,255,0)";
                 ctx.strokeStyle = "rgb(0,255,0)";
 
-                img_pyr = new jsfeat.pyramid_t(4);
-                img_pyr.allocate(640, 480, jsfeat.U8_t | jsfeat.C1_t);
+                img_pyr = new jsfeatNext.pyramid_t(4);
+                img_pyr.allocate(640, 480, jsfeatNext.U8_t | jsfeatNext.C1_t);
 
                 stat.add("grayscale");
                 stat.add("pyrdown");
@@ -113,17 +111,17 @@
                     var imageData = ctx.getImageData(0, 0, 640, 480);
 
                     stat.start("grayscale");
-                    imgproc.grayscale(imageData.data, 640, 480, img_pyr.data[0]);
+                    jsfeatNext.imgproc.grayscale(imageData.data, 640, 480, img_pyr.data[0]);
                     stat.stop("grayscale");
 
                     stat.start("pyrdown");
                     // you do the same by executing img_pyr.build(img_pyr.data[0], true);
                     var i = 2, a = img_pyr.data[0], b = img_pyr.data[1];
-                    imgproc.pyrdown(a, b);
+                    jsfeatNext.imgproc.pyrdown(a, b);
                     for(; i < img_pyr.levels; ++i) {
                         a = b;
                         b = img_pyr.data[i];
-                        imgproc.pyrdown(a, b);
+                        jsfeatNext.imgproc.pyrdown(a, b);
                     }
                     stat.stop("pyrdown");
 

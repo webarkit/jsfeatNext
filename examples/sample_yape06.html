@@ -33,9 +33,6 @@
             // lets do some fun
             var video = document.getElementById('webcam');
             var canvas = document.getElementById('canvas');
-            var jsfeat = jsfeatNext.jsfeatNext;
-            var imgproc = new jsfeat.imgproc();
-            var yape06 = new jsfeat.yape06();
             try {
                 var attempts = 0;
                 var readyListener = function(event) {
@@ -105,12 +102,12 @@
                 ctx.fillStyle = "rgb(0,255,0)";
                 ctx.strokeStyle = "rgb(0,255,0)";
 
-                img_u8 = new jsfeat.matrix_t(640, 480, jsfeat.U8_t | jsfeat.C1_t);
+                img_u8 = new jsfeatNext.matrix_t(640, 480, jsfeatNext.U8_t | jsfeatNext.C1_t);
 
                 corners = [];
                 var i = 640*480;
                 while(--i >= 0) {
-                    corners[i] = new jsfeat.keypoint_t(0,0,0,0);
+                    corners[i] = new jsfeatNext.keypoint_t(0,0,0,0);
                 }
 
                 options = new demo_opt();
@@ -132,18 +129,18 @@
                     var imageData = ctx.getImageData(0, 0, 640, 480);
 
                     stat.start("grayscale");
-                    imgproc.grayscale(imageData.data, 640, 480, img_u8);
+                    jsfeatNext.imgproc.grayscale(imageData.data, 640, 480, img_u8);
                     stat.stop("grayscale");
 
                     stat.start("box blur");
-                    imgproc.box_blur_gray(img_u8, img_u8, 2, 0);
+                    jsfeatNext.imgproc.box_blur_gray(img_u8, img_u8, 2, 0);
                     stat.stop("box blur");
 
-                    yape06.laplacian_threshold = options.lap_thres|0;
-                    yape06.min_eigen_value_threshold = options.eigen_thres|0;
+                    jsfeatNext.yape06.laplacian_threshold = options.lap_thres|0;
+                    jsfeatNext.yape06.min_eigen_value_threshold = options.eigen_thres|0;
 
                     stat.start("yape06");
-                    var count = yape06.detect(img_u8, corners);
+                    var count = jsfeatNext.yape06.detect(img_u8, corners);
                     stat.stop("yape06");
 
                     // render result back to canvas

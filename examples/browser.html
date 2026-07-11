@@ -11,7 +11,7 @@
 <body>
     <script src="../dist/jsfeatNext.js"></script>
     <script>    
-        var jsfeat = jsfeatNext.jsfeatNext       
+        var jsfeat = jsfeatNext       
         console.log("jsfeatNext version: ", jsfeat.VERSION);
         console.log(jsfeat.EPSILON);
         console.log(jsfeat.FLT_MIN);
@@ -21,14 +21,15 @@
         console.log(mat);
         var keypoint = new jsfeat.keypoint_t();
         console.log(keypoint);
-        var cache = new jsfeat.cache();
-        cache.allocate(10, 2);
-        console.log(cache);
-        var bf = cache.get_buffer((2) << 2);
+        // jsfeat.cache is the library-wide shared buffer pool (a singleton,
+        // like original jsfeat's) — borrow with get_buffer, return with put_buffer.
+        console.log(jsfeat.cache);
+        var bf = jsfeat.cache.get_buffer((2) << 2);
         console.log(bf);
-        var math = new jsfeat.math()
+        jsfeat.cache.put_buffer(bf);
+        var math = jsfeat.math
         jsfeat.yape06.laplacian_threshold = 0;
-        var yape06 = new jsfeat.yape06();
+        var yape06 = jsfeat.yape06;
         console.log(yape06.laplacian_threshold);
     </script>
 

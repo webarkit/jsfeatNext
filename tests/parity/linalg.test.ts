@@ -21,7 +21,7 @@ function rng(seed: number): () => number {
 
 const F32C1 = jsfeatNext.F32_t | jsfeatNext.C1_t;
 const OF32C1 = jsfeat.F32_t | jsfeat.C1_t;
-const la = new jsfeatNext.linalg();
+const la = jsfeatNext.linalg;
 
 function fillPair(
     next: { data: Float32Array },
