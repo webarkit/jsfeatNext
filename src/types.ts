@@ -1,4 +1,3 @@
-
 import type { matrix_t } from "./matrix_t/matrix_t";
 import type { point_t } from "./point_t/point_t";
 
