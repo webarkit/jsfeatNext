@@ -3,6 +3,7 @@ import { matrix_t } from "../matrix_t/matrix_t";
 import { JSFEAT_CONSTANTS } from "../constants/constants";
 import { swap, hypot } from "./linalg_base";
 import matmath from "../matmath/matmath";
+import type { NumericArray } from "../types";
 
 /**
  * Dense linear-algebra solvers built on Jacobi rotations: LU and Cholesky
@@ -458,8 +459,8 @@ export class linalg extends jsfeatNext {
             k = 0,
             p = 1,
             astep = A.cols;
-        const ad = A.data,
-            bd = B.data;
+        const ad = A.data as NumericArray,
+            bd = B.data as NumericArray;
         let t, alpha, d, s;
 
         for (i = 0; i < astep; i++) {
@@ -602,7 +603,7 @@ export class linalg extends jsfeatNext {
      * @param options Bitmask of `SVD_U_T` / `SVD_V_T` to receive U and/or V
      *                already transposed (avoids an extra transpose).
      */
-    svd_decompose(A: any, W: matrix_t, U: matrix_t, V: matrix_t, options: number): void {
+    svd_decompose(A: matrix_t, W: matrix_t, U: matrix_t, V: matrix_t, options: number): void {
         if (typeof options === "undefined") {
             options = 0;
         }
@@ -642,7 +643,16 @@ export class linalg extends jsfeatNext {
             }
         }
 
-        this.JacobiSVDImpl(a_mt.data, m, w_mt.data, v_mt.data, n, m, n, m);
+        this.JacobiSVDImpl(
+            a_mt.data as NumericArray,
+            m,
+            w_mt.data as NumericArray,
+            v_mt.data as NumericArray,
+            n,
+            m,
+            n,
+            m
+        );
 
         if (W) {
             for (i = 0; i < n; i++) {
@@ -827,7 +837,14 @@ export class linalg extends jsfeatNext {
             a_mt.data[i] = A.data[i];
         }
 
-        this.JacobiImpl(a_mt.data, n, w_mt.data, vects ? vects.data : null, n, n);
+        this.JacobiImpl(
+            a_mt.data as NumericArray,
+            n,
+            w_mt.data as NumericArray,
+            vects ? (vects.data as NumericArray) : null,
+            n,
+            n
+        );
 
         if (vals) {
             while (--n >= 0) {

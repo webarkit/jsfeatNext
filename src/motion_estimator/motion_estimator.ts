@@ -6,6 +6,7 @@ import { ransac_params_t } from "./ransac_params_t";
 import { JSFEAT_CONSTANTS } from "../constants/constants";
 import { homography2d } from "../motion_model/motion_model";
 import { math } from "../math/math";
+import type { MotionKernel, TypedArray } from "../types";
 
 /**
  * Robust motion-model estimation from noisy point correspondences via
@@ -35,7 +36,7 @@ export class motion_estimator extends jsfeatNext {
      * @returns `true` when a valid subset was found.
      */
     get_subset(
-        kernel: homography2d,
+        kernel: MotionKernel,
         from: point_t[],
         to: point_t[],
         need_cnt: number,
@@ -93,14 +94,14 @@ export class motion_estimator extends jsfeatNext {
      * @returns The number of inliers.
      */
     find_inliers(
-        kernel: homography2d,
+        kernel: MotionKernel,
         model: matrix_t,
         from: point_t[],
         to: point_t[],
         count: number,
         thresh: number,
         err: Int32Array | Float32Array,
-        mask: number[]
+        mask: TypedArray | number[]
     ): number {
         let numinliers: number = 0,
             i = 0,
@@ -134,7 +135,7 @@ export class motion_estimator extends jsfeatNext {
      */
     ransac(
         params: ransac_params_t,
-        kernel: any,
+        kernel: MotionKernel,
         from: point_t[],
         to: point_t[],
         count: number,
@@ -153,8 +154,8 @@ export class motion_estimator extends jsfeatNext {
             iter = 0;
         let result: boolean = false;
 
-        const subset0: any = [];
-        const subset1: any = [];
+        const subset0: point_t[] = [];
+        const subset1: point_t[] = [];
         let found = false;
 
         const mc = model.cols,
@@ -247,7 +248,7 @@ export class motion_estimator extends jsfeatNext {
      */
     lmeds(
         params: ransac_params_t,
-        kernel: any,
+        kernel: MotionKernel,
         from: point_t[],
         to: point_t[],
         count: number,
@@ -267,8 +268,8 @@ export class motion_estimator extends jsfeatNext {
         let result: boolean = false;
         const _math = new math();
 
-        const subset0: any = [];
-        const subset1: any = [];
+        const subset0: point_t[] = [];
+        const subset1: point_t[] = [];
         let found = false;
 
         const mc = model.cols,

@@ -1,3 +1,5 @@
+import type { TypedArray } from "../types";
+
 /**
  * Precomputes the flat pixel offsets of a Bresenham-style circle of radius
  * `R` for an image with row stride `step`, walking the circle once around.
@@ -122,12 +124,12 @@ export function is_local_maxima(p: Int32Array, off: number, v: number, step: num
  * @param dirs_nb  Number of circle samples.
  */
 export function perform_one_point(
-    I: { [x: string]: number },
+    I: TypedArray,
     x: number,
     Scores: Int32Array,
     Im: number,
     Ip: number,
-    dirs: any[] | Int32Array,
+    dirs: number[] | Int32Array,
     opposite: number,
     dirs_nb: number
 ) {

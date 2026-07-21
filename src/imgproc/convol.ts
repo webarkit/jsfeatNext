@@ -1,3 +1,5 @@
+import type { TypedArray } from "../types";
+
 /**
  * Separable 2D convolution for `U8` images with an integer kernel — the
  * fixed-point fast path of `imgproc.gaussian_blur`. Runs a horizontal then a
@@ -15,8 +17,8 @@
  */
 export function _convol_u8(
     buf: Int32Array | Float32Array,
-    src_d: number[],
-    dst_d: number[],
+    src_d: TypedArray,
+    dst_d: TypedArray,
     w: number,
     h: number,
     filter: Int32Array | Float32Array,
@@ -138,8 +140,8 @@ export function _convol_u8(
  */
 export function _convol(
     buf: Int32Array | Float32Array,
-    src_d: number[],
-    dst_d: number[],
+    src_d: TypedArray,
+    dst_d: TypedArray,
     w: number,
     h: number,
     filter: Int32Array | Float32Array,

@@ -13,13 +13,13 @@ export interface IPool_Node_T {
  */
 export default class _pool_node_t implements IPool_Node_T {
     /** Next node in the pool's linked list (`null` at the tail). */
-    public next: any;
+    public next: _pool_node_t | null;
     /** The wrapped storage object. */
     public data?: IData_T;
     /** Byte size of the current storage (aligned to a multiple of 8). */
     public size: number;
     /** The underlying `ArrayBuffer` (mirror of `data.buffer`). */
-    public buffer: any;
+    public buffer: ArrayBuffer;
     /** Unsigned 8-bit view (mirror of `data.u8`). */
     public u8: Uint8Array;
     /** Signed 32-bit integer view (mirror of `data.i32`). */

@@ -41,14 +41,14 @@ export class data_t implements IData_T {
      * @param buffer        Optional existing buffer to wrap instead of
      *                      allocating (its length becomes {@link size}).
      */
-    constructor(size_in_bytes: number, buffer?: any) {
+    constructor(size_in_bytes: number, buffer?: ArrayBuffer) {
         // we need align size to multiple of 8
         this.size = ((size_in_bytes + 7) | 0) & -8;
         if (typeof buffer === "undefined") {
             this.buffer = new ArrayBuffer(this.size);
         } else {
             this.buffer = buffer;
-            this.size = buffer.length;
+            this.size = buffer.byteLength;
         }
         this.u8 = new Uint8Array(this.buffer);
         this.i32 = new Int32Array(this.buffer);

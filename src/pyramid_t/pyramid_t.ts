@@ -14,9 +14,9 @@ export class pyramid_t extends jsfeatNext {
     /** Number of pyramid levels. */
     public levels: number;
     /** The level images: `data[i]` is a {@link matrix_t} of size `w>>i` × `h>>i`. */
-    public data: any;
+    public data: matrix_t[];
     /** Bound `imgproc.pyrdown` used to build the levels. */
-    private pyrdown: any;
+    private pyrdown: (src: matrix_t, dst: matrix_t) => void;
 
     constructor(levels: number) {
         super();
@@ -56,7 +56,7 @@ export class pyramid_t extends jsfeatNext {
         // just copy data to first level
         let i = 2,
             a = input,
-            b: any = this.data[0];
+            b: matrix_t = this.data[0];
         if (!skip_first_level) {
             let j = input.cols * input.rows;
             while (--j >= 0) {

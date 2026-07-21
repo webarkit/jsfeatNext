@@ -15,7 +15,7 @@ import { imgproc } from "../imgproc/imgproc";
  */
 export class optical_flow_lk extends jsfeatNext {
     /** Bound `imgproc.scharr_derivatives`, used to build the gradient maps. */
-    public scharr_deriv: any;
+    public scharr_deriv: (src: matrix_t, dst: matrix_t) => void;
 
     constructor() {
         super();

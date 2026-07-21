@@ -695,7 +695,7 @@ export class imgproc extends jsfeatNext {
      * @param dst_sqsum  Output for squared-pixel sums, or falsy to skip.
      * @param dst_tilted Output for 45°-tilted sums, or falsy to skip.
      */
-    compute_integral_image(src: matrix_t, dst_sum: number[], dst_sqsum: number[], dst_tilted: any[]): void {
+    compute_integral_image(src: matrix_t, dst_sum: number[], dst_sqsum: number[], dst_tilted: number[]): void {
         const w0 = src.cols | 0,
             h0 = src.rows | 0,
             src_d = src.data;
@@ -1176,7 +1176,10 @@ export class imgproc extends jsfeatNext {
      * @param src RGBA image-like object (`width`, `height`, `data`).
      * @param dst Output array of per-pixel 0/255 values (length `w·h`).
      */
-    skindetector(src: { width: number; height: number; data: any[] }, dst: number[]): void {
+    skindetector(
+        src: { width: number; height: number; data: Uint8Array | Uint8ClampedArray | number[] },
+        dst: number[]
+    ): void {
         let r, g, b, j;
         let i = src.width * src.height;
         while (i--) {

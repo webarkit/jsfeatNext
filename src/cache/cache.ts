@@ -6,11 +6,11 @@ import _pool_node_t from "./../node_utils/_pool_node_t";
  */
 export interface ICache {
     /** Pre-allocates the pool with `capacity` nodes of `data_size` bytes each. */
-    allocate: (capacity: any, data_size: number) => void;
+    allocate: (capacity: number, data_size: number) => void;
     /** Borrows a node with at least `size_in_bytes` of storage from the pool. */
     get_buffer: (size_in_bytes: number) => _pool_node_t;
     /** Returns a previously borrowed node to the pool. */
-    put_buffer: (node: any) => void;
+    put_buffer: (node: _pool_node_t) => void;
 }
 
 /**
@@ -44,7 +44,7 @@ export class cache implements ICache {
      * @param capacity  Number of pool nodes to create.
      * @param data_size Initial byte size of each node's buffer.
      */
-    allocate(capacity: any, data_size: number): void {
+    allocate(capacity: number, data_size: number): void {
         this._pool_head = this._pool_tail = new _pool_node_t(data_size);
         for (let i = 0; i < capacity; ++i) {
             const node = new _pool_node_t(data_size);
@@ -82,7 +82,7 @@ export class cache implements ICache {
      *
      * @param node The node previously obtained from {@link get_buffer}.
      */
-    put_buffer(node: any): void {
+    put_buffer(node: _pool_node_t): void {
         this._pool_tail = this._pool_tail.next = node;
         this._pool_size++;
     }

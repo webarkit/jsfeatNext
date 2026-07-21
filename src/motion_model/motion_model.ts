@@ -1,6 +1,7 @@
 import jsfeatNext from "../core/core";
 import { matrix_t } from "../matrix_t/matrix_t";
 import { point_t } from "../point_t/point_t";
+import type { TypedArray } from "../types";
 import { JSFEAT_CONSTANTS } from "../constants/constants";
 import matmath from "../matmath/matmath";
 import { linalg } from "../linalg/linalg";
@@ -46,7 +47,7 @@ export class motion_model extends jsfeatNext {
      * @param T1    Output 3×3 transform (row-major array) for `to`.
      * @param count Number of points.
      */
-    iso_normalize_points(from: point_t[], to: point_t[], T0: number[], T1: number[], count: number): void {
+    iso_normalize_points(from: point_t[], to: point_t[], T0: TypedArray, T1: TypedArray, count: number): void {
         let i = 0;
         let cx0 = 0.0,
             cy0 = 0.0,
