@@ -1,6 +1,7 @@
 import { IData_Type, data_type } from "../data_type/data_type";
 import { data_t } from "../node_utils/data_t";
 import { JSFEAT_CONSTANTS } from "../constants/constants";
+import type { TypedArray } from "../types";
 
 /**
  * Public shape of {@link matrix_t}: a 2D dense matrix (or image) backed by a
@@ -16,15 +17,15 @@ export interface IMatrix_T {
     /** Number of interleaved channels per element (1–4). */
     channel: number;
     /** The typed-array view holding the matrix elements, row-major. */
-    data: any;
+    data: TypedArray;
     /** The underlying {@link data_t} buffer that `data` is a view over. */
     buffer: data_t;
     /** (Re)allocates the backing buffer from the current cols/rows/channel/type. */
     allocate: () => void;
     /** Copies this matrix's elements into another matrix of at least equal size. */
-    copy_to: (other: any) => void;
+    copy_to: (other: IMatrix_T) => void;
     /** Changes the logical dimensions, reallocating only when the buffer is too small. */
-    resize: (c: number, r: number, ch: any) => void;
+    resize: (c: number, r: number, ch: number) => void;
 }
 
 /**
@@ -60,7 +61,7 @@ export class matrix_t implements IMatrix_T {
      * `Uint8Array`, `Int32Array`, `Float32Array` or `Float64Array`.
      * Element `(row, col, ch)` lives at index `(row * cols + col) * channel + ch`.
      */
-    public data: any;
+    public data: TypedArray;
     /** Raw backing storage; several views of it are exposed through {@link data}. */
     public buffer: data_t;
 

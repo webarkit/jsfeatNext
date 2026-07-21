@@ -1,4 +1,5 @@
 // private functions
+import type { TypedArray } from "../types";
 
 /**
  * Computes the FAST-16 corner score for a candidate pixel: the largest
@@ -17,7 +18,7 @@
  * @returns The corner score (always ≥ `threshold` for detected corners).
  */
 export function _cmp_score_16(
-    src: Uint8Array,
+    src: TypedArray,
     off: number,
     pixel: Uint8Array | Int32Array,
     d: Uint8Array | Int32Array,

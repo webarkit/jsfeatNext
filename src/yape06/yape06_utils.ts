@@ -1,3 +1,5 @@
+import type { TypedArray } from "../types";
+
 /**
  * Computes a discrete Laplacian response map over a region of interest:
  * `dst[p] = -4·src[p] + src[p±Dxx] + src[p±Dyy]`. Out-of-bounds samples
@@ -12,7 +14,7 @@
  * @param ex  Region end x (exclusive). @param ey Region end y (exclusive).
  */
 export function compute_laplacian(
-    src: Int32Array | Float32Array,
+    src: TypedArray,
     dst: Int32Array | Float32Array,
     w: number,
     Dxx: number,
@@ -52,7 +54,7 @@ export function compute_laplacian(
  * @returns The smaller absolute eigenvalue of the local Hessian.
  */
 export function hessian_min_eigen_value(
-    src: number[],
+    src: TypedArray,
     off: number,
     tr: number,
     Dxx: number,
