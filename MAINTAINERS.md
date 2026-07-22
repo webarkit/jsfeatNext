@@ -34,11 +34,11 @@ Publishing a new version is a two-phase process: a **manual** phase you control 
    npm run build-ts
    ```
    This regenerates `dist/jsfeatNext.js` (UMD), `dist/jsfeatNext.mjs` (ESM) and `types/`. All three are committed to the repo.
-4. **Generate the local changelog.** We use git-cliff to parse the conventional commits and update the historical changelog. Run the following command in the root directory:
+4. **Generate the local changelog.** We use git-cliff to parse the conventional commits and prepend the new version's section to `CHANGELOG.md`. Pass `--tag X.Y.Z` (the version you're releasing) so the section is labelled with the version rather than "unreleased" — the tag doesn't exist yet at this point:
    ```bash
-   npx git-cliff -u --prepend CHANGELOG.md
+   npx git-cliff --unreleased --tag X.Y.Z --prepend CHANGELOG.md
    ```
-5. **Commit and PR to `dev`.** Commit the version bump + rebuilt `dist/`/`types/` (Conventional Commit, e.g. `chore(release): bump version to X.Y.Z and rebuild dist`), push a branch, open a PR **against `dev`**, get it green, merge.
+5. **Commit and PR to `dev`.** Commit the version bump + rebuilt `dist/`/`types/` + updated `CHANGELOG.md` (Conventional Commit, e.g. `chore(release): bump version to X.Y.Z and rebuild dist`), push a branch, open a PR **against `dev`**, get it green, merge.
 6. **Promote `dev` to `main`.** Once `dev` has everything intended for the release:
    ```bash
    git checkout main
@@ -71,7 +71,9 @@ Publishing a new version is a two-phase process: a **manual** phase you control 
 
 ### Notes
 
-- **There is no committed `CHANGELOG.md`.** The GitHub Release page for each tag *is* the changelog — this avoids fighting `main`'s branch protection to auto-commit a file back to the repo. If you want to read the changelog for a specific version, look at its GitHub Release.
+- **Two changelogs, kept in sync from the same source (Conventional Commits via git-cliff):**
+  - The committed **`CHANGELOG.md`** is the in-repo historical record, updated in Phase A step 4 (`git-cliff` prepends the new version's section on the release branch, so it lands via the PR to `dev` before the tag).
+  - The **GitHub Release** page for each tag is generated independently by the automated workflow in Phase B (`--latest`). Both derive from the same commit history, so they match; `CHANGELOG.md` is the browseable full history, the Release page is the per-tag view.
 - **Phase A is intentionally still manual.** The release workflow only automates from the tag onward; it does not bump versions or open PRs on its own. If full version-bump automation (a `release-please`-style bot PR) is ever wanted, that is a separate, bigger change — see [webarkit/jsfeatNext#61](https://github.com/webarkit/jsfeatNext/issues/61) for the discussion.
 
 ## 3. One-Time Setup: `NPM_TOKEN`
