@@ -1,3 +1,4 @@
+import { TypedArray } from '../types';
 /**
  * Separable 2D convolution for `U8` images with an integer kernel — the
  * fixed-point fast path of `imgproc.gaussian_blur`. Runs a horizontal then a
@@ -13,7 +14,7 @@
  * @param kernel_size Number of kernel taps.
  * @param half_kernel `kernel_size >> 1` (border padding size).
  */
-export declare function _convol_u8(buf: Int32Array | Float32Array, src_d: number[], dst_d: number[], w: number, h: number, filter: Int32Array | Float32Array, kernel_size: number, half_kernel: number): void;
+export declare function _convol_u8(buf: Int32Array | Float32Array, src_d: TypedArray, dst_d: TypedArray, w: number, h: number, filter: Int32Array | Float32Array, kernel_size: number, half_kernel: number): void;
 /**
  * Separable 2D convolution in floating point — the general path of
  * `imgproc.gaussian_blur` for `S32`/`F32` data. Same two-pass structure as
@@ -28,4 +29,4 @@ export declare function _convol_u8(buf: Int32Array | Float32Array, src_d: number
  * @param kernel_size Number of kernel taps.
  * @param half_kernel `kernel_size >> 1` (border padding size).
  */
-export declare function _convol(buf: Int32Array | Float32Array, src_d: number[], dst_d: number[], w: number, h: number, filter: Int32Array | Float32Array, kernel_size: number, half_kernel: number): void;
+export declare function _convol(buf: Int32Array | Float32Array, src_d: TypedArray, dst_d: TypedArray, w: number, h: number, filter: Int32Array | Float32Array, kernel_size: number, half_kernel: number): void;

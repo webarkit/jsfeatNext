@@ -110,7 +110,7 @@ export declare class imgproc extends jsfeatNext {
      * @param dst_sqsum  Output for squared-pixel sums, or falsy to skip.
      * @param dst_tilted Output for 45°-tilted sums, or falsy to skip.
      */
-    compute_integral_image(src: matrix_t, dst_sum: number[], dst_sqsum: number[], dst_tilted: any[]): void;
+    compute_integral_image(src: matrix_t, dst_sum: number[], dst_sqsum: number[], dst_tilted: number[]): void;
     /**
      * Histogram equalization of a grayscale image: remaps intensities
      * through the normalized cumulative histogram to maximize contrast.
@@ -164,6 +164,6 @@ export declare class imgproc extends jsfeatNext {
     skindetector(src: {
         width: number;
         height: number;
-        data: any[];
+        data: Uint8Array | Uint8ClampedArray | number[];
     }, dst: number[]): void;
 }

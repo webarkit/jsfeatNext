@@ -1,3 +1,4 @@
+import { TypedArray } from '../types';
 /**
  * Computes the FAST-16 corner score for a candidate pixel: the largest
  * threshold for which the pixel would still be detected as a corner
@@ -14,4 +15,4 @@
  * @param threshold Detector threshold; acts as the score lower bound.
  * @returns The corner score (always ≥ `threshold` for detected corners).
  */
-export declare function _cmp_score_16(src: Uint8Array, off: number, pixel: Uint8Array | Int32Array, d: Uint8Array | Int32Array, threshold: number): number;
+export declare function _cmp_score_16(src: TypedArray, off: number, pixel: Uint8Array | Int32Array, d: Uint8Array | Int32Array, threshold: number): number;

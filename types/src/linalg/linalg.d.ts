@@ -74,7 +74,7 @@ export declare class linalg extends jsfeatNext {
      * @param options Bitmask of `SVD_U_T` / `SVD_V_T` to receive U and/or V
      *                already transposed (avoids an extra transpose).
      */
-    svd_decompose(A: any, W: matrix_t, U: matrix_t, V: matrix_t, options: number): void;
+    svd_decompose(A: matrix_t, W: matrix_t, U: matrix_t, V: matrix_t, options: number): void;
     /**
      * Solves `A·x = B` in the least-squares sense through the SVD
      * pseudo-inverse: `x = V · diag(1/w) · Uᵀ · B`, with tiny singular

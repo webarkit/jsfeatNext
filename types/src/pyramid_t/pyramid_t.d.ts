@@ -12,7 +12,7 @@ export declare class pyramid_t extends jsfeatNext {
     /** Number of pyramid levels. */
     levels: number;
     /** The level images: `data[i]` is a {@link matrix_t} of size `w>>i` × `h>>i`. */
-    data: any;
+    data: matrix_t[];
     /** Bound `imgproc.pyrdown` used to build the levels. */
     private pyrdown;
     constructor(levels: number);

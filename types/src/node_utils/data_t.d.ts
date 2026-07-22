@@ -39,5 +39,5 @@ export declare class data_t implements IData_T {
      * @param buffer        Optional existing buffer to wrap instead of
      *                      allocating (its length becomes {@link size}).
      */
-    constructor(size_in_bytes: number, buffer?: any);
+    constructor(size_in_bytes: number, buffer?: ArrayBuffer);
 }

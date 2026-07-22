@@ -1,6 +1,7 @@
 import { default as jsfeatNext } from '../core/core';
 import { matrix_t } from '../matrix_t/matrix_t';
 import { point_t } from '../point_t/point_t';
+import { TypedArray } from '../types';
 /**
  * Shared base of the motion-model kernels ({@link affine2d},
  * {@link homography2d}): scratch matrices plus the point-normalization and
@@ -31,7 +32,7 @@ export declare class motion_model extends jsfeatNext {
      * @param T1    Output 3×3 transform (row-major array) for `to`.
      * @param count Number of points.
      */
-    iso_normalize_points(from: point_t[], to: point_t[], T0: number[], T1: number[], count: number): void;
+    iso_normalize_points(from: point_t[], to: point_t[], T0: TypedArray, T1: TypedArray, count: number): void;
     /**
      * Checks whether the last point of a minimal sample lies on a line
      * through any two previously selected points (a degenerate

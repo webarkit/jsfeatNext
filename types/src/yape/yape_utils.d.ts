@@ -1,3 +1,4 @@
+import { TypedArray } from '../types';
 /**
  * Precomputes the flat pixel offsets of a Bresenham-style circle of radius
  * `R` for an image with row stride `step`, walking the circle once around.
@@ -44,9 +45,7 @@ export declare function is_local_maxima(p: Int32Array, off: number, v: number, s
  * @param opposite Index offset of the diametrically opposite sample.
  * @param dirs_nb  Number of circle samples.
  */
-export declare function perform_one_point(I: {
-    [x: string]: number;
-}, x: number, Scores: Int32Array, Im: number, Ip: number, dirs: any[] | Int32Array, opposite: number, dirs_nb: number): void;
+export declare function perform_one_point(I: TypedArray, x: number, Scores: Int32Array, Im: number, Ip: number, dirs: number[] | Int32Array, opposite: number, dirs_nb: number): void;
 /**
  * Per-pyramid-level lookup table for the YAPE detector: the precomputed
  * sampling circle plus a full-frame score buffer for the level's dimensions.
