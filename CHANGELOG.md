@@ -1,4 +1,26 @@
 
+## 0.10.0 - 2026-07-22
+
+### ♻️ Refactoring
+
+- Replace all `any` in src with shared types/interfaces (closes #85) (d1da67e)
+
+- Re-export public interfaces & shared types from the entry (closes #92) (23e42ec)
+
+
+### 🎨 Style
+
+- Remove stray leading blank line in src/types.ts (071c25e)
+
+
+### 📦 Build
+
+- Bump actions/setup-node from 6 to 7 (f28506a)
+
+- Bump vite from 8.1.4 to 8.1.5 (8e7a6a0)
+
+
+
 ## 0.9.0 - 2026-07-11
 
 ### 🐛 Bug Fixes
