@@ -1,4 +1,5 @@
 import { default as jsfeatNext } from '../core/core';
+import { matrix_t } from '../matrix_t/matrix_t';
 import { pyramid_t } from '../pyramid_t/pyramid_t';
 /**
  * Pyramidal Lucas–Kanade sparse optical flow: tracks a set of points from a
@@ -11,7 +12,7 @@ import { pyramid_t } from '../pyramid_t/pyramid_t';
  */
 export declare class optical_flow_lk extends jsfeatNext {
     /** Bound `imgproc.scharr_derivatives`, used to build the gradient maps. */
-    scharr_deriv: any;
+    scharr_deriv: (src: matrix_t, dst: matrix_t) => void;
     constructor();
     /**
      * Tracks `count` points between two image pyramids (both already built

@@ -32,7 +32,7 @@ var e = class {
 	}
 }, t = class {
 	constructor(e, t) {
-		this.size = (e + 7 | 0) & -8, t === void 0 ? this.buffer = new ArrayBuffer(this.size) : (this.buffer = t, this.size = t.length), this.u8 = new Uint8Array(this.buffer), this.i32 = new Int32Array(this.buffer), this.f32 = new Float32Array(this.buffer), this.f64 = new Float64Array(this.buffer);
+		this.size = (e + 7 | 0) & -8, t === void 0 ? this.buffer = new ArrayBuffer(this.size) : (this.buffer = t, this.size = t.byteLength), this.u8 = new Uint8Array(this.buffer), this.i32 = new Int32Array(this.buffer), this.f32 = new Float32Array(this.buffer), this.f64 = new Float64Array(this.buffer);
 	}
 }, n = class {
 	constructor(e) {

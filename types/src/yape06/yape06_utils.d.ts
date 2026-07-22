@@ -1,3 +1,4 @@
+import { TypedArray } from '../types';
 /**
  * Computes a discrete Laplacian response map over a region of interest:
  * `dst[p] = -4·src[p] + src[p±Dxx] + src[p±Dyy]`. Out-of-bounds samples
@@ -11,7 +12,7 @@
  * @param sx  Region start x. @param sy Region start y.
  * @param ex  Region end x (exclusive). @param ey Region end y (exclusive).
  */
-export declare function compute_laplacian(src: Int32Array | Float32Array, dst: Int32Array | Float32Array, w: number, Dxx: number, Dyy: number, sx: number, sy: number, ex: number, ey: number): void;
+export declare function compute_laplacian(src: TypedArray, dst: Int32Array | Float32Array, w: number, Dxx: number, Dyy: number, sx: number, sy: number, ex: number, ey: number): void;
 /**
  * Estimates the minimum eigenvalue magnitude of the local Hessian at a
  * candidate point, from the discrete second derivatives Ixx/Iyy/Ixy.
@@ -25,4 +26,4 @@ export declare function compute_laplacian(src: Int32Array | Float32Array, dst: I
  * @param Dxy First diagonal offset. @param Dyx Second diagonal offset.
  * @returns The smaller absolute eigenvalue of the local Hessian.
  */
-export declare function hessian_min_eigen_value(src: number[], off: number, tr: number, Dxx: number, Dyy: number, Dxy: number, Dyx: number): number;
+export declare function hessian_min_eigen_value(src: TypedArray, off: number, tr: number, Dxx: number, Dyy: number, Dxy: number, Dyx: number): number;

@@ -5,11 +5,11 @@ import { default as _pool_node_t } from './../node_utils/_pool_node_t';
  */
 export interface ICache {
     /** Pre-allocates the pool with `capacity` nodes of `data_size` bytes each. */
-    allocate: (capacity: any, data_size: number) => void;
+    allocate: (capacity: number, data_size: number) => void;
     /** Borrows a node with at least `size_in_bytes` of storage from the pool. */
     get_buffer: (size_in_bytes: number) => _pool_node_t;
     /** Returns a previously borrowed node to the pool. */
-    put_buffer: (node: any) => void;
+    put_buffer: (node: _pool_node_t) => void;
 }
 /**
  * A linked-list pool of reusable scratch buffers ({@link _pool_node_t}).
@@ -36,7 +36,7 @@ export declare class cache implements ICache {
      * @param capacity  Number of pool nodes to create.
      * @param data_size Initial byte size of each node's buffer.
      */
-    allocate(capacity: any, data_size: number): void;
+    allocate(capacity: number, data_size: number): void;
     /**
      * Borrows the next free node from the pool, growing its buffer when it is
      * smaller than `size_in_bytes`. The pool assumes enough free nodes are
@@ -53,5 +53,5 @@ export declare class cache implements ICache {
      *
      * @param node The node previously obtained from {@link get_buffer}.
      */
-    put_buffer(node: any): void;
+    put_buffer(node: _pool_node_t): void;
 }
