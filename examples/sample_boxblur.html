@@ -21,135 +21,73 @@
                 <div id="log" class="alert alert-info"></div>
             </div>
 
-        <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-        <script src="../dist/jsfeatNext.js"></script>
-        <script type="text/javascript" src="js/compatibility.js"></script>
-        <script type="text/javascript" src="js/profiler.js"></script>
         <script type="text/javascript" src="js/dat.gui.min.js"></script>
-        <script type="text/javascript">
+        <!-- ES module example: serve over http:// (e.g. `npx serve .`), not file:// -->
+        <script type="module">
 
-        $(window).on('load', function () {
-            "use strict";
+        import jsfeatNext from '../dist/jsfeatNext.mjs';
+        import { loadCamera, stopCamera, renderMonoImage, showCameraError } from './js/demo-utils.mjs';
+        import { profiler } from './js/profiler.mjs';
 
-            // lets do some fun
-            var video = document.getElementById('webcam');
-            var canvas = document.getElementById('canvas');
-            try {
-                var attempts = 0;
-                var readyListener = function(event) {
-                    findVideoSize();
-                };
-                var findVideoSize = function() {
-                    if(video.videoWidth > 0 && video.videoHeight > 0) {
-                        video.removeEventListener('loadeddata', readyListener);
-                        onDimensionsReady(video.videoWidth, video.videoHeight);
-                    } else {
-                        if(attempts < 10) {
-                            attempts++;
-                            setTimeout(findVideoSize, 200);
-                        } else {
-                            onDimensionsReady(640, 480);
-                        }
-                    }
-                };
-                var onDimensionsReady = function(width, height) {
-                    demo_app(width, height);
-                    compatibility.requestAnimationFrame(tick);
-                };
+        const WIDTH = 640, HEIGHT = 480;
 
-                video.addEventListener('loadeddata', readyListener);
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('canvas');
+        const log = document.getElementById('log');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
-                compatibility.getUserMedia({video: true}, function(stream) {
-                    if(video.srcObject !== undefined){
-                        video.srcObject = stream
-                    } else {
-                        try {
-                            video.src = compatibility.URL.createObjectURL(stream);
-                        } catch (error) {
-                            video.src = stream;
-                        }
-                    }
-                    setTimeout(function() {
-                            video.play();
-                        }, 500);
-                }, function (error) {
-                    $('#canvas').hide();
-                    $('#log').hide();
-                    $('#no_rtc').html('<h4>WebRTC not available.</h4>');
-                    $('#no_rtc').show();
-                });
-            } catch (error) {
-                $('#canvas').hide();
-                $('#log').hide();
-                $('#no_rtc').html('<h4>Something goes wrong...</h4>');
-                $('#no_rtc').show();
+        const stat = new profiler();
+        const options = { radius: 3 };
+
+        const img_u8 = new jsfeatNext.matrix_t(WIDTH, HEIGHT, jsfeatNext.U8_t | jsfeatNext.C1_t);
+
+        function demo_app() {
+            ctx.fillStyle = 'rgb(0,255,0)';
+            ctx.strokeStyle = 'rgb(0,255,0)';
+
+            const gui = new dat.GUI();
+            gui.add(options, 'radius', 1, 21).step(1);
+
+            stat.add('grayscale');
+            stat.add('box blur');
+        }
+
+        function tick() {
+            requestAnimationFrame(tick);
+            stat.new_frame();
+
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                ctx.drawImage(video, 0, 0, WIDTH, HEIGHT);
+                const imageData = ctx.getImageData(0, 0, WIDTH, HEIGHT);
+
+                stat.start('grayscale');
+                jsfeatNext.imgproc.grayscale(imageData.data, WIDTH, HEIGHT, img_u8);
+                stat.stop('grayscale');
+
+                stat.start('box blur');
+                jsfeatNext.imgproc.box_blur_gray(img_u8, img_u8, options.radius | 0, 0);
+                stat.stop('box blur');
+
+                // render result back to canvas
+                const data_u32 = new Uint32Array(imageData.data.buffer);
+                renderMonoImage(img_u8.data, data_u32, WIDTH, HEIGHT, WIDTH);
+
+                ctx.putImageData(imageData, 0, 0);
+
+                log.innerHTML = stat.log();
             }
+        }
 
-            var stat = new profiler();
+        try {
+            await loadCamera(video);
+            demo_app();
+            requestAnimationFrame(tick);
+        } catch (error) {
+            showCameraError();
+            console.error(error);
+        }
 
-            var gui,options,ctx,canvasWidth,canvasHeight;
-            var img_u8;
-
-            var demo_opt = function(){
-                this.radius = 3;
-            }
-
-            function demo_app() {
-                canvasWidth  = canvas.width;
-                canvasHeight = canvas.height;
-                ctx = canvas.getContext('2d', {"willReadFrequently": true});
-
-                ctx.fillStyle = "rgb(0,255,0)";
-                ctx.strokeStyle = "rgb(0,255,0)";
-
-                img_u8 = new jsfeatNext.matrix_t(640, 480, jsfeatNext.U8_t | jsfeatNext.C1_t);
-
-                options = new demo_opt();
-                gui = new dat.GUI();
-
-                gui.add(options, 'radius', 1, 21).step(1);
-
-                stat.add("grayscale");
-                stat.add("box blur");
-            }
-
-            function tick(videoWidth, videoHeight) {
-                compatibility.requestAnimationFrame(tick);
-                stat.new_frame();
-                if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                    ctx.drawImage(video, 0, 0, 640, 480);
-                    var imageData = ctx.getImageData(0, 0, 640, 480);
-
-                    stat.start("grayscale");
-                    jsfeatNext.imgproc.grayscale(imageData.data, 640, 480, img_u8);
-                    stat.stop("grayscale");
-
-                    var r = options.radius|0;
-
-                    stat.start("box blur");
-                    jsfeatNext.imgproc.box_blur_gray(img_u8, img_u8, r, 0);
-                    stat.stop("box blur");
-
-                    // render result back to canvas
-                    var data_u32 = new Uint32Array(imageData.data.buffer);
-                    var alpha = (0xff << 24);
-                    var i = img_u8.cols*img_u8.rows, pix = 0;
-                    while(--i >= 0) {
-                        pix = img_u8.data[i];
-                        data_u32[i] = alpha | (pix << 16) | (pix << 8) | pix;
-                    }
-
-                    ctx.putImageData(imageData, 0, 0);
-
-                    $('#log').html(stat.log());
-                }
-            }
-
-            $(window).on('unload', function () {
-                video.pause();
-                video.src = null;
-            });
-        });
+        window.addEventListener('unload', () => stopCamera(video));
         </script>
     </body>
 </html>

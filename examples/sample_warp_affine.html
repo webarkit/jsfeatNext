@@ -20,78 +20,25 @@
                 <div id="log" class="alert alert-info"></div>
             </div>
 
-        <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-        <script src="../dist/jsfeatNext.js"></script>
-        <script type="text/javascript" src="js/compatibility.js"></script>
-        <script type="text/javascript" src="js/profiler.js"></script>
-        <script type="text/javascript">
+        <!-- ES module example: serve over http:// (e.g. `npx serve .`), not file:// -->
+        <script type="module">
 
-        $(window).on('load', function () {            "use strict";
+        import jsfeatNext from '../dist/jsfeatNext.mjs';
+        import { loadCamera, stopCamera, showCameraError } from './js/demo-utils.mjs';
+        import { profiler } from './js/profiler.mjs';
 
-            // lets do some fun
-            var video = document.getElementById('webcam');
-            var canvas = document.getElementById('canvas');
-            try {
-                var attempts = 0;
-                var readyListener = function(event) {
-                    findVideoSize();
-                };
-                var findVideoSize = function() {
-                    if(video.videoWidth > 0 && video.videoHeight > 0) {
-                        video.removeEventListener('loadeddata', readyListener);
-                        onDimensionsReady(video.videoWidth, video.videoHeight);
-                    } else {
-                        if(attempts < 10) {
-                            attempts++;
-                            setTimeout(findVideoSize, 200);
-                        } else {
-                            onDimensionsReady(640, 480);
-                        }
-                    }
-                };
-                var onDimensionsReady = function(width, height) {
-                    demo_app(width, height);
-                    compatibility.requestAnimationFrame(tick);
-                };
+        const WIDTH = 640, HEIGHT = 480;
 
-                video.addEventListener('loadeddata', readyListener);
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('canvas');
+        const log = document.getElementById('log');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
-                compatibility.getUserMedia({video: true}, function(stream) {
-                    if(video.srcObject !== undefined){
-                        video.srcObject = stream
-                    } else {
-                        try {
-                            video.src = compatibility.URL.createObjectURL(stream);
-                        } catch (error) {
-                            video.src = stream;
-                        }
-                    }
-                    setTimeout(function() {
-                            video.play();
-                        }, 500);
-                }, function (error) {
-                    $('#canvas').hide();
-                    $('#log').hide();
-                    $('#no_rtc').html('<h4>WebRTC not available.</h4>');
-                    $('#no_rtc').show();
-                });
-            } catch (error) {
-                $('#canvas').hide();
-                $('#log').hide();
-                $('#no_rtc').html('<h4>Something goes wrong...</h4>');
-                $('#no_rtc').show();
-            }
+        const stat = new profiler();
 
-            var stat = new profiler();
-
-            var ctx,canvasWidth,canvasHeight;
             var img_u8, img_u8_warp,mat_affine;
 
             function demo_app(videoWidth, videoHeight) {
-                canvasWidth  = canvas.width;
-                canvasHeight = canvas.height;
-                ctx = canvas.getContext('2d', {"willReadFrequently": true});
-
                 ctx.fillStyle = "rgb(0,255,0)";
                 ctx.strokeStyle = "rgb(0,255,0)";
 
@@ -111,7 +58,7 @@
             }
 
             function tick() {
-                compatibility.requestAnimationFrame(tick);
+                requestAnimationFrame(tick);
                 stat.new_frame();
                 if (video.readyState === video.HAVE_ENOUGH_DATA) {
                     ctx.drawImage(video, 0, 0, 640, 480);
@@ -136,15 +83,20 @@
 
                     ctx.putImageData(imageData, 0, 0);
 
-                    $('#log').html(stat.log());
+                    log.innerHTML = stat.log();
                 }
             }
 
-            $(window).on('unload', function () {
-                video.pause();
-                video.src = null;
-            });
-        });
+            try {
+            await loadCamera(video);
+            demo_app();
+            requestAnimationFrame(tick);
+        } catch (error) {
+            showCameraError();
+            console.error(error);
+        }
+
+        window.addEventListener('unload', () => stopCamera(video));
         </script>
     </body>
 </html>
