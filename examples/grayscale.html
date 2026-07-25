@@ -12,68 +12,54 @@
 <body>
     <video id="video" autoplay loop muted playsinline></video>
     <canvas id="canvas"></canvas>
-    <script src="../dist/jsfeatNext.js"></script>
-    <script>
-        var canvas = document.getElementById('canvas');
-        var ctx = canvas.getContext('2d', {"willReadFrequently": true});
+    <!-- ES module example: must be served over http:// (e.g. `npx serve .`), not file:// -->
+    <script type="module">
+        import jsfeatNext from '../dist/jsfeatNext.mjs';
+        import { loadCamera, stopCamera, renderMonoImage, showCameraError } from './js/demo-utils.mjs';
 
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            var hint = {
+        const WIDTH = 640, HEIGHT = 480;
+
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+        // On small screens prefer the rear camera at a reduced resolution.
+        const constraints = window.innerWidth < 800
+            ? {
                 audio: false,
-                video: true
-            };
-            if (window.innerWidth < 800) {
-                var width = (window.innerWidth < window.innerHeight) ? 240 : 360;
-                var height = (window.innerWidth < window.innerHeight) ? 360 : 240;
-
-                var aspectRatio = window.innerWidth / window.innerHeight;
-
-                console.log(width, height);
-
-                hint = {
-                    audio: false,
-                    video: {
-                        facingMode: 'environment',
-                        width: { min: width, max: width }
-                    },
-                };
-
-                console.log(hint);
-            }
-
-            navigator.mediaDevices.getUserMedia(hint).then(function (stream) {
-                video.srcObject = stream;
-                video.addEventListener('loadedmetadata', function () {
-                    video.play();
-
-                    console.log('video', video, video.videoWidth, video.videoHeight);
-
-                    var canvasWidth = video.videoWidth;
-                    var canvasHeight = video.videoHeight;
-                    canvas.width = canvasWidth;
-                    canvas.height = canvasHeight;
-                    process();
-                });
-            });
-            function process() {
-                var width = 640, height = 480;
-                ctx.drawImage(video, 0, 0, width, height);
-                var image_data = ctx.getImageData(0, 0, width, height);
-                var img_u8 = new jsfeatNext.matrix_t(width, height, jsfeatNext.U8_t | jsfeatNext.C1_t);
-                var code = jsfeatNext.COLOR_RGBA2GRAY;
-                jsfeatNext.imgproc.grayscale(image_data.data, width, height, img_u8, code);
-                var data_u32 = new Uint32Array(image_data.data.buffer);
-                var alpha = (0xff << 24);
-                var i = img_u8.cols * img_u8.rows, pix = 0;
-                while (--i >= 0) {
-                    pix = img_u8.data[i];
-                    data_u32[i] = alpha | (pix << 16) | (pix << 8) | pix;
+                video: {
+                    facingMode: 'environment',
+                    width: { min: (window.innerWidth < window.innerHeight) ? 240 : 360 }
                 }
-                ctx.putImageData(image_data, 0, 0);
-                requestAnimationFrame(process);
             }
+            : { audio: false, video: true };
+
+        const img_u8 = new jsfeatNext.matrix_t(WIDTH, HEIGHT, jsfeatNext.U8_t | jsfeatNext.C1_t);
+
+        function process() {
+            ctx.drawImage(video, 0, 0, WIDTH, HEIGHT);
+            const image_data = ctx.getImageData(0, 0, WIDTH, HEIGHT);
+
+            jsfeatNext.imgproc.grayscale(image_data.data, WIDTH, HEIGHT, img_u8, jsfeatNext.COLOR_RGBA2GRAY);
+
+            const data_u32 = new Uint32Array(image_data.data.buffer);
+            renderMonoImage(img_u8.data, data_u32, WIDTH, HEIGHT, WIDTH);
+
+            ctx.putImageData(image_data, 0, 0);
+            requestAnimationFrame(process);
         }
 
+        try {
+            const { width, height } = await loadCamera(video, constraints);
+            canvas.width = width;
+            canvas.height = height;
+            process();
+        } catch (error) {
+            showCameraError();
+            console.error(error);
+        }
+
+        window.addEventListener('unload', () => stopCamera(video));
     </script>
 </body>
 
