@@ -35,9 +35,10 @@
         }
 
         // --- Matrix inverse via SVD -------------------------------------------
-        // NOTE: use a SQUARE matrix here. `svd_invert` is exercised by the parity
-        // test suite for square matrices only; for non-square (pseudo-inverse)
-        // input its output is currently not trustworthy — see issue #102.
+        // NOTE: `svd_invert` supports SQUARE matrices only, and throws on
+        // anything else. The rectangular (Moore-Penrose) pseudo-inverse
+        // inherited from jsfeat returns wrong numbers, so jsfeatNext refuses
+        // the input rather than hand you a bad answer — see issue #102.
         const A = new jsfeatNext.matrix_t(3, 3, jsfeatNext.F32C1_t);
         A.data.set([4, 7, 2,
                     2, 6, 1,
