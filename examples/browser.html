@@ -10,27 +10,49 @@
 
 <body>
     <script src="../dist/jsfeatNext.js"></script>
-    <script>    
-        var jsfeat = jsfeatNext       
-        console.log("jsfeatNext version: ", jsfeat.VERSION);
-        console.log(jsfeat.EPSILON);
-        console.log(jsfeat.FLT_MIN);
-        console.log(jsfeatNext);
-        var count = 12;
-        var mat = new jsfeat.matrix_t(count, 1, jsfeat.U8_t | jsfeat.C1_t);
-        console.log(mat);
-        var keypoint = new jsfeat.keypoint_t();
-        console.log(keypoint);
-        // jsfeat.cache is the library-wide shared buffer pool (a singleton,
-        // like original jsfeat's) — borrow with get_buffer, return with put_buffer.
-        console.log(jsfeat.cache);
-        var bf = jsfeat.cache.get_buffer((2) << 2);
-        console.log(bf);
-        jsfeat.cache.put_buffer(bf);
-        var math = jsfeat.math
-        jsfeat.yape06.laplacian_threshold = 0;
-        var yape06 = jsfeat.yape06;
-        console.log(yape06.laplacian_threshold);
+    <script>
+        // A guided tour of the jsfeatNext namespace, loaded here as the UMD
+        // bundle (plain <script> tag -> the global `jsfeatNext`).
+        // Open the browser console to see the output.
+
+        console.log("jsfeatNext version:", jsfeatNext.VERSION);
+        console.log("the whole namespace:", jsfeatNext);
+
+        // --- Constants --------------------------------------------------------
+        // Numeric tolerances used throughout the algorithms.
+        console.log("EPSILON =", jsfeatNext.EPSILON, " FLT_MIN =", jsfeatNext.FLT_MIN);
+
+        // Type flags are combined with a bitwise OR: element type | channels.
+        console.log("U8_t | C1_t =", jsfeatNext.U8_t | jsfeatNext.C1_t,
+                    " (same as the U8C1_t shorthand:", jsfeatNext.U8C1_t + ")");
+
+        // --- Data structures: these ARE constructors, so they need `new` ------
+        const mat = new jsfeatNext.matrix_t(12, 1, jsfeatNext.U8_t | jsfeatNext.C1_t);
+        console.log("matrix_t(12, 1):", mat.cols, "x", mat.rows,
+                    "-> data length", mat.data.length);
+
+        // keypoint_t(x, y, score, level, angle)
+        const keypoint = new jsfeatNext.keypoint_t(10, 20, 0.5, 0, -1);
+        console.log("keypoint_t:", `x=${keypoint.x} y=${keypoint.y} score=${keypoint.score}`);
+
+        // --- Algorithm modules: these are SINGLETONS, called without `new` ----
+        // (Since 0.9.0 — see docs/migration-0.9.md.)
+        console.log("imgproc.grayscale is a", typeof jsfeatNext.imgproc.grayscale);
+
+        // Module state lives on the singleton, so setting it is global:
+        jsfeatNext.yape06.laplacian_threshold = 30;
+        console.log("yape06.laplacian_threshold =", jsfeatNext.yape06.laplacian_threshold);
+
+        // --- The shared buffer pool ------------------------------------------
+        // `jsfeatNext.cache` is the ONE library-wide scratch pool (a singleton,
+        // like original jsfeat's global cache) that every module borrows from.
+        // Always balance a get_buffer() with a put_buffer().
+        const node = jsfeatNext.cache.get_buffer(8 << 2); // request 32 bytes
+        console.log("borrowed a pool buffer of", node.size, "bytes;",
+                    "views: u8 =", node.u8.length, " i32 =", node.i32.length,
+                    " f32 =", node.f32.length);
+        jsfeatNext.cache.put_buffer(node); // hand it back
+        console.log("buffer returned to the pool");
     </script>
 
 </body>

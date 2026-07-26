@@ -11,11 +11,56 @@
 <body>
     <script src="../dist/jsfeatNext.js"></script>
     <script>
-        var columns = 320, rows = 240, data_type = jsfeatNext.U8_t | jsfeatNext.C1_t;
-        console.log("data_type is:", data_type);
-        console.assert(data_type === 257, "Wrong data_type");
-        var matrix = new jsfeatNext.matrix_t(columns, rows, data_type);
-        console.log("matrix infos: ", matrix);
+        // matrix_t — the fundamental data container of jsfeatNext.
+        // Open the browser console to see the output.
+        //
+        // new matrix_t(columns, rows, data_type)
+        //   NOTE the argument order: COLUMNS (width) first, then ROWS (height).
+        //   `data_type` packs the element type and the channel count into one
+        //   number, combined with a bitwise OR.
+
+        // U8_t = 8-bit unsigned elements, C1_t = 1 channel (i.e. grayscale).
+        const data_type = jsfeatNext.U8_t | jsfeatNext.C1_t;
+        console.log("data_type =", data_type, "(U8_t | C1_t)"); // 257
+
+        // A tiny 4x3 matrix so the layout is easy to follow by hand.
+        const cols = 4, rows = 3;
+        const matrix = new jsfeatNext.matrix_t(cols, rows, data_type);
+
+        console.log("cols =", matrix.cols, " rows =", matrix.rows, " channels =", matrix.channel);
+        // `data` is a typed array view over the backing buffer. It holds
+        // cols * rows * channels = 12 useful elements, but note the view can be
+        // LONGER than that: the buffer is padded up to a multiple of 8 bytes, so
+        // here length is 16. Always iterate with cols/rows, never data.length.
+        console.log("data is a", matrix.data.constructor.name, "of length", matrix.data.length,
+                    "(12 used +", matrix.data.length - 12, "padding)");
+
+        // Elements are stored ROW-MAJOR: the element at (row r, column c)
+        // lives at index  r * cols + c.  Fill it with a recognisable pattern:
+        // each element gets the value  10 * row + col.
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                matrix.data[r * cols + c] = 10 * r + c;
+            }
+        }
+
+        // Reading back the flat buffer shows the rows laid out end to end:
+        //   [0, 1, 2, 3,  10, 11, 12, 13,  20, 21, 22, 23]
+        console.log("flat data:", Array.from(matrix.data).join(", "));
+
+        // ...and indexing row 1, column 2 gives 12, as the pattern predicts.
+        const r = 1, c = 2;
+        const value = matrix.data[r * matrix.cols + c];
+        console.log(`element at (row ${r}, col ${c}) =`, value);
+        console.assert(value === 12, "expected 12 at (1, 2)");
+
+        // The same bytes are also reachable through the other typed-array views
+        // of the shared buffer (u8 / i32 / f32 / f64) — that is how the library
+        // reinterprets scratch memory without reallocating.
+        console.log("views on the same buffer:",
+                    "u8 =", matrix.buffer.u8.length,
+                    " i32 =", matrix.buffer.i32.length,
+                    " f32 =", matrix.buffer.f32.length);
     </script>
 
 </body>
