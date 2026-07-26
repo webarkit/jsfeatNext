@@ -11,15 +11,88 @@
 <body>
     <script src="../dist/jsfeatNext.js"></script>
     <script>
-        var screen_corners = [];
-        var num_corners = 20;
-        var img_u8_smooth = new jsfeatNext.matrix_t(640, 480, jsfeatNext.U8_t | jsfeatNext.C1_t);
-        var screen_descriptors = new jsfeatNext.matrix_t(32, 500, jsfeatNext.U8_t | jsfeatNext.C1_t);
-        var i = 640 * 480;
-        while (--i >= 0) {
-            screen_corners[i] = new jsfeatNext.keypoint_t(0, 0, 0, 0, -1);
+        // orb — ORB binary feature descriptors.
+        // Open the browser console to see the output.
+        //
+        // ORB describes the neighbourhood of a keypoint as 32 bytes (256 bits).
+        // Two descriptors are compared with the HAMMING DISTANCE: the number of
+        // differing bits. Similar patches -> small distance.
+        //
+        // orb.describe(src, corners, count, descriptors)
+        //   src         : grayscale matrix_t to sample from
+        //   corners     : array of keypoint_t (only the first `count` are used)
+        //   count       : how many keypoints to describe
+        //   descriptors : DESTINATION matrix_t, 32 columns x (>= count) rows;
+        //                 row i receives the 32-byte descriptor of corners[i].
+        // It returns nothing — read the destination matrix.
+
+        const WIDTH = 128, HEIGHT = 128;
+
+        // A blank image gives meaningless (all-zero) descriptors, so build a
+        // textured one. Random noise guarantees every neighbourhood is distinct.
+        // (A regular checkerboard is a poor choice here: its patches repeat, so
+        // different points can produce identical descriptors.)
+        let seed = 12345;
+        const rand = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return (seed >> 16) & 0xff; };
+
+        const img = new jsfeatNext.matrix_t(WIDTH, HEIGHT, jsfeatNext.U8_t | jsfeatNext.C1_t);
+        for (let i = 0; i < WIDTH * HEIGHT; i++) img.data[i] = rand();
+
+        // A copy of the SAME image, 30 grey levels brighter. ORB compares the
+        // relative order of pixel pairs, so it should be largely unaffected.
+        const brighter = new jsfeatNext.matrix_t(WIDTH, HEIGHT, jsfeatNext.U8_t | jsfeatNext.C1_t);
+        for (let i = 0; i < WIDTH * HEIGHT; i++) brighter.data[i] = Math.min(255, img.data[i] + 30);
+
+        // ORB samples pairs of individual pixels, so blur first to tame noise.
+        const smooth = new jsfeatNext.matrix_t(WIDTH, HEIGHT, jsfeatNext.U8_t | jsfeatNext.C1_t);
+        const smoothBright = new jsfeatNext.matrix_t(WIDTH, HEIGHT, jsfeatNext.U8_t | jsfeatNext.C1_t);
+        jsfeatNext.imgproc.gaussian_blur(img, smooth, 5);
+        jsfeatNext.imgproc.gaussian_blur(brighter, smoothBright, 5);
+
+        // keypoint_t(x, y, score, level, angle) — angle in radians, or -1 to let
+        // ORB work out the patch orientation itself.
+        const pointP = [new jsfeatNext.keypoint_t(40, 40, 0, 0, -1)];
+        const pointQ = [new jsfeatNext.keypoint_t(80, 70, 0, 0, -1)];
+
+        // Destination matrices: 32 columns (bytes per descriptor) x rows = count.
+        const descP = new jsfeatNext.matrix_t(32, 1, jsfeatNext.U8_t | jsfeatNext.C1_t);
+        const descPbright = new jsfeatNext.matrix_t(32, 1, jsfeatNext.U8_t | jsfeatNext.C1_t);
+        const descQ = new jsfeatNext.matrix_t(32, 1, jsfeatNext.U8_t | jsfeatNext.C1_t);
+
+        jsfeatNext.orb.describe(smooth, pointP, 1, descP);              // P in the original
+        jsfeatNext.orb.describe(smoothBright, pointP, 1, descPbright);  // P in the brighter copy
+        jsfeatNext.orb.describe(smooth, pointQ, 1, descQ);              // a different point
+
+        const hex = (m) => Array.from(m.data.subarray(0, 8))
+            .map((b) => b.toString(16).padStart(2, "0")).join(" ");
+        console.log("descriptor P  (40,40)          first 8 of 32 bytes:", hex(descP));
+        console.log("descriptor P' (same pt, +30)   first 8 of 32 bytes:", hex(descPbright));
+        console.log("descriptor Q  (80,70)          first 8 of 32 bytes:", hex(descQ));
+
+        /** Hamming distance: how many of the 256 bits differ. */
+        function hamming(a, b) {
+            let dist = 0;
+            for (let k = 0; k < 32; k++) {
+                let xor = a.data[k] ^ b.data[k];
+                while (xor) { dist += xor & 1; xor >>= 1; } // count differing bits
+            }
+            return dist;
         }
-        jsfeatNext.orb.describe(img_u8_smooth, screen_corners, num_corners, screen_descriptors);
+
+        // This is the whole point of a descriptor: the SAME feature stays close
+        // even when the image changes, while a DIFFERENT feature is far away.
+        const dSame = hamming(descP, descPbright);
+        const dDiff = hamming(descP, descQ);
+        console.log(`same point, brighter image -> hamming = ${dSame}  (small: ORB ignores brightness)`);
+        console.log(`different point            -> hamming = ${dDiff}  (large: ~128 = unrelated)`);
+        console.log("a descriptor vs itself     -> hamming =", hamming(descP, descP));
+
+        console.assert(hamming(descP, descP) === 0, "a descriptor must match itself exactly");
+        console.assert(dSame < dDiff, "the same feature should be closer than a different one");
+        console.assert(
+            Array.from(descP.data).some((b) => b !== 0),
+            "descriptors should not be all zero on a textured image"
+        );
     </script>
 
 </body>

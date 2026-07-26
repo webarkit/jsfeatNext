@@ -11,13 +11,60 @@
 <body>
     <script src="../dist/jsfeatNext.js"></script>
     <script>
-        var columns = 320, rows = 240, data_type = jsfeatNext.U8_t | jsfeatNext.C1_t;
-        console.log("data_type is:", data_type);
-        console.assert(data_type === 257, "Wrong data_type");
-        var homo3x3 = new jsfeatNext.matrix_t(3,3,jsfeatNext.F32C1_t);
-        console.log(homo3x3);
-        jsfeatNext.matmath.identity_3x3(homo3x3, 1.0);
-        console.log(homo3x3);
+        // matmath — small fixed-size matrix arithmetic (3x3 here).
+        // Open the browser console to see the output.
+        //
+        // `matmath` is a singleton on the namespace: call its methods directly,
+        // no `new` (since 0.9.0). Results are written into a DESTINATION matrix
+        // you pass in, rather than returned.
+
+        /** Pretty-print a 3x3 matrix_t as three rows. */
+        function show(label, m) {
+            const d = m.data;
+            console.log(
+                label + "\n" +
+                `  [ ${d[0].toFixed(3)}  ${d[1].toFixed(3)}  ${d[2].toFixed(3)} ]\n` +
+                `  [ ${d[3].toFixed(3)}  ${d[4].toFixed(3)}  ${d[5].toFixed(3)} ]\n` +
+                `  [ ${d[6].toFixed(3)}  ${d[7].toFixed(3)}  ${d[8].toFixed(3)} ]`
+            );
+        }
+
+        // F32C1_t = 32-bit float, 1 channel — the type used for transforms.
+        const A = new jsfeatNext.matrix_t(3, 3, jsfeatNext.F32C1_t);
+
+        // identity_3x3(M, value) fills M with `value` on the diagonal.
+        // With 1.0 that is the identity matrix.
+        jsfeatNext.matmath.identity_3x3(A, 1.0);
+        show("identity_3x3(A, 1.0) =", A);
+        console.assert(A.data[0] === 1 && A.data[1] === 0 && A.data[4] === 1, "expected identity");
+
+        // Now a real transform: scale by 2 in x, 3 in y, then translate by (5, 7).
+        // A 2D affine transform in homogeneous coordinates looks like
+        //   [ sx  0  tx ]
+        //   [  0 sy  ty ]
+        //   [  0  0   1 ]
+        const T = new jsfeatNext.matrix_t(3, 3, jsfeatNext.F32C1_t);
+        T.data.set([2, 0, 5,
+                    0, 3, 7,
+                    0, 0, 1]);
+        show("T (scale 2x,3y + translate 5,7) =", T);
+
+        // invert_3x3(from, to) — NOTE the argument order: source first,
+        // destination second. The inverse undoes the transform.
+        const Tinv = new jsfeatNext.matrix_t(3, 3, jsfeatNext.F32C1_t);
+        jsfeatNext.matmath.invert_3x3(T, Tinv);
+        show("inverse of T =", Tinv);
+
+        // multiply_3x3(C, A, B) computes C = A * B (destination FIRST).
+        // T * T⁻¹ must be the identity — a self-check anyone can verify.
+        const P = new jsfeatNext.matrix_t(3, 3, jsfeatNext.F32C1_t);
+        jsfeatNext.matmath.multiply_3x3(P, T, Tinv);
+        show("T * inverse(T) = (should be the identity)", P);
+
+        const isIdentity = [1, 0, 0, 0, 1, 0, 0, 0, 1]
+            .every((expected, i) => Math.abs(P.data[i] - expected) < 1e-5);
+        console.assert(isIdentity, "T * T^-1 should be the identity matrix");
+        console.log("T * T^-1 is the identity:", isIdentity);
     </script>
 
 </body>

@@ -11,11 +11,77 @@
 <body>
     <script src="../dist/jsfeatNext.js"></script>
     <script>
-        console.log(jsfeatNext.linalg);
-        var m3x4 = new jsfeatNext.matrix_t(3,4,jsfeatNext.F32C1_t);
-        var m4x3 = new jsfeatNext.matrix_t(4,3,jsfeatNext.F32C1_t);
-        var res = jsfeatNext.linalg.svd_invert(m3x4, m4x3);
-        console.log(res);
+        // linalg — dense linear algebra (LU / Cholesky solvers, SVD, eigen).
+        // Open the browser console to see the output.
+        //
+        // Two things to know before reading the code:
+        //
+        //  1. These methods write into a DESTINATION matrix you pass in and
+        //     return nothing (`void`). Log the destination, not the call.
+        //  2. `svd_invert(Ai, A)` takes the DESTINATION FIRST:
+        //        Ai <- pseudo-inverse of A
+        //     Also remember `new matrix_t(cols, rows, type)` is COLUMNS FIRST,
+        //     so a matrix with 3 columns and 2 rows is `new matrix_t(3, 2, …)`.
+
+        /** Pretty-print a matrix_t as rows. */
+        function show(label, m) {
+            let out = label + `  (${m.rows}x${m.cols})\n`;
+            for (let r = 0; r < m.rows; r++) {
+                const row = [];
+                for (let c = 0; c < m.cols; c++) row.push(m.data[r * m.cols + c].toFixed(4));
+                out += "  [ " + row.join("  ") + " ]\n";
+            }
+            console.log(out);
+        }
+
+        // --- Matrix inverse via SVD -------------------------------------------
+        // NOTE: use a SQUARE matrix here. `svd_invert` is exercised by the parity
+        // test suite for square matrices only; for non-square (pseudo-inverse)
+        // input its output is currently not trustworthy — see issue #102.
+        const A = new jsfeatNext.matrix_t(3, 3, jsfeatNext.F32C1_t);
+        A.data.set([4, 7, 2,
+                    2, 6, 1,
+                    1, 1, 3]);
+        show("A =", A);
+
+        // svd_invert(Ai, A): DESTINATION FIRST — Ai receives the inverse of A.
+        // It returns nothing, so read `Ai` rather than the call's result.
+        const Ainv = new jsfeatNext.matrix_t(3, 3, jsfeatNext.F32C1_t);
+        jsfeatNext.linalg.svd_invert(Ainv, A);
+        show("inverse of A =", Ainv);
+
+        // Verification anyone can check by hand: A · A⁻¹ must be the identity.
+        const P = new jsfeatNext.matrix_t(3, 3, jsfeatNext.F32C1_t);
+        jsfeatNext.matmath.multiply(P, A, Ainv);
+        show("A · A⁻¹ = (should be the 3x3 identity)", P);
+
+        const isIdentity = [1, 0, 0, 0, 1, 0, 0, 0, 1]
+            .every((expected, i) => Math.abs(P.data[i] - expected) < 1e-4);
+        console.assert(isIdentity, "A · A⁻¹ should be the identity");
+        console.log("A · A⁻¹ is the identity:", isIdentity);
+
+        // --- Solving a linear system with LU ----------------------------------
+        // Solve  M x = b  for the 2x2 system
+        //     4x + 7y = 1
+        //     2x + 6y = 1
+        // whose exact solution is x = -0.1, y = 0.2.
+        const M = new jsfeatNext.matrix_t(2, 2, jsfeatNext.F32C1_t);
+        M.data.set([4, 7,
+                    2, 6]);
+        // b is a single COLUMN: 1 column x 2 rows.
+        const b = new jsfeatNext.matrix_t(1, 2, jsfeatNext.F32C1_t);
+        b.data.set([1, 1]);
+
+        // lu_solve(A, B) solves in place: B is overwritten with the solution x.
+        // It returns 1 on success, 0 if the matrix is singular.
+        const ok = jsfeatNext.linalg.lu_solve(M, b);
+        console.log("lu_solve returned:", ok, "(1 = success)");
+        console.log("solution x =", b.data[0].toFixed(4), " y =", b.data[1].toFixed(4),
+                    " (expected -0.1 and 0.2)");
+        console.assert(
+            Math.abs(b.data[0] + 0.1) < 1e-4 && Math.abs(b.data[1] - 0.2) < 1e-4,
+            "expected x = -0.1, y = 0.2"
+        );
     </script>
 
 </body>
