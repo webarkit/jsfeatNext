@@ -74,32 +74,58 @@ npm install @webarkit/jsfeat-next
 
 ## Examples 🧪
 
-Go in the `examples` folder to test some of them (build first, then open the `.html` files in a browser).
+The `examples` folder demonstrates **both ways of consuming the library**. Build first (`npm run build-ts`), then open the examples in a browser.
 
-working = ✔️ not working = ⚠️
+### ESM examples — `import` from `dist/jsfeatNext.mjs`
 
-- browser.html ✔️
-- grayscale.html ✔️
-- linalg_example.html ✔️
-- mat_math_example.html ✔️
-- matrix_t_example.html ✔️
-- orb_test.html ✔️
-- sample_boxblur.html ✔️
-- sample_canny_edge.html ✔️
-- sample_equalize_hist.html ✔️
-- sample_fast_corners.html ✔️
-- sample_gaussblur.html ✔️
-- sample_oflow_lk.html ✔️
-- sample_orb.html ✔️
-- sample_orb_pinball.html ✔️
-- sample_pyrdown.html ✔️
-- sample_scharr.html ✔️
-- sample_sobel_edge.html ✔️
-- sample_sobel.html ✔️
-- sample_warp_affine.html ✔️
-- sample_warp_perspective.html ✔️
-- sample_yape.html ✔️
-- sample_yape06.html ✔️
+The camera demos use the modern ES-module entry point:
+
+```html
+<script type="module">
+    import jsfeatNext from '../dist/jsfeatNext.mjs';
+    jsfeatNext.imgproc.grayscale(...);
+</script>
+```
+
+> ⚠️ **These must be served over HTTP** — ES modules don't load from `file://`. Run a static server from the repo root, e.g. `npx serve .`, then browse to `http://localhost:3000/examples/…`.
+
+They share the helpers in [`examples/js/demo-utils.mjs`](examples/js/demo-utils.mjs) (webcam setup and canvas drawing) instead of repeating that boilerplate in every file.
+
+| Example | Demonstrates |
+|---|---|
+| `grayscale.html` | color → grayscale conversion |
+| `sample_boxblur.html` | box blur |
+| `sample_gaussblur.html` | gaussian blur |
+| `sample_equalize_hist.html` | histogram equalization |
+| `sample_canny_edge.html` | Canny edge detector |
+| `sample_sobel.html` / `sample_sobel_edge.html` | Sobel derivatives / edges |
+| `sample_scharr.html` | Scharr derivatives |
+| `sample_pyrdown.html` | image pyramid downsampling |
+| `sample_fast_corners.html` | FAST corner detector |
+| `sample_yape.html` / `sample_yape06.html` | YAPE / YAPE06 detectors |
+| `sample_oflow_lk.html` | Lucas–Kanade optical flow (click to add points) |
+| `sample_orb.html` | ORB descriptors + matching + homography |
+| `sample_orb_pinball.html` | ORB pattern tracking on a reference image |
+| `sample_warp_affine.html` / `sample_warp_perspective.html` | affine / perspective warps |
+
+### UMD examples — global `<script>` tag
+
+These small API demos load the UMD bundle and use the `jsfeatNext` global. They need no server and **open directly from the filesystem**:
+
+```html
+<script src="../dist/jsfeatNext.js"></script>
+<script>
+    const m = new jsfeatNext.matrix_t(320, 240, jsfeatNext.U8_t | jsfeatNext.C1_t);
+</script>
+```
+
+| Example | Demonstrates |
+|---|---|
+| `browser.html` | version, constants, `matrix_t`, `keypoint_t`, the shared `cache` |
+| `matrix_t_example.html` | constructing a `matrix_t` |
+| `mat_math_example.html` | `matmath` (3×3 identity) |
+| `linalg_example.html` | `linalg` (SVD pseudo-inverse) |
+| `orb_test.html` | `orb.describe` |
 
 ## TypeScript examples 📝
 
