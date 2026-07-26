@@ -3,14 +3,20 @@ name: Release
 # Triggers on a bare X.Y.Z tag push (jsfeatNext's tag convention -- never
 # vX.Y.Z, see MAINTAINERS.md), or manually via workflow_dispatch to retry a
 # failed publish without re-tagging.
+#
+# Prerelease tags (X.Y.Z-alpha.1, -beta.2, -rc.1) are supported too and are
+# handled differently: the GitHub Release is marked as a prerelease and npm
+# publishes under a dist-tag derived from the identifier (beta -> `beta`), so
+# a prerelease never becomes `latest` for `npm install`. See #81.
 on:
     push:
         tags:
-            - "[0-9]+.[0-9]+.[0-9]+"
+            - "[0-9]+.[0-9]+.[0-9]+" # stable, e.g. 0.10.0
+            - "[0-9]+.[0-9]+.[0-9]+-*" # prerelease, e.g. 1.0.0-beta.1
     workflow_dispatch:
         inputs:
             tag:
-                description: "Existing tag to (re-)publish, e.g. 0.8.0"
+                description: "Existing tag to (re-)publish, e.g. 0.8.0 or 1.0.0-beta.1"
                 required: true
 
 permissions:
@@ -24,7 +30,25 @@ jobs:
         steps:
             - name: Resolve tag
               id: tag
-              run: echo "name=${{ github.event.inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
+              run: |
+                  NAME="${{ github.event.inputs.tag || github.ref_name }}"
+                  echo "name=$NAME" >> "$GITHUB_OUTPUT"
+
+                  # A prerelease is any semver tag carrying a `-<identifier>`
+                  # suffix, e.g. 1.0.0-beta.1. The npm dist-tag is taken from
+                  # that identifier so `npm install @webarkit/jsfeat-next`
+                  # (which resolves `latest`) never picks up a prerelease.
+                  if [[ "$NAME" == *-* ]]; then
+                      IDENT="${NAME#*-}"   # 1.0.0-beta.1 -> beta.1
+                      IDENT="${IDENT%%.*}" # beta.1       -> beta
+                      echo "prerelease=true" >> "$GITHUB_OUTPUT"
+                      echo "npm_tag=${IDENT:-next}" >> "$GITHUB_OUTPUT"
+                      echo "::notice::$NAME is a PRERELEASE -> npm dist-tag '${IDENT:-next}', GitHub Release marked prerelease"
+                  else
+                      echo "prerelease=false" >> "$GITHUB_OUTPUT"
+                      echo "npm_tag=latest" >> "$GITHUB_OUTPUT"
+                      echo "::notice::$NAME is a STABLE release -> npm dist-tag 'latest'"
+                  fi
 
             - name: Checkout repository
               uses: actions/checkout@v7
@@ -37,6 +61,18 @@ jobs:
               with:
                   node-version-file: ".nvmrc"
                   registry-url: "https://registry.npmjs.org"
+
+            - name: Verify the tag matches package.json version
+              run: |
+                  PKG=$(node -p "require('./package.json').version")
+                  TAG="${{ steps.tag.outputs.name }}"
+                  if [ "$PKG" != "$TAG" ]; then
+                      echo "::error::tag '$TAG' does not match package.json version '$PKG'."
+                      echo "npm would publish '$PKG', not '$TAG'. Bump package.json (and for a"
+                      echo "prerelease include the suffix, e.g. \"version\": \"1.0.0-beta.1\")."
+                      exit 1
+                  fi
+                  echo "tag and package.json agree: $TAG"
 
             - name: Install
               run: npm ci
@@ -76,12 +112,19 @@ jobs:
             - name: Create GitHub Release
               env:
                   GH_TOKEN: ${{ github.token }}
+                  # --prerelease keeps the release out of the "Latest" slot on
+                  # the releases page; empty for a stable release.
+                  PRERELEASE_FLAG: ${{ steps.tag.outputs.prerelease == 'true' && '--prerelease' || '' }}
               run: |
                   gh release create "${{ steps.tag.outputs.name }}" \
                     --title "${{ steps.tag.outputs.name }}" \
-                    --notes-file release-notes.md
+                    --notes-file release-notes.md \
+                    $PRERELEASE_FLAG
 
             - name: Publish to npm
-              run: npm publish --provenance --access public
+              # --tag controls the npm dist-tag: `latest` for a stable release,
+              # or the prerelease identifier (beta / rc / alpha) otherwise, so a
+              # prerelease is installable via @beta but never becomes the default.
+              run: npm publish --provenance --access public --tag "${{ steps.tag.outputs.npm_tag }}"
               env:
                   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

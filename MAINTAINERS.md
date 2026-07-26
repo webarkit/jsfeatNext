@@ -15,7 +15,7 @@ When reviewing Pull Requests, maintainers must ensure the following (see [`AGENT
 - **Numeric/behavioral parity:** algorithm code must preserve parity with the original [jsfeat](https://github.com/inspirit/jsfeat). Any change touching `src/**` (excluding `tests/`) should keep `npm test` green (57+ characterization tests assert parity against a vendored jsfeat oracle).
 - **Typing:** avoid `any` in new code; the project runs `noImplicitAny: true`.
 - **No `.idea/`** (JetBrains IDE files) ever committed.
-- **Tag format:** release tags are bare `X.Y.Z` (e.g. `0.8.0`) — **never** `vX.Y.Z`. This has caused a real mixup before (see the 0.7.6 release) and the automated release workflow (below) only triggers on the bare pattern.
+- **Tag format:** release tags are bare `X.Y.Z` (e.g. `0.8.0`) — **never** `vX.Y.Z`. This has caused a real mixup before (see the 0.7.6 release) and the automated release workflow (below) only triggers on the bare pattern. Prerelease tags follow semver and are also supported: `X.Y.Z-beta.1`, `-alpha.2`, `-rc.1` (see [Prereleases](#prereleases-alpha--beta--rc)).
 
 ## 2. Release Process
 
@@ -56,18 +56,41 @@ Publishing a new version is a two-phase process: a **manual** phase you control 
    git push origin X.Y.Z
    ```
    Pushing this tag triggers [`.github/workflows/release.yml`](.github/workflows/release.yml), which automatically:
+   - **checks the tag matches `package.json`'s `version`** and fails loudly if not (otherwise npm would publish a different version than the one you tagged)
    - runs `npm ci`, `npm test`, `npm run build-ts` (rebuilds `dist/`/`types/` fresh from the tagged commit as a safety check — the workflow does **not** trust whatever happens to be committed)
    - runs `npm pack --dry-run` and logs the resulting tarball contents/size (informational; see the packaging trim in #60)
    - generates release notes from Conventional Commits with **[git-cliff](https://git-cliff.org/)** (config: [`cliff.toml`](cliff.toml)), covering everything since the previous tag
    - creates the **GitHub Release** for the tag with those generated notes as the body
-   - runs `npm publish --provenance --access public`
+   - runs `npm publish --provenance --access public --tag <dist-tag>`
 
    You can watch it under the repo's **Actions** tab. If a step fails (e.g. a transient npm registry error during publish), you do **not** need to re-tag — re-run it manually via **Actions → Release → Run workflow**, entering the existing tag.
 
+#### Prereleases (alpha / beta / rc)
+
+The same flow handles prereleases — just tag with a semver prerelease suffix (still no `v` prefix):
+
+```bash
+git tag -a 1.0.0-beta.1 -m "1.0.0-beta.1"
+git push origin 1.0.0-beta.1
+```
+
+**Set `package.json`'s version to the same string** (`"version": "1.0.0-beta.1"`) in Phase A — the workflow's tag/version check enforces this.
+
+The workflow detects the `-` suffix and adapts:
+
+| | stable `0.10.0` | prerelease `1.0.0-beta.1` |
+|---|---|---|
+| GitHub Release | normal (shows as **Latest**) | marked **`--prerelease`** (stays out of the Latest slot) |
+| npm dist-tag | `latest` | the identifier — `beta` (or `alpha` / `rc`) |
+| `npm install @webarkit/jsfeat-next` | gets it | **does not** get it |
+| how users opt in | — | `npm install @webarkit/jsfeat-next@beta` |
+
+This means a prerelease can never hijack `latest` for existing users. To promote one to stable afterwards, tag the final `1.0.0` normally.
+
 8. **Verify.** Check:
-   - the new [GitHub Release](https://github.com/webarkit/jsfeatNext/releases) has sensible notes
+   - the new [GitHub Release](https://github.com/webarkit/jsfeatNext/releases) has sensible notes (and is flagged *Pre-release* if it was one)
    - `npm view @webarkit/jsfeat-next version` shows the new version
-   - `npm view @webarkit/jsfeat-next dist-tags` shows `latest` pointing at it
+   - `npm view @webarkit/jsfeat-next dist-tags` — `latest` should point at the newest **stable**, with any prerelease under its own tag (`beta`, `rc`, …)
 
 ### Notes
 
