@@ -1,4 +1,33 @@
 
+## 0.10.1 - 2026-07-26
+
+### ♻️ Refactoring
+
+- Add shared ESM demo helpers, convert 2 pilots (refs #79) (aac4674)
+
+- Convert 13 camera examples to ESM helpers (refs #79) (f94220a)
+
+- Convert the two ORB examples to ESM, restructure README (refs #79) (af5804d)
+
+- Give the API demos real data, verifiable output and docs (closes #99) (a76648a)
+
+
+### 👷 CI
+
+- Support prerelease tags (alpha/beta/rc) (closes #81) (5a020a7)
+
+
+### 📦 Build
+
+- Bump prettier from 3.9.5 to 3.9.6 (d2ad58c)
+
+
+### 🧹 Miscellaneous
+
+- Back-merge main into dev to converge branch history (fab129b)
+
+
+
 ## 0.10.0 - 2026-07-22
 
 ### ♻️ Refactoring
