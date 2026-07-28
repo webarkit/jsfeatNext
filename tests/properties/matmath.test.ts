@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import jsfeatNext from "../../src/jsfeatNext";
-import { mat, dst, randomSquare, matmulPlain, expectIdentity, expectClose, rng } from "./helpers";
+import { mat, dst, randomSquare, matmulPlain, expectIdentity, expectClose } from "./helpers";
 
 /**
  * Property/invariant tests for `matmath` (issue #87).
