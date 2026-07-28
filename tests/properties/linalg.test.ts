@@ -118,8 +118,7 @@ describe("linalg invariants", () => {
 
             const UD = matmulPlain(U.data, D, n, n, n);
             const recon = matmulPlain(UD, Vt, n, n, n);
-            for (let i = 0; i < n; i++) expect(recon[i]).toBeCloseTo(values[i], 3);
-        });
+            for (let i = 0; i < n * n; i++) expect(recon[i]).toBeCloseTo(values[i], 3);
 
         it("reconstructs the input: A = Uᵀ·diag(W)·V (SVD_U_T | SVD_V_T)", () => {
             const A = mat(n, n, values);
