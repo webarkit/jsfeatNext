@@ -1,0 +1,147 @@
+import { describe, it, expect } from "vitest";
+import jsfeatNext from "../../src/jsfeatNext";
+import type { matrix_t } from "../../src/matrix_t/matrix_t";
+import { U8C1, cornerScene, uniformImage, keypointPool } from "./helpers";
+
+/**
+ * Property/invariant tests for `optical_flow_lk` (issue #87, phase 3).
+ *
+ * The tracker has no closed-form answer to compare against, but it does have
+ * strong invariants: tracking an image against ITSELF must report zero motion,
+ * tracking a rigidly translated copy must recover that translation, and a
+ * textureless window must be rejected rather than guessed at.
+ *
+ * Scope note, established empirically: at 2 pyramid levels with a 9px window
+ * this implementation recovers small displacements to ~0.01px, but a 5px shift
+ * of this scene is NOT recovered (errors of tens of pixels). That is the
+ * expected behaviour of a local gradient method, not a defect — larger motion
+ * needs more pyramid levels. The accuracy assertions below therefore stay
+ * inside the regime where the method is meant to work.
+ */
+
+const W = 96;
+const H = 72;
+const LEVELS = 2;
+const WIN = 9;
+
+function pyramidOf(img: matrix_t) {
+    const p = new jsfeatNext.pyramid_t(LEVELS);
+    p.allocate(W, H, U8C1);
+    p.build(img, false);
+    return p;
+}
+
+/** The scene's FAST corners — the meaningful trackable set (flat areas fail the eigenvalue test). */
+function trackablePoints(img: matrix_t) {
+    const fc = jsfeatNext.fast_corners;
+    fc.set_threshold(20);
+    const corners = keypointPool(W * H);
+    const n = fc.detect(img, corners, 16);
+    const xy: number[] = [];
+    for (let i = 0; i < n; i++) xy.push(corners[i].x, corners[i].y);
+    return Float32Array.from(xy);
+}
+
+function track(
+    prev: ReturnType<typeof pyramidOf>,
+    curr: ReturnType<typeof pyramidOf>,
+    prevXY: Float32Array,
+    seed?: Float32Array
+) {
+    const count = prevXY.length >> 1;
+    const currXY = seed ? Float32Array.from(seed) : new Float32Array(count * 2);
+    const status = new Uint8Array(count);
+    jsfeatNext.optical_flow_lk.track(prev, curr, prevXY, currXY, count, WIN, 30, status, 0.01, 0.0001);
+    return { count, currXY, status };
+}
+
+describe("optical_flow_lk invariants", () => {
+    it("reports strictly binary status flags", () => {
+        const img = cornerScene(W, H);
+        const prevXY = trackablePoints(img);
+        const { count, status } = track(pyramidOf(img), pyramidOf(cornerScene(W, H, { dx: 2, dy: 1 })), prevXY);
+        expect(count).toBeGreaterThan(0);
+        for (let i = 0; i < count; i++) expect([0, 1]).toContain(status[i]);
+    });
+
+    it("reports exactly zero motion when both frames are the same image", () => {
+        // The strongest invariant available: the true displacement is zero, so
+        // any nonzero output is error. It comes out bit-exact, hence toBe(0).
+        const img = cornerScene(W, H);
+        const prevXY = trackablePoints(img);
+        const { count, currXY, status } = track(pyramidOf(img), pyramidOf(img), prevXY);
+
+        expect(count).toBeGreaterThan(0);
+        for (let i = 0; i < count; i++) {
+            expect(status[i]).toBe(1); // a corner tracked against itself cannot be lost
+            expect(currXY[i * 2]).toBe(prevXY[i * 2]);
+            expect(currXY[i * 2 + 1]).toBe(prevXY[i * 2 + 1]);
+        }
+    });
+
+    it("converges back to zero motion from a deliberately wrong starting guess", () => {
+        // track() takes curr_xy as the initial estimate. Seeding it 1px off and
+        // still landing on zero shows the iteration is actually refining rather
+        // than passing the seed through — which the test above cannot tell,
+        // since there the seed is already the answer.
+        const img = cornerScene(W, H);
+        const prevXY = trackablePoints(img);
+        const seed = Float32Array.from(prevXY, (v) => v + 1.0);
+        const { count, currXY, status } = track(pyramidOf(img), pyramidOf(img), prevXY, seed);
+
+        let converged = 0;
+        for (let i = 0; i < count; i++) {
+            if (status[i]) {
+                converged++;
+                expect(currXY[i * 2]).toBeCloseTo(prevXY[i * 2], 2);
+                expect(currXY[i * 2 + 1]).toBeCloseTo(prevXY[i * 2 + 1], 2);
+            }
+        }
+        expect(converged).toBeGreaterThan(0);
+    });
+
+    it("recovers a small known translation", () => {
+        const img = cornerScene(W, H);
+        const prevXY = trackablePoints(img);
+
+        for (const [dx, dy] of [
+            [1, 0],
+            [3, 2],
+            [-2, 3],
+        ] as [number, number][]) {
+            const { count, currXY, status } = track(pyramidOf(img), pyramidOf(cornerScene(W, H, { dx, dy })), prevXY);
+            let tracked = 0;
+            for (let i = 0; i < count; i++) {
+                if (status[i]) {
+                    tracked++;
+                    // Observed worst error across these shifts is 0.008px, so
+                    // 0.05 leaves headroom without going slack.
+                    expect(currXY[i * 2] - prevXY[i * 2]).toBeCloseTo(dx, 1);
+                    expect(currXY[i * 2 + 1] - prevXY[i * 2 + 1]).toBeCloseTo(dy, 1);
+                    expect(Math.abs(currXY[i * 2] - prevXY[i * 2] - dx)).toBeLessThan(0.05);
+                    expect(Math.abs(currXY[i * 2 + 1] - prevXY[i * 2 + 1] - dy)).toBeLessThan(0.05);
+                }
+            }
+            expect(tracked).toBeGreaterThan(0);
+        }
+    });
+
+    it("rejects every point in a textureless image instead of guessing", () => {
+        // A uniform window has a singular spatial-gradient matrix (the aperture
+        // problem), so the min-eigenvalue check must drop the point. Silently
+        // returning some coordinate would be far worse than reporting failure.
+        const flat = uniformImage(W, H, 128);
+        const prevXY = Float32Array.from([30, 30, 50, 40, 60, 50]);
+        const { count, status } = track(pyramidOf(flat), pyramidOf(flat), prevXY);
+        expect(count).toBe(3);
+        for (let i = 0; i < count; i++) expect(status[i]).toBe(0);
+    });
+
+    it("does not modify the input coordinates", () => {
+        const img = cornerScene(W, H);
+        const prevXY = trackablePoints(img);
+        const before = Float32Array.from(prevXY);
+        track(pyramidOf(img), pyramidOf(cornerScene(W, H, { dx: 2, dy: 1 })), prevXY);
+        expect(Array.from(prevXY)).toEqual(Array.from(before));
+    });
+});
