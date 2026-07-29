@@ -11,6 +11,53 @@ import jsfeatNext from "../../src/jsfeatNext";
  */
 
 export const F32C1 = jsfeatNext.F32_t | jsfeatNext.C1_t;
+export const U8C1 = jsfeatNext.U8_t | jsfeatNext.C1_t;
+
+/** Grayscale `w`x`h` image, every pixel set to `value`. */
+export function uniformImage(w: number, h: number, value: number) {
+    const m = new jsfeatNext.matrix_t(w, h, U8C1);
+    m.data.fill(value);
+    return m;
+}
+
+/** Grayscale `w`x`h` image filled from `fn(x, y)`, masked to 8 bits. */
+export function image(w: number, h: number, fn: (x: number, y: number) => number) {
+    const m = new jsfeatNext.matrix_t(w, h, U8C1);
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) m.data[y * w + x] = fn(x, y) & 0xff;
+    }
+    return m;
+}
+
+/** Deterministic pseudo-random grayscale image (texture for the detectors). */
+export function noiseImage(w: number, h: number, seed: number) {
+    const rand = rng(seed);
+    return image(w, h, () => (rand() * 256) | 0);
+}
+
+/** Uninitialised grayscale `w`x`h` destination image. */
+export function dstImage(w: number, h: number) {
+    return new jsfeatNext.matrix_t(w, h, U8C1);
+}
+
+/** Min and max over the logical `w*h` pixels, ignoring buffer padding. */
+export function pixelRange(m: { data: ArrayLike<number> }, w: number, h: number) {
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (let i = 0; i < w * h; i++) {
+        const v = m.data[i];
+        if (v < lo) lo = v;
+        if (v > hi) hi = v;
+    }
+    return { min: lo, max: hi };
+}
+
+/** Asserts every logical pixel lies within `[lo, hi]`. */
+export function expectPixelsWithin(m: { data: ArrayLike<number> }, w: number, h: number, lo = 0, hi = 255) {
+    const r = pixelRange(m, w, h);
+    expect(r.min).toBeGreaterThanOrEqual(lo);
+    expect(r.max).toBeLessThanOrEqual(hi);
+}
 
 /** Deterministic PRNG so failures are always reproducible. */
 export function rng(seed: number): () => number {
