@@ -35,7 +35,7 @@ export function noiseImage(w: number, h: number, seed: number) {
     return image(w, h, () => (rand() * 256) | 0);
 }
 
-/** Uninitialised grayscale `w`x`h` destination image. */
+/** Zero-filled grayscale `w`x`h` destination image (`matrix_t` allocates a fresh ArrayBuffer). */
 export function dstImage(w: number, h: number) {
     return new jsfeatNext.matrix_t(w, h, U8C1);
 }
@@ -78,7 +78,7 @@ export function mat(cols: number, rows: number, values?: number[]) {
     return m;
 }
 
-/** Uninitialised `cols`x`rows` destination matrix. */
+/** Zero-filled `cols`x`rows` destination matrix (`matrix_t` allocates a fresh ArrayBuffer). */
 export function dst(cols: number, rows: number) {
     return new jsfeatNext.matrix_t(cols, rows, F32C1);
 }
