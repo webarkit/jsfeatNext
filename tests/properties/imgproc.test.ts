@@ -261,10 +261,15 @@ describe("imgproc invariants", () => {
             const dst = dstImage(W, H);
             ip.equalize_histogram(src, dst);
 
+            // Every unordered pair is visited once, so both orderings have to be
+            // asserted explicitly: checking only `src[i] < src[j]` would leave
+            // half the pairs — those where the darker pixel has the higher
+            // index — completely unverified.
             for (let i = 0; i < W * H; i++) {
                 for (let j = i + 1; j < W * H; j++) {
                     if (src.data[i] < src.data[j]) expect(dst.data[i]).toBeLessThanOrEqual(dst.data[j]);
-                    if (src.data[i] === src.data[j]) expect(dst.data[i]).toBe(dst.data[j]);
+                    else if (src.data[i] > src.data[j]) expect(dst.data[i]).toBeGreaterThanOrEqual(dst.data[j]);
+                    else expect(dst.data[i]).toBe(dst.data[j]);
                 }
             }
         });
