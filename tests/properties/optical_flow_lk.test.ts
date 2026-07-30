@@ -52,7 +52,11 @@ function track(
     seed?: Float32Array
 ) {
     const count = prevXY.length >> 1;
-    const currXY = seed ? Float32Array.from(seed) : new Float32Array(count * 2);
+    // Default to the documented usage — "seed it with a prediction or a copy of
+    // prev_xy" — rather than zeros. track() happens to ignore the seed today
+    // (see the seed-independence test below), so zeros would pass just as well;
+    // following the contract keeps these tests correct either way.
+    const currXY = Float32Array.from(seed ?? prevXY);
     const status = new Uint8Array(count);
     jsfeatNext.optical_flow_lk.track(prev, curr, prevXY, currXY, count, WIN, 30, status, 0.01, 0.0001);
     return { count, currXY, status };
@@ -82,25 +86,38 @@ describe("optical_flow_lk invariants", () => {
         }
     });
 
-    it("converges back to zero motion from a deliberately wrong starting guess", () => {
-        // track() takes curr_xy as the initial estimate. Seeding it 1px off and
-        // still landing on zero shows the iteration is actually refining rather
-        // than passing the seed through — which the test above cannot tell,
-        // since there the seed is already the answer.
+    it("ignores the caller's initial curr_xy contents entirely", () => {
+        // Characterization, not an endorsement.
+        //
+        // The TSDoc invites callers to "seed it with a prediction or a copy of
+        // prev_xy", but at the coarsest level track() does `next_x = prev_x`,
+        // discarding whatever was in curr_xy. Verified: seeds of zeros, a copy
+        // of prev_xy, +1, +50 and even -9999 all yield BIT-IDENTICAL output, so
+        // curr_xy is pure output rather than an in/out prediction.
+        //
+        // Two consequences worth stating plainly: a bad guess can never
+        // corrupt the result (good), and a good prediction can never help
+        // (a missed optimisation, and a documentation mismatch — see the note
+        // in the PR). If initial-flow support is ever added, this test SHOULD
+        // fail and be updated deliberately.
         const img = cornerScene(W, H);
         const prevXY = trackablePoints(img);
-        const seed = Float32Array.from(prevXY, (v) => v + 1.0);
-        const { count, currXY, status } = track(pyramidOf(img), pyramidOf(img), prevXY, seed);
+        const shifted = pyramidOf(cornerScene(W, H, { dx: 2, dy: 1 }));
+        const prev = pyramidOf(img);
 
-        let converged = 0;
-        for (let i = 0; i < count; i++) {
-            if (status[i]) {
-                converged++;
-                expect(currXY[i * 2]).toBeCloseTo(prevXY[i * 2], 2);
-                expect(currXY[i * 2 + 1]).toBeCloseTo(prevXY[i * 2 + 1], 2);
-            }
+        const reference = track(prev, shifted, prevXY, Float32Array.from(prevXY));
+        expect(reference.count).toBeGreaterThan(0);
+
+        for (const makeSeed of [
+            () => new Float32Array(reference.count * 2), // zeros
+            () => Float32Array.from(prevXY, (v) => v + 1),
+            () => Float32Array.from(prevXY, (v) => v + 50),
+            () => Float32Array.from(prevXY, () => -9999),
+        ]) {
+            const other = track(prev, shifted, prevXY, makeSeed());
+            expect(Array.from(other.currXY)).toEqual(Array.from(reference.currXY));
+            expect(Array.from(other.status)).toEqual(Array.from(reference.status));
         }
-        expect(converged).toBeGreaterThan(0);
     });
 
     it("recovers a small known translation", () => {
