@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import jsfeatNext from "../../src/jsfeatNext";
-import { yape } from "../../src/yape/yape";
 import { U8C1, cornerScene, uniformImage, keypointPool, hammingDistance } from "./helpers";
 
 /**
@@ -217,17 +216,19 @@ describe("detector invariants", () => {
     });
 
     describe("yape", () => {
+        // Use the public singleton, like every other module here: since 0.9.0
+        // (#41) jsfeatNext.yape IS an instance, so `new yape()` would be
+        // testing a path callers are told not to take. yape is the one
+        // detector needing init() before detect().
+        const y = jsfeatNext.yape;
+
         it("finds nothing in a uniform image but does find keypoints in a scene", () => {
-            // NB: yape is a class in jsfeatNext (a static namespace in jsfeat)
-            // and needs init() before detect().
-            const y = new yape();
             y.init(W, H, 5, 1);
             expect(y.detect(uniformImage(W, H, 128), keypointPool(W * H), 4)).toBe(0);
             expect(y.detect(cornerScene(W, H), keypointPool(W * H), 4)).toBeGreaterThan(0);
         });
 
         it("every detected keypoint respects the requested border", () => {
-            const y = new yape();
             y.init(W, H, 5, 1);
             const points = keypointPool(W * H);
             const border = 4;
