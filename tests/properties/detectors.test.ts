@@ -277,9 +277,10 @@ describe("detector invariants", () => {
             // The descriptor is a set of `p(a) < p(b)` comparisons on a warped
             // patch. Bilinear interpolation is linear and the offset is an
             // integer, so every sampled value shifts by the same constant and
-            // no comparison can flip. Requires border >= 16 — see the next test.
-            const base = describedScene(0, 16);
-            const lifted = describedScene(20, 16);
+            // no comparison can flip — provided every sample lands inside the
+            // image. See the next test for what "inside" costs.
+            const base = describedScene(0, 20);
+            const lifted = describedScene(20, 20);
             expect(base.n).toBeGreaterThan(0);
             expect(hammingDistance(base.descriptors.data, lifted.descriptors.data, base.n * 32)).toBe(0);
         });
@@ -288,8 +289,16 @@ describe("detector invariants", () => {
             // rectify_patch() calls warp_affine(..., fill_value = 128). Patch
             // pixels sampled outside the image get exactly 128 whatever the
             // image brightness, so those comparisons DO flip when the image is
-            // lifted. A real caveat for callers: use border >= 16 (half the
-            // 32px patch) if descriptors must survive exposure changes.
+            // lifted.
+            //
+            // The margin that matters is NOT the 32px patch size: only the 256
+            // sampled pairs are read, and bit_pattern_31's largest coordinate
+            // component is 13, so the furthest sample sits 13*sqrt(2) = 18.39px
+            // from the keypoint. Rotation preserves that radius, so with the
+            // bilinear neighbour the guaranteed-safe margin is 20 — which is
+            // why the test above uses border 20. (Measured on a single keypoint
+            // swept over 2000 angles: contamination appears at distance <= 16
+            // and vanishes from 17 up, so 20 has slack rather than being tight.)
             const base = describedScene(0, 8);
             const lifted = describedScene(20, 8);
             const bits = base.n * 32 * 8;
