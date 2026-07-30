@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import jsfeatNext from "../../src/jsfeatNext";
-import { yape } from "../../src/yape/yape";
 import jsfeat from "../vendor/oracle.cjs";
 
 /**
@@ -8,9 +7,11 @@ import jsfeat from "../vendor/oracle.cjs";
  * for the feature detectors/descriptors/tracker:
  * fast_corners, yape06, yape, orb.describe, optical_flow_lk.track.
  *
- * API parity note (Axis 2): all of these are STATIC namespaces in the
- * original jsfeat but INSTANCE classes in jsfeatNext (except yape, which is
- * instantiated in both — original: new jsfeat.yape()).
+ * API parity note: these were an Axis 2 divergence (static namespaces in
+ * jsfeat vs classes to instantiate in jsfeatNext) until #41 made every
+ * algorithm module a singleton instance on the namespace. Both sides are now
+ * called identically — `jsfeatNext.fast_corners.detect(...)` against
+ * `jsfeat.fast_corners.detect(...)` — so no divergence remains here.
  */
 
 const W = 96;
@@ -121,9 +122,11 @@ describe("parity: yape vs original jsfeat.yape", () => {
         const { next, orig } = grayPair();
         const { nextC, origC } = makeCorners(W * H);
 
-        // API divergence (Axis 2): original jsfeat.yape is a STATIC namespace
-        // (jsfeat.yape.init(...)), jsfeatNext's yape is a class to instantiate.
-        const yN = new yape();
+        // Both sides are namespace-level singletons: jsfeat.yape is a static
+        // namespace, and since #41 jsfeatNext.yape is an instance on the
+        // namespace, so init()/detect() are called the same way on each. (This
+        // used to be listed as an Axis 2 API divergence; #41 removed it.)
+        const yN = jsfeatNext.yape;
         yN.init(W, H, 5, 1);
         jsfeat.yape.init(W, H, 5, 1);
 
