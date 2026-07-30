@@ -286,6 +286,8 @@ describe("detector invariants", () => {
         });
 
         it("loses that invariance near the image edge, because the patch fill value is a constant", () => {
+            // Characterizes the behaviour tracked by issue #110.
+            //
             // rectify_patch() calls warp_affine(..., fill_value = 128). Patch
             // pixels sampled outside the image get exactly 128 whatever the
             // image brightness, so those comparisons DO flip when the image is
