@@ -1,0 +1,4 @@
+ *  Portions of this file are derived from jsfeat
+ *  (https://github.com/inspirit/jsfeat), Copyright (c) Eugene Zatepyakin,
+ *  released under the MIT License.
+ *

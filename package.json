@@ -24,6 +24,7 @@
     "dev-ts": "vite build --watch",
     "format-check": "prettier --check .",
     "format": "prettier --write .",
+    "license-check": "node scripts/check-license-headers.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "docs": "typedoc"

@@ -39,6 +39,24 @@
 - Preserve the **public API surface** (`jsfeatNext.<module>` + method signatures) unless a change is explicitly approved.
 - License: **LGPL-3.0-or-later** (keep headers/attribution).
 
+### 📄 License headers — required on every new source file
+
+**Every new file under `src/`, `tests/` or `examples/` must start with the LGPL license header** (issue #112). CI fails the build if one is missing.
+
+```bash
+node scripts/check-license-headers.mjs        # verify
+node scripts/check-license-headers.mjs --fix  # apply to anything missing it
+```
+
+The header has **two variants**, composed from one template in `.agents/skills/license-header-adder/resources/` (`HEADER.txt` plus the `ATTRIBUTION-jsfeat.txt` snippet, so the licence wording can't drift between them). Picking the right variant matters legally:
+
+- **derived** — for code ported or derived from jsfeat. Includes the upstream **MIT attribution to Eugene Zatepyakin**. jsfeatNext is a port of MIT-licensed jsfeat; relicensing under LGPL is fine, but MIT *requires* its notice be retained, so ported files must carry it.
+- **original** — for code original to jsfeatNext (the test suite, `src/types.ts`, `src/index.ts`, the ESM example helpers). LGPL notice only — adding the jsfeat attribution here would be a false credit, and licence scanners would report MIT content in files that have none.
+
+The script decides from the file's path; the check verifies the applied header matches its variant byte-for-byte, so a wrong variant or an edited notice fails CI rather than passing silently.
+
+Replace `{{FILENAME}}` with the file's basename. Never stack a second header on a file that already has one, and never overwrite an existing third-party notice (`src/math/math.ts` carries a \*BSD `qsort` attribution; `src/orb/bit_pattern_31.ts` an OpenCV/ORB one). Never stamp `tests/vendor/**` or the inherited `examples/js/` third-party scripts. Full policy: [`.agents/skills/license-header-adder/SKILL.md`](.agents/skills/license-header-adder/SKILL.md).
+
 ## Git & contribution workflow
 
 - **Open PRs against the `dev` branch — never `main`.** `dev` is the integration branch; `main` is stable/release. Branch your work off `dev`.

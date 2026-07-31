@@ -86,11 +86,19 @@ export declare class linalg extends jsfeatNext {
      */
     svd_solve(A: matrix_t, X: matrix_t, B: matrix_t): void;
     /**
-     * Moore–Penrose pseudo-inverse via SVD: `Ai = V · diag(1/w) · Uᵀ`,
-     * with tiny singular values zeroed. Valid for any matrix shape/rank.
+     * Matrix inverse via SVD: `Ai = V · diag(1/w) · Uᵀ`, with tiny singular
+     * values zeroed.
      *
-     * @param Ai Output pseudo-inverse (n×m).
-     * @param A  Input m×n matrix (not modified).
+     * **Square matrices only.** The implementation inherited from jsfeat does
+     * not produce a correct Moore–Penrose pseudo-inverse for non-square input —
+     * only the first column of the result is right (see issue #102). Rather
+     * than return wrong numbers silently, as original jsfeat does, this method
+     * now throws on a non-square `A`. Support for the true rectangular
+     * pseudo-inverse is tracked in #102.
+     *
+     * @param Ai Output inverse, same n×n shape as `A`.
+     * @param A  Input n×n matrix (not modified).
+     * @throws {Error} if `A` is not square.
      */
     svd_invert(Ai: matrix_t, A: matrix_t): void;
     /**

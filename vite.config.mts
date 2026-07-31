@@ -1,6 +1,49 @@
 import { defineConfig } from "vite";
 import dts from "vite-plugin-dts";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+
+const pkg = JSON.parse(readFileSync(new URL("package.json", import.meta.url), "utf8"));
+
+/**
+ * Legal banner prepended to both bundles (issue #112). `/*!` marks it as a
+ * legal comment, so esbuild's minifier preserves it — without this the
+ * published package shipped no licence notice at all.
+ */
+const banner = `/*!
+ * jsfeatNext v${pkg.version} — https://github.com/webarkit/jsfeatNext
+ *
+ * SPDX-License-Identifier: LGPL-3.0-or-later
+ * Copyright 2026 WebARKit. Author(s): Walter Perdan @kalwalt
+ *
+ * Derived from jsfeat (https://github.com/inspirit/jsfeat),
+ * Copyright (c) Eugene Zatepyakin, released under the MIT License.
+ *
+ * This library is distributed WITHOUT ANY WARRANTY, without even the implied
+ * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Lesser General Public License for details: http://www.gnu.org/licenses/
+ */`;
+
+/**
+ * Prepends {@link banner} to every emitted chunk. Done as a `generateBundle`
+ * plugin rather than `output.banner` because that option is applied before
+ * minification, and Rolldown's Oxc minifier drops it from the UMD bundle even
+ * with legal comments enabled. `generateBundle` runs after minification, so
+ * nothing downstream can strip it.
+ */
+function licenseBannerPlugin() {
+    return {
+        name: "jsfeatnext:license-banner",
+        enforce: "post" as const,
+        generateBundle(_options, bundle) {
+            for (const file of Object.values(bundle)) {
+                if (file.type === "chunk" && !file.code.startsWith("/*!")) {
+                    file.code = `${banner}\n${file.code}`;
+                }
+            }
+        },
+    };
+}
 
 /**
  * Library build for jsfeatNext (replaces the webpack + babel + ts-loader chain).
@@ -33,6 +76,7 @@ export default defineConfig({
         },
     },
     plugins: [
+        licenseBannerPlugin(),
         dts({
             // NB: vite-plugin-dts v5 (unplugin-dts) renamed `outDir` -> `outDirs`.
             outDirs: ["types"],
