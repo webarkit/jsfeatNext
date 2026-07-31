@@ -1,3 +1,16 @@
+/*!
+ * jsfeatNext v0.10.1 — https://github.com/webarkit/jsfeatNext
+ *
+ * SPDX-License-Identifier: LGPL-3.0-or-later
+ * Copyright 2026 WebARKit. Author(s): Walter Perdan @kalwalt
+ *
+ * Derived from jsfeat (https://github.com/inspirit/jsfeat),
+ * Copyright (c) Eugene Zatepyakin, released under the MIT License.
+ *
+ * This library is distributed WITHOUT ANY WARRANTY, without even the implied
+ * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Lesser General Public License for details: http://www.gnu.org/licenses/
+ */
 //#region src/data_type/data_type.ts
 var e = class {
 	constructor() {
@@ -818,6 +831,7 @@ var v = class {
 		this.cache.put_buffer(g), this.cache.put_buffer(_), this.cache.put_buffer(v);
 	}
 	svd_invert(e, t) {
+		if (t.cols !== t.rows) throw Error(`jsfeatNext.linalg.svd_invert: only square matrices are supported, got ${t.rows}x${t.cols} (rows x cols). The rectangular pseudo-inverse is not implemented correctly yet — see issue #102.`);
 		let n = 0, r = 0, a = 0, o = 0, s = 0, c = 0, u = t.rows, d = t.cols, f = 0, p = 0, m = t.type | i.C1_t, h = this.cache.get_buffer(u * u << 3), g = this.cache.get_buffer(d << 3), _ = this.cache.get_buffer(d * d << 3), v = new l(u, u, m, h.data), y = new l(1, d, m, g.data), b = new l(d, d, m, _.data), x = e.data, S = v.data, C = y.data, w = b.data;
 		for (this.svd_decompose(t, y, v, b, 0), p = i.EPSILON * C[0] * d; n < d; n++, s += d) for (r = 0, o = 0; r < u; r++, c++) {
 			for (a = 0, f = 0; a < d; a++, o++) C[a] > p && (f += w[s + a] * S[o] / C[a]);

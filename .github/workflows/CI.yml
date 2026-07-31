@@ -35,5 +35,8 @@ jobs:
             - name: Format check
               run: npm run format-check
 
+            - name: License header check
+              run: npm run license-check
+
             - name: Test
               run: npm run test --if-present
