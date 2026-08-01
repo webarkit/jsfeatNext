@@ -38,7 +38,7 @@
 
 import { describe, it, expect } from "vitest";
 import jsfeatNext from "../../src/jsfeatNext";
-import { U8C1, F32C1, uniformImage, dstImage, cornerScene, keypointPool } from "./helpers";
+import { U8C1, F32C1, uniformImage, dstImage, cornerScene, keypointPool, rng } from "./helpers";
 
 /**
  * Tests for the shared buffer pool (issue #87, category D).
@@ -50,8 +50,19 @@ import { U8C1, F32C1, uniformImage, dstImage, cornerScene, keypointPool } from "
  * It deserves better: AGENTS.md makes "balance every `get_buffer` with a
  * `put_buffer`" a standing rule, every algorithm in the library borrows from
  * this one pool, and an imbalance is invisible until the pool drains and an
- * unrelated module starts reading someone else's scratch memory. The last test
- * here is the real prize — it holds every module to that rule at once.
+ * unrelated module starts reading someone else's scratch memory.
+ *
+ * The second block below is the real prize. It exercises real algorithm calls,
+ * but it is NOT testing those algorithms — nothing about their output is
+ * asserted. They are the subject matter: the only assertion is that the pool's
+ * free count is identical before and after. The rule belongs to the pool
+ * rather than to any one module, so it is checked in one place where the
+ * coverage is visible and a newly added module is obviously missing.
+ *
+ * Every module that calls `get_buffer` is represented — verified against
+ * `grep -rl get_buffer src/`, which is the list to re-check when adding one:
+ * imgproc (incl. resample), fast_corners, yape06, orb, optical_flow_lk,
+ * linalg, math, motion_estimator and motion_model.
  */
 
 const pool = jsfeatNext.cache;
@@ -176,6 +187,68 @@ describe("every module returns what it borrows", () => {
                 0.0001
             );
         });
+    });
+
+    it("math.get_gaussian_kernel is balanced", () => {
+        // Borrows a scratch node directly, not only via the blur paths above.
+        expectBalanced("get_gaussian_kernel f32", () =>
+            jsfeatNext.math.get_gaussian_kernel(7, 0, new Float32Array(7), jsfeatNext.F32_t)
+        );
+        expectBalanced("get_gaussian_kernel u8", () =>
+            jsfeatNext.math.get_gaussian_kernel(9, 1.5, new Int32Array(9), jsfeatNext.U8_t)
+        );
+    });
+
+    it("motion_estimator and its kernels are balanced", () => {
+        // ransac/lmeds each borrow three nodes, and the motion models borrow
+        // two more inside run(). None of it is reached by the paths above.
+        const GT = [1.05, 0.02, 8.0, -0.03, 0.98, -5.0, 0.0002, -0.0001, 1.0];
+        const rand = rng(1234);
+        const from: { x: number; y: number }[] = [];
+        const to: { x: number; y: number }[] = [];
+        for (let i = 0; i < 40; i++) {
+            const x = 10 + rand() * 300;
+            const y = 10 + rand() * 220;
+            const w = 1.0 / (GT[6] * x + GT[7] * y + GT[8]);
+            from.push({ x, y });
+            to.push({ x: (GT[0] * x + GT[1] * y + GT[2]) * w, y: (GT[3] * x + GT[4] * y + GT[5]) * w });
+        }
+
+        const me = jsfeatNext.motion_estimator;
+        for (const kernel of [jsfeatNext.homography2d, jsfeatNext.affine2d]) {
+            expectBalanced("motion_model.run", () => {
+                const model = new jsfeatNext.matrix_t(3, 3, F32C1);
+                kernel.run(from, to, model, from.length);
+            });
+            expectBalanced("motion_estimator.ransac", () => {
+                const params = new jsfeatNext.ransac_params_t(4, 3.0, 0.5, 0.99);
+                const model = new jsfeatNext.matrix_t(3, 3, F32C1);
+                me.ransac(
+                    params,
+                    kernel,
+                    from,
+                    to,
+                    from.length,
+                    model,
+                    new jsfeatNext.matrix_t(from.length, 1, U8C1),
+                    100
+                );
+            });
+            expectBalanced("motion_estimator.lmeds", () => {
+                const params = new jsfeatNext.ransac_params_t(4, 0, 0.45, 0.99);
+                const model = new jsfeatNext.matrix_t(3, 3, F32C1);
+                me.lmeds(
+                    params,
+                    kernel,
+                    from,
+                    to,
+                    from.length,
+                    model,
+                    new jsfeatNext.matrix_t(from.length, 1, U8C1),
+                    100
+                );
+            });
+        }
     });
 
     it("linalg solvers are balanced", () => {
