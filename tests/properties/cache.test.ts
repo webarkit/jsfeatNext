@@ -38,7 +38,6 @@
 
 import { describe, it, expect } from "vitest";
 import jsfeatNext from "../../src/jsfeatNext";
-import { U8C1, F32C1, uniformImage, dstImage, cornerScene, keypointPool, rng } from "./helpers";
 
 /**
  * Tests for the shared buffer pool (issue #87, category D).
@@ -52,17 +51,13 @@ import { U8C1, F32C1, uniformImage, dstImage, cornerScene, keypointPool, rng } f
  * this one pool, and an imbalance is invisible until the pool drains and an
  * unrelated module starts reading someone else's scratch memory.
  *
- * The second block below is the real prize. It exercises real algorithm calls,
- * but it is NOT testing those algorithms — nothing about their output is
- * asserted. They are the subject matter: the only assertion is that the pool's
- * free count is identical before and after. The rule belongs to the pool
- * rather than to any one module, so it is checked in one place where the
- * coverage is visible and a newly added module is obviously missing.
- *
- * Every module that calls `get_buffer` is represented — verified against
- * `grep -rl get_buffer src/`, which is the list to re-check when adding one:
- * imgproc (incl. resample), fast_corners, yape06, orb, optical_flow_lk,
- * linalg, math, motion_estimator and motion_model.
+ * What is left here is the pool's own mechanics. The per-module "does it give
+ * back what it borrowed" checks that used to live below have been removed:
+ * `tests/setup/pool-balance.ts` now applies that check to EVERY test in the
+ * suite, which covers strictly more than a hand-maintained list of call sites
+ * could — including the parity tests, and any module added later. The old list
+ * had already drifted once, missing motion_estimator, motion_model and
+ * math.get_gaussian_kernel.
  */
 
 const pool = jsfeatNext.cache;
@@ -112,174 +107,5 @@ describe("shared buffer pool mechanics", () => {
         expect(freeCount()).toBe(before - 3);
         for (const n of nodes) pool.put_buffer(n);
         expect(freeCount()).toBe(before);
-    });
-});
-
-describe("every module returns what it borrows", () => {
-    /** Asserts `run` leaves the pool exactly as it found it. */
-    function expectBalanced(label: string, run: () => void) {
-        const before = freeCount();
-        run();
-        expect(`${label}: ${freeCount()}`).toBe(`${label}: ${before}`);
-    }
-
-    const ip = jsfeatNext.imgproc;
-    const W = 96;
-    const H = 72;
-
-    it("imgproc operations are balanced", () => {
-        expectBalanced("gaussian_blur", () => ip.gaussian_blur(uniformImage(32, 32, 90), dstImage(32, 32), 5, 0));
-        expectBalanced("box_blur_gray", () => ip.box_blur_gray(uniformImage(32, 32, 90), dstImage(32, 32), 3, 0));
-        expectBalanced("sobel_derivatives", () =>
-            ip.sobel_derivatives(uniformImage(32, 32, 90), new jsfeatNext.matrix_t(32, 32, jsfeatNext.S32C2_t))
-        );
-        expectBalanced("scharr_derivatives", () =>
-            ip.scharr_derivatives(uniformImage(32, 32, 90), new jsfeatNext.matrix_t(32, 32, jsfeatNext.S32C2_t))
-        );
-        expectBalanced("canny", () => ip.canny(cornerScene(32, 32), dstImage(32, 32), 20, 50));
-        expectBalanced("equalize_histogram", () => ip.equalize_histogram(cornerScene(32, 32), dstImage(32, 32)));
-        expectBalanced("pyrdown", () => ip.pyrdown(cornerScene(32, 32), dstImage(16, 16)));
-        expectBalanced("resample", () => ip.resample(cornerScene(32, 32), dstImage(16, 16), 16, 16));
-        expectBalanced("compute_integral_image", () =>
-            ip.compute_integral_image(cornerScene(32, 32), new Int32Array(33 * 33), null, null)
-        );
-    });
-
-    it("detectors and the descriptor are balanced", () => {
-        const fc = jsfeatNext.fast_corners;
-        fc.set_threshold(20);
-
-        expectBalanced("fast_corners.detect", () => fc.detect(cornerScene(W, H), keypointPool(1024), 5));
-        expectBalanced("yape06.detect", () => jsfeatNext.yape06.detect(cornerScene(W, H), keypointPool(1024), 5));
-        expectBalanced("yape.detect", () => {
-            const y = jsfeatNext.yape;
-            y.init(W, H, 5, 1);
-            y.detect(cornerScene(W, H), keypointPool(1024), 4);
-        });
-        expectBalanced("orb.describe", () => {
-            const corners = keypointPool(1024);
-            const n = fc.detect(cornerScene(W, H), corners, 24);
-            for (let i = 0; i < n; i++) corners[i].angle = 0;
-            jsfeatNext.orb.describe(cornerScene(W, H), corners, n, new jsfeatNext.matrix_t(32, n, U8C1));
-        });
-    });
-
-    it("optical_flow_lk is balanced", () => {
-        const img = cornerScene(W, H);
-        const pyramid = () => {
-            const p = new jsfeatNext.pyramid_t(2);
-            p.allocate(W, H, U8C1);
-            p.build(img, false);
-            return p;
-        };
-        expectBalanced("optical_flow_lk.track", () => {
-            const xy = Float32Array.from([30, 30, 50, 40]);
-            jsfeatNext.optical_flow_lk.track(
-                pyramid(),
-                pyramid(),
-                xy,
-                new Float32Array(4),
-                2,
-                9,
-                30,
-                new Uint8Array(2),
-                0.01,
-                0.0001
-            );
-        });
-    });
-
-    it("math.get_gaussian_kernel is balanced", () => {
-        // Borrows a scratch node directly, not only via the blur paths above.
-        expectBalanced("get_gaussian_kernel f32", () =>
-            jsfeatNext.math.get_gaussian_kernel(7, 0, new Float32Array(7), jsfeatNext.F32_t)
-        );
-        expectBalanced("get_gaussian_kernel u8", () =>
-            jsfeatNext.math.get_gaussian_kernel(9, 1.5, new Int32Array(9), jsfeatNext.U8_t)
-        );
-    });
-
-    it("motion_estimator and its kernels are balanced", () => {
-        // ransac/lmeds each borrow three nodes, and the motion models borrow
-        // two more inside run(). None of it is reached by the paths above.
-        const GT = [1.05, 0.02, 8.0, -0.03, 0.98, -5.0, 0.0002, -0.0001, 1.0];
-        const rand = rng(1234);
-        const from: { x: number; y: number }[] = [];
-        const to: { x: number; y: number }[] = [];
-        for (let i = 0; i < 40; i++) {
-            const x = 10 + rand() * 300;
-            const y = 10 + rand() * 220;
-            const w = 1.0 / (GT[6] * x + GT[7] * y + GT[8]);
-            from.push({ x, y });
-            to.push({ x: (GT[0] * x + GT[1] * y + GT[2]) * w, y: (GT[3] * x + GT[4] * y + GT[5]) * w });
-        }
-
-        const me = jsfeatNext.motion_estimator;
-        for (const kernel of [jsfeatNext.homography2d, jsfeatNext.affine2d]) {
-            expectBalanced("motion_model.run", () => {
-                const model = new jsfeatNext.matrix_t(3, 3, F32C1);
-                kernel.run(from, to, model, from.length);
-            });
-            expectBalanced("motion_estimator.ransac", () => {
-                const params = new jsfeatNext.ransac_params_t(4, 3.0, 0.5, 0.99);
-                const model = new jsfeatNext.matrix_t(3, 3, F32C1);
-                me.ransac(
-                    params,
-                    kernel,
-                    from,
-                    to,
-                    from.length,
-                    model,
-                    new jsfeatNext.matrix_t(from.length, 1, U8C1),
-                    100
-                );
-            });
-            expectBalanced("motion_estimator.lmeds", () => {
-                const params = new jsfeatNext.ransac_params_t(4, 0, 0.45, 0.99);
-                const model = new jsfeatNext.matrix_t(3, 3, F32C1);
-                me.lmeds(
-                    params,
-                    kernel,
-                    from,
-                    to,
-                    from.length,
-                    model,
-                    new jsfeatNext.matrix_t(from.length, 1, U8C1),
-                    100
-                );
-            });
-        }
-    });
-
-    it("linalg solvers are balanced", () => {
-        const spd = () => {
-            const m = new jsfeatNext.matrix_t(3, 3, F32C1);
-            m.data.set([4, 1, 2, 1, 5, 3, 2, 3, 6]);
-            return m;
-        };
-
-        expectBalanced("svd_decompose", () =>
-            jsfeatNext.linalg.svd_decompose(
-                spd(),
-                new jsfeatNext.matrix_t(1, 3, F32C1),
-                new jsfeatNext.matrix_t(3, 3, F32C1),
-                new jsfeatNext.matrix_t(3, 3, F32C1),
-                0
-            )
-        );
-        expectBalanced("svd_invert", () => jsfeatNext.linalg.svd_invert(new jsfeatNext.matrix_t(3, 3, F32C1), spd()));
-        expectBalanced("eigenVV", () =>
-            jsfeatNext.linalg.eigenVV(spd(), new jsfeatNext.matrix_t(3, 3, F32C1), new jsfeatNext.matrix_t(1, 3, F32C1))
-        );
-        expectBalanced("lu_solve", () => {
-            const b = new jsfeatNext.matrix_t(1, 3, F32C1);
-            b.data.set([1, 2, 3]);
-            jsfeatNext.linalg.lu_solve(spd(), b);
-        });
-        expectBalanced("cholesky_solve", () => {
-            const b = new jsfeatNext.matrix_t(1, 3, F32C1);
-            b.data.set([1, 2, 3]);
-            jsfeatNext.linalg.cholesky_solve(spd(), b);
-        });
     });
 });
