@@ -172,17 +172,34 @@ describe("edge cases: box_blur_gray below kernel size — KNOWN BUG #114", () =>
     // These are CHARACTERIZATION tests pinning today's broken output. When #114
     // is fixed they must fail — that is the point.
 
-    it("is correct once the image is at least as large as the kernel", () => {
-        // The real invariant, asserted where it actually holds.
+    it("is correct at every size at or above the kernel, in both dimensions", () => {
+        // The real invariant, asserted across the whole region where it holds
+        // rather than at one sampled point per radius.
+        //
+        // The reliable region is BOTH cols >= 2r+1 AND rows >= 2r+1 — not
+        // `min(cols, rows)`. The two passes run along cols and then along rows,
+        // and either being shorter than the window is enough to break it. Below
+        // the region the result is erratic rather than uniformly wrong: some
+        // dimension pairs land on the right value by coincidence, which is why
+        // the failing side is pinned with `it.fails` instead of exact values.
+        // See #114.
+        const offenders: string[] = [];
         for (const radius of [1, 2, 3, 4]) {
-            const size = 2 * radius + 1;
-            const dst = dstImage(size, size);
-            ip.box_blur_gray(flat(size, size, 128), dst, radius, 0);
-            const { min, max } = pixelRange(dst, size, size);
-            // radius 3 lands 1 low from float truncation — see the test below
-            expect(Math.abs(min - 128)).toBeLessThanOrEqual(1);
-            expect(Math.abs(max - 128)).toBeLessThanOrEqual(1);
+            const kernel = 2 * radius + 1;
+            for (let cols = kernel; cols <= kernel + 6; cols++) {
+                for (let rows = kernel; rows <= kernel + 6; rows++) {
+                    const dst = dstImage(cols, rows);
+                    ip.box_blur_gray(flat(cols, rows, 128), dst, radius, 0);
+                    const { min, max } = pixelRange(dst, cols, rows);
+                    // radius 3 lands 1 low from float truncation — a separate
+                    // defect with its own test below, so allow a single level
+                    if (Math.abs(min - 128) > 1 || Math.abs(max - 128) > 1) {
+                        offenders.push(`${cols}x${rows} r=${radius} -> [${min},${max}]`);
+                    }
+                }
+            }
         }
+        expect(offenders).toEqual([]);
     });
 
     it("is exact for radii whose reciprocal window area rounds up", () => {
