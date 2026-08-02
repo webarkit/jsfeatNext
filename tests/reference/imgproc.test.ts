@@ -38,8 +38,16 @@
 
 import { describe, it, expect } from "vitest";
 import jsfeatNext from "../../src/jsfeatNext";
-import { noiseImage, dstImage, image } from "../properties/helpers";
-import { refBoxBlur, refBoxBlurAsImplemented, refSobel, refScharr, refIntegralImage } from "./reference-impl";
+import { noiseImage, dstImage, image, U8C1, F32C1 } from "../properties/helpers";
+import {
+    refBoxBlur,
+    refBoxBlurAsImplemented,
+    refGaussianBlurU8,
+    refSobel,
+    refScharr,
+    refIntegralImage,
+    refWarpAffine,
+} from "./reference-impl";
 
 /**
  * Ground-truth tests for `imgproc` (issue #87, category C1).
@@ -131,6 +139,63 @@ describe("ground truth: box_blur_gray vs a naive clamped-window mean", () => {
     });
 });
 
+describe("ground truth: gaussian_blur vs a naive separable convolution", () => {
+    const SHAPES: [number, number][] = [
+        [8, 8],
+        [16, 9],
+        [9, 16],
+        [23, 17],
+        [32, 24],
+    ];
+
+    it("matches exactly at every kernel size and shape", () => {
+        // Exact only once the reference reproduces jsfeat's ARITHMETIC as well
+        // as its maths: the integer kernel, a truncating `>> 8` per pass, and
+        // — the part that is easy to miss — quantisation back to 8 bits
+        // BETWEEN the two passes. Accumulating both passes at full width and
+        // shifting once at the end lands 1-2 grey levels out on most pixels.
+        for (const [w, h] of SHAPES) {
+            const src = noiseImage(w, h, 777);
+            for (const size of [3, 5, 7, 9]) {
+                const dst = dstImage(w, h);
+                ip.gaussian_blur(src, dst, size, 0);
+
+                const intKernel = new Int32Array(size);
+                jsfeatNext.math.get_gaussian_kernel(size, 0, intKernel, jsfeatNext.U8_t);
+                expectExact(`${w}x${h} k=${size}`, dst.data, refGaussianBlurU8(src.data, w, h, intKernel), w * h);
+            }
+        }
+    });
+
+    it("matches on a gradient, where a border slip cannot hide in noise", () => {
+        const src = image(W, H, (x, y) => (x * 5 + y * 11) & 0xff);
+        const dst = dstImage(W, H);
+        ip.gaussian_blur(src, dst, 5, 0);
+
+        const intKernel = new Int32Array(5);
+        jsfeatNext.math.get_gaussian_kernel(5, 0, intKernel, jsfeatNext.U8_t);
+        expectExact("gradient k=5", dst.data, refGaussianBlurU8(src.data, W, H, intKernel), W * H);
+    });
+
+    it("matches when sigma is given explicitly rather than derived", () => {
+        // sigma > 0 takes the sampled exp() path in get_gaussian_kernel instead
+        // of the fixed binomial tables, so the weights differ entirely.
+        const src = noiseImage(W, H, 314);
+        for (const [size, sigma] of [
+            [5, 1.5],
+            [7, 0.8],
+            [9, 2.5],
+        ] as [number, number][]) {
+            const dst = dstImage(W, H);
+            ip.gaussian_blur(src, dst, size, sigma);
+
+            const intKernel = new Int32Array(size);
+            jsfeatNext.math.get_gaussian_kernel(size, sigma, intKernel, jsfeatNext.U8_t);
+            expectExact(`k=${size} sigma=${sigma}`, dst.data, refGaussianBlurU8(src.data, W, H, intKernel), W * H);
+        }
+    });
+});
+
 describe("ground truth: sobel and scharr derivatives", () => {
     /** Splits jsfeat's interleaved dx,dy output into two planes. */
     function planes(dst: { data: ArrayLike<number> }, n: number) {
@@ -188,6 +253,67 @@ describe("ground truth: sobel and scharr derivatives", () => {
             }
         }
         expect(borderChecked).toBe(2 * W + 2 * H - 4);
+    });
+});
+
+describe("ground truth: warp_affine vs naive bilinear sampling", () => {
+    /** Builds an F32 3x3 affine matrix and returns its float32-rounded coefficients. */
+    function transform(values: number[]) {
+        const m = new jsfeatNext.matrix_t(3, 3, F32C1);
+        m.data.set([...values, 0, 0, 1]);
+        return { matrix: m, coefficients: Array.from({ length: 6 }, (_, i) => m.data[i]) };
+    }
+
+    const CASES: [string, number[]][] = [
+        [
+            "rotate+scale+translate",
+            [1.15 * Math.cos(0.37), -1.15 * Math.sin(0.37), 3.25, 1.15 * Math.sin(0.37), 1.15 * Math.cos(0.37), -1.75],
+        ],
+        ["pure scale", [0.5, 0, 0, 0, 0.5, 0]],
+        ["shear", [1, 0.4, -2.5, 0.15, 1, 1.25]],
+        ["translate only", [1, 0, 4.5, 0, 1, -3.5]],
+    ];
+
+    it("matches exactly for a range of transforms", () => {
+        const src = noiseImage(W, H, 2468);
+        for (const [name, values] of CASES) {
+            const { matrix, coefficients } = transform(values);
+            const dst = new jsfeatNext.matrix_t(W, H, U8C1);
+            ip.warp_affine(src, dst, matrix, 42);
+
+            const want = refWarpAffine(src.data, W, H, W, H, coefficients, 42);
+            expectExact(name, dst.data, want, W * H);
+        }
+    });
+
+    it("treats source coordinates in (-1, 0) as inside, extrapolating with a negative weight", () => {
+        // `xs | 0` truncates toward zero, so xs = -0.5 gives ixs = 0 and passes
+        // the `ixs >= 0` bounds check. The interpolation weight `a = xs - ixs`
+        // is then negative and the result is an extrapolation, which can leave
+        // [0,255] and wrap in the U8 destination. Characterizing the current
+        // behaviour, not endorsing it.
+        const src = noiseImage(W, H, 2468);
+        const { matrix, coefficients } = transform([1, 0, -0.5, 0, 1, -0.5]);
+        const dst = new jsfeatNext.matrix_t(W, H, U8C1);
+        ip.warp_affine(src, dst, matrix, 42);
+
+        // count how many sampled pixels get a negative weight
+        let negativeWeight = 0;
+        for (let y = 0; y < H; y++) {
+            for (let x = 0; x < W; x++) {
+                const xs = coefficients[0] * x + coefficients[1] * y + coefficients[2];
+                const ys = coefficients[3] * x + coefficients[4] * y + coefficients[5];
+                const ixs = xs | 0;
+                const iys = ys | 0;
+                if (ixs >= 0 && iys >= 0 && ixs < W - 1 && iys < H - 1 && (xs - ixs < 0 || ys - iys < 0)) {
+                    negativeWeight++;
+                }
+            }
+        }
+        expect(negativeWeight).toBeGreaterThan(0);
+
+        // and the reference reproduces it, wrapping included
+        expectExact("negative-weight warp", dst.data, refWarpAffine(src.data, W, H, W, H, coefficients, 42), W * H);
     });
 });
 
