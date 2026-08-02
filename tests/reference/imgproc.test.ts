@@ -47,6 +47,7 @@ import {
     refScharr,
     refIntegralImage,
     refWarpAffine,
+    refAreaAverage,
 } from "./reference-impl";
 
 /**
@@ -314,6 +315,80 @@ describe("ground truth: warp_affine vs naive bilinear sampling", () => {
 
         // and the reference reproduces it, wrapping included
         expectExact("negative-weight warp", dst.data, refWarpAffine(src.data, W, H, W, H, coefficients, 42), W * H);
+    });
+});
+
+describe("ground truth: resample vs an exact area average", () => {
+    const INTEGER_RATIOS: [number, number, number, number][] = [
+        [24, 18, 12, 9], // /2
+        [24, 18, 8, 6], // /3
+        [32, 24, 8, 6], // /4
+        [30, 20, 15, 10], // /2
+        [36, 24, 6, 4], // /6
+    ];
+
+    const FRACTIONAL_RATIOS: [number, number, number, number][] = [
+        [23, 17, 9, 7],
+        [24, 18, 10, 7],
+        [30, 20, 7, 6],
+        [31, 23, 11, 8],
+        [40, 30, 13, 9],
+    ];
+
+    it("is EXACTLY floor(area average) at integer ratios", () => {
+        // Every weight is a whole 256 and the normaliser divides cleanly, so
+        // the only quantisation left is the final store — which truncates.
+        // Exact equality, no tolerance.
+        for (const [w, h, nw, nh] of INTEGER_RATIOS) {
+            const src = noiseImage(w, h, 5150);
+            const dst = dstImage(nw, nh);
+            ip.resample(src, dst, nw, nh);
+
+            const want = Float64Array.from(refAreaAverage(src.data, w, h, nw, nh), Math.floor);
+            expectExact(`${w}x${h} to ${nw}x${nh}`, dst.data, want, nw * nh);
+        }
+    });
+
+    it("stays within 1.5 grey levels at fractional ratios, and never overshoots", () => {
+        // The 8.8 fixed-point path truncates in four places: the column weight
+        // `alpha`, the row weight `beta`, the normaliser `inv_scale_256`, and
+        // the store into U8. All four bias DOWNWARD, so the error is one-sided.
+        // The final store alone accounts for up to 1; the weight quantisation
+        // supplies the rest. Worst measured across these ratios is 1.379 low.
+        let worst = 0;
+        for (const [w, h, nw, nh] of FRACTIONAL_RATIOS) {
+            const src = noiseImage(w, h, 5150);
+            const dst = dstImage(nw, nh);
+            ip.resample(src, dst, nw, nh);
+
+            const exact = refAreaAverage(src.data, w, h, nw, nh);
+            for (let i = 0; i < nw * nh; i++) {
+                const error = dst.data[i] - exact[i];
+                expect(`${w}x${h} err ${error > 0.1 || error <= -1.5 ? "OUT" : "ok"}`).toBe(`${w}x${h} err ok`);
+                worst = Math.max(worst, Math.abs(error));
+            }
+        }
+        // and the bound is not vacuous — the error really does get close to it
+        expect(worst).toBeGreaterThan(1);
+    });
+
+    it("the float path is accurate, proving the drift is U8 quantisation", () => {
+        // Same operation on F32 matrices takes `_resample` instead of
+        // `_resample_u8` and agrees with the exact area average to float32
+        // precision. So the ~1.4 above is the fast path's fixed point, not a
+        // flaw in the resampling maths itself.
+        const [w, h, nw, nh] = [24, 18, 10, 7];
+        const noise = noiseImage(w, h, 5150);
+
+        const src = new jsfeatNext.matrix_t(w, h, F32C1);
+        for (let i = 0; i < w * h; i++) src.data[i] = noise.data[i];
+        const dst = new jsfeatNext.matrix_t(nw, nh, F32C1);
+        ip.resample(src, dst, nw, nh);
+
+        const exact = refAreaAverage(noise.data, w, h, nw, nh);
+        for (let i = 0; i < nw * nh; i++) {
+            expect(Math.abs(dst.data[i] - exact[i])).toBeLessThan(1e-3);
+        }
     });
 });
 

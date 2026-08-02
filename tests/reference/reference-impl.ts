@@ -321,6 +321,56 @@ export function refWarpAffine(
 }
 
 /**
+ * Exact area-average downscale: each destination pixel is the mean of the
+ * source rectangle it covers, weighting partially-covered source pixels by the
+ * fraction of their area that falls inside.
+ *
+ * This is the DEFINITION of what `imgproc.resample` computes. It is
+ * deliberately NOT a transcription of the implementation, which does the same
+ * thing in 8.8 fixed point with four separate truncations — the per-column
+ * weight `alpha`, the per-row weight `beta`, the normaliser `inv_scale_256`,
+ * and the final store into a `U8` destination. Reproducing those would make the
+ * comparison circular; comparing against the exact answer instead measures how
+ * far the fast path drifts, which is the interesting question.
+ *
+ * Measured against `imgproc.resample` on 8-bit noise:
+ *
+ *  - at INTEGER ratios the library returns exactly `floor(this)`, every pixel;
+ *  - at fractional ratios it lands up to ~1.4 grey levels low;
+ *  - the float path (non-`U8` matrices) agrees to ~1e-5, so the drift is
+ *    quantisation in the `U8` fast path, not bad resampling maths.
+ *
+ * The `- 1e-9` guards keep floating-point on `x1`/`y1` from pushing `ceil` one
+ * past the last row or column, which reads `undefined` and poisons the sum with
+ * `NaN` — a bug this reference had on its first outing.
+ */
+export function refAreaAverage(src: ArrayLike<number>, w: number, h: number, nw: number, nh: number): Float64Array {
+    const scaleX = w / nw;
+    const scaleY = h / nh;
+    const out = new Float64Array(nw * nh);
+
+    for (let dy = 0; dy < nh; dy++) {
+        for (let dx = 0; dx < nw; dx++) {
+            const x0 = dx * scaleX;
+            const x1 = x0 + scaleX;
+            const y0 = dy * scaleY;
+            const y1 = y0 + scaleY;
+
+            let acc = 0;
+            for (let y = Math.floor(y0); y < Math.min(h, Math.ceil(y1 - 1e-9)); y++) {
+                const coverY = Math.min(y1, y + 1) - Math.max(y0, y);
+                for (let x = Math.floor(x0); x < Math.min(w, Math.ceil(x1 - 1e-9)); x++) {
+                    const coverX = Math.min(x1, x + 1) - Math.max(x0, x);
+                    acc += src[y * w + x] * coverX * coverY;
+                }
+            }
+            out[dy * nw + dx] = acc / (scaleX * scaleY);
+        }
+    }
+    return out;
+}
+
+/**
  * Summed-area tables by brute force: every cell is the full sum of the
  * rectangle above-left of it, recomputed from scratch. O(n⁴) and completely
  * uninterested in the incremental recurrence the real implementation uses,
