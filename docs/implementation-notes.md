@@ -343,3 +343,50 @@ Two lessons, both now baked into the test:
 where no reference is practical: build `A = U·diag(w)·Vᵀ` from chosen singular
 values and require SVD to return them; push points through a chosen homography
 and require it to be recovered.
+
+### What this approach still cannot answer
+
+The reference implementations were written by the same person who read the
+implementation, so a shared misunderstanding of a *convention* survives both
+sides. Closed-form tests plug that hole for constants (BT.601, the binomial
+kernels) but not for algorithmic conventions. Two questions remain genuinely
+open:
+
+- **Is sobel's asymmetric border handling (§1) deliberate or accidental?** The
+  reference matches it because it was derived from the source. If the
+  reflect-vertically / replicate-horizontally split is an accident, the test
+  suite has enshrined it as the specification.
+- **Is the size-7 Gaussian kernel (§2) deliberate or a typo?** Sizes 3 and 5
+  are binomial rows and 7 is not, which is exactly the shape a long-lived typo
+  takes.
+
+Neither can be settled from inside this repo. A **one-off** comparison against
+OpenCV would settle both — `cv2.getGaussianKernel` and `cv2.Sobel` with an
+explicit `borderType` answer them directly.
+
+Deliberately deferred, and deferred as an *investigation* rather than a test
+category: even if OpenCV disagrees, neither would be changed (sobel's borders
+feed every derivative, detector and optical-flow result; the 7-tap kernel feeds
+every 7-tap blur), so the value is knowing whether jsfeat diverges from the CV
+mainstream by choice or by accident. Committed fixtures plus tolerance-tuning
+against OpenCV's different conventions would be a large cost for information
+that changes no code. Revisit if `haar` (#43) or `bbf` (#44) are ported —
+those have neither a usable oracle nor a tractable naive reference, so OpenCV
+fixtures would be the only ground truth available — or if OpenCV output is ever
+wanted as a **benchmark** baseline alongside #86.
+
+### Coverage: name-based auditing is not enough
+
+The category-D audit found untested modules by grepping test files for module
+names. That method has a blind spot it cannot see past: it cannot distinguish
+"untested" from "exercised transitively", and it silently passes any code
+reached only through another module.
+
+Concretely: `src/imgproc/convol.ts` exports two functions. `_convol_u8` is
+heavily exercised through `gaussian_blur`. **`_convol`, the ~120-line float
+path, is executed by none of the 255 tests** — every `gaussian_blur` call in
+the suite passes a `U8` image. Verified by instrumenting the function and
+running the whole suite: zero hits.
+
+The audit missed it because `convol.ts` *is* referenced, just never directly.
+A line-coverage report would have surfaced it mechanically.
