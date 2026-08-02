@@ -187,12 +187,19 @@ Practical effect: speckle along the top and left edges of a warped image, where
 `fill_value` was probably intended. Coordinates below `-1` are unaffected —
 they truncate to `-1` and fail the check correctly.
 
-Characterized in `tests/reference/imgproc.test.ts`; **not yet filed as an
-issue.**
+Identical bounds check in original jsfeat, so inherited rather than introduced
+here. Characterized in `tests/reference/imgproc.test.ts`; tracked as
+[#119](https://github.com/webarkit/jsfeatNext/issues/119).
 
-### `invert_3x3` on a singular matrix
+### `invert_3x3` on a singular matrix — [#120](https://github.com/webarkit/jsfeatNext/issues/120)
 
-Returns `NaN` / `±Infinity` silently, with no signal to the caller. Same family
+Divides by the determinant without checking it, so a singular input returns
+`NaN` / `±Infinity` silently — no return value, no exception, no flag.
+Byte-identical in original jsfeat, so inherited.
+
+Matters because `NaN` propagates: a degenerate homography or collapsed affine
+fit poisons whatever consumes the inverse, surfacing far from the cause.
+Contrast `linalg.lu_solve`, which returns 0 on a singular system. Same family
 as [#102](https://github.com/webarkit/jsfeatNext/issues/102).
 
 ### `svd_invert` on non-square input — [#102](https://github.com/webarkit/jsfeatNext/issues/102)
