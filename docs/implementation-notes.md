@@ -101,13 +101,40 @@ tested.
 Borders **replicate** in both directions here — unlike the derivative filters
 in §1.
 
-### `resample` — the `U8` fast path truncates
+### `resample` — the `U8` fast path truncates in four places
 
-`_resample_u8` uses 8.8 fixed point and is chosen when both matrices are `U8`
-and the area ratio is under 256. Resampling a constant is exact at an integer
-ratio but comes out **up to 1 low** at a non-integer ratio (e.g. 77 → 76). The
-float path is exact, so the error is quantisation rather than bad resampling
-maths. Bit-identical to original jsfeat, so inherited, not a regression.
+`_resample_u8` computes an area average in 8.8 fixed point, and is chosen when
+both matrices are `U8` and the area ratio is under 256. It truncates at four
+separate points, **all biased downward**:
+
+| truncation | what it quantises |
+| --- | --- |
+| `alpha = ((sx1 - fsx1) * 0x100) \| 0` | per-column coverage weight |
+| `beta = (... * 256) \| 0` | per-row coverage weight |
+| `inv_scale_256 = (scale_x * scale_y * 0x10000) \| 0` | the normaliser |
+| store into the `U8` destination | the final value |
+
+Measured against an exact area average on 8-bit noise:
+
+| ratio | result |
+| --- | --- |
+| **integer** (e.g. 24×18 → 12×9, 32×24 → 8×6) | **exactly `floor(exact)`, every pixel** |
+| **fractional** (e.g. 23×17 → 9×7) | up to **1.379 low**, never meaningfully high |
+| float path (`F32` matrices) | agrees to ~1e-5 |
+
+Two corrections to what was written here earlier, both from measuring on real
+data rather than on a constant image:
+
+- the drift is **~1.4, not ~1**. The old figure came from a uniform-image test
+  (77 → 76), which only ever exercises one value and understates it.
+- "the float path is exact" was too strong — it agrees to float32 precision
+  (~1e-5), which is the right claim and still makes the point: the drift is
+  quantisation in the `U8` fast path, not bad resampling maths.
+
+The integer-ratio result is the useful one for testing: it is an exact
+equality, so it needs no tolerance at all.
+
+Bit-identical to original jsfeat, so inherited, not a regression.
 
 ---
 
