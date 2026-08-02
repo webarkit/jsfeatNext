@@ -146,6 +146,67 @@ export function refGrayscaleExact(rgba: ArrayLike<number>, w: number, h: number,
 }
 
 /**
+ * Separable Gaussian blur on `U8` data, reproducing jsfeat's arithmetic.
+ *
+ * Three details matter, and getting any of them wrong puts the result 1–2 grey
+ * levels out on most pixels — which is how this looked before the
+ * implementation was read properly:
+ *
+ *  1. The kernel is the INTEGER one (weights summing to ~256), not the float
+ *     one. Pass `U8_t` to `get_gaussian_kernel`.
+ *  2. Each pass ends with `min(sum >> 8, 255)` — an arithmetic shift, so it
+ *     TRUNCATES. There is no `+128` rounding bias.
+ *  3. The horizontal result is written back to the `U8` destination before the
+ *     vertical pass reads it, so precision is quantised to 8 bits BETWEEN the
+ *     two passes. Accumulating both passes at full width and shifting once at
+ *     the end gives a different, slightly better answer.
+ *
+ * Borders replicate in both directions, unlike the derivative filters above.
+ *
+ * @param intKernel Integer kernel from `get_gaussian_kernel(size, sigma, k, U8_t)`.
+ */
+export function refGaussianBlurU8(
+    src: ArrayLike<number>,
+    w: number,
+    h: number,
+    intKernel: ArrayLike<number>
+): Int32Array {
+    const k = intKernel.length;
+    const half = k >> 1;
+
+    /** One separable pass along a line, with replicated ends. */
+    const convolveLine = (read: (i: number) => number, n: number) => {
+        const padded = new Int32Array(n + 2 * half);
+        for (let i = 0; i < half; i++) padded[i] = read(0);
+        for (let i = 0; i < n; i++) padded[half + i] = read(i);
+        for (let i = 0; i < half; i++) padded[half + n + i] = read(n - 1);
+
+        const out = new Int32Array(n);
+        for (let i = 0; i < n; i++) {
+            let sum = 0;
+            for (let t = 0; t < k; t++) sum += padded[i + t] * intKernel[t];
+            out[i] = Math.min(sum >> 8, 255);
+        }
+        return out;
+    };
+
+    // pass 1: horizontal, quantised to 8 bits before pass 2 sees it
+    const mid = new Int32Array(w * h);
+    for (let y = 0; y < h; y++) {
+        const row = convolveLine((x) => src[y * w + x], w);
+        for (let x = 0; x < w; x++) mid[y * w + x] = row[x];
+    }
+
+    // pass 2: vertical over that quantised intermediate
+    const out = new Int32Array(w * h);
+    for (let x = 0; x < w; x++) {
+        const col = convolveLine((y) => mid[y * w + x], h);
+        for (let y = 0; y < h; y++) out[y * w + x] = col[y];
+    }
+    return out;
+}
+
+/**
  * Separable 3×3 derivative filters, matching jsfeat's border convention.
  *
  * The border handling is ASYMMETRIC and worth stating explicitly, because it
@@ -204,6 +265,59 @@ export function refSobel(src: ArrayLike<number>, w: number, h: number) {
 /** Scharr: smoothing triple `[3, 10, 3]`. */
 export function refScharr(src: ArrayLike<number>, w: number, h: number) {
     return refDerivatives(src, w, h, [3, 10, 3]);
+}
+
+/**
+ * Affine warp with bilinear sampling, reproducing jsfeat's behaviour exactly.
+ *
+ * Three details are needed for exactness, and each one cost a measurement:
+ *
+ *  1. Read the transform coefficients back out of the `matrix_t`. It is `F32`,
+ *     so the implementation sees float32-rounded values, not whatever float64
+ *     literals the caller wrote.
+ *  2. Store the result through a `Uint8Array`. The library writes into a U8
+ *     destination, so an out-of-range value WRAPS modulo 256 rather than
+ *     clamping — and out-of-range values do occur, see below.
+ *  3. The bounds check uses `xs | 0`, which truncates TOWARD ZERO. A source
+ *     coordinate of `-0.5` therefore gives `ixs = 0` and passes `ixs >= 0`, so
+ *     the pixel is treated as inside the image and the "interpolation" runs
+ *     with a NEGATIVE weight — extrapolating instead of interpolating. On a
+ *     23x17 test warp this affected 13 pixels, 4 of which left [0,255] and
+ *     wrapped. Visible as speckle along the top and left edges of a warp.
+ *
+ * @param fill Value written where the source coordinate is out of bounds.
+ */
+export function refWarpAffine(
+    src: ArrayLike<number>,
+    srcW: number,
+    srcH: number,
+    dstW: number,
+    dstH: number,
+    coefficients: ArrayLike<number>,
+    fill: number
+): Uint8Array {
+    const m = coefficients;
+    const out = new Uint8Array(dstW * dstH);
+    for (let y = 0; y < dstH; y++) {
+        for (let x = 0; x < dstW; x++) {
+            const xs = m[0] * x + m[1] * y + m[2];
+            const ys = m[3] * x + m[4] * y + m[5];
+            const ixs = xs | 0;
+            const iys = ys | 0;
+
+            if (ixs >= 0 && iys >= 0 && ixs < srcW - 1 && iys < srcH - 1) {
+                const a = xs - ixs;
+                const b = ys - iys;
+                const off = srcW * iys + ixs;
+                const p0 = src[off] + a * (src[off + 1] - src[off]);
+                const p1 = src[off + srcW] + a * (src[off + srcW + 1] - src[off + srcW]);
+                out[y * dstW + x] = p0 + b * (p1 - p0);
+            } else {
+                out[y * dstW + x] = fill;
+            }
+        }
+    }
+    return out;
 }
 
 /**

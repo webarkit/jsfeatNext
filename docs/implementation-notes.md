@@ -81,6 +81,26 @@ fixed binomial path, where the weights are exact binary fractions.
 real-valued ITU-R BT.601 coefficients `0.299 / 0.587 / 0.114`. Measured
 agreement with the real-valued standard: **within 1 grey level**.
 
+### `gaussian_blur` — quantises to 8 bits *between* passes
+
+The separable blur is not "accumulate both passes, then scale". On `U8` input
+it:
+
+1. uses the **integer** kernel (weights summing to ~256), not the float one;
+2. ends each pass with `Math.min(sum >> 8, 255)` — an arithmetic shift, so it
+   **truncates**, with no `+128` rounding bias;
+3. writes the horizontal result **back into the U8 destination**, so precision
+   is quantised to 8 bits before the vertical pass reads it.
+
+Point 3 is the one that catches people out. Accumulating both passes at full
+width and shifting once at the end produces a slightly *better* answer that is
+1–2 grey levels away from what the library actually returns. Reproducing all
+three details gives bit-exact agreement across every shape and kernel size
+tested.
+
+Borders **replicate** in both directions here — unlike the derivative filters
+in §1.
+
 ### `resample` — the `U8` fast path truncates
 
 `_resample_u8` uses 8.8 fixed point and is chosen when both matrices are `U8`
@@ -149,6 +169,26 @@ result.
 Verified with five seeds — zeros, a copy of `prev_xy`, `+1`, `+50`, and
 `-9999` everywhere — all producing **bit-identical** output. Identical code
 path in original jsfeat, so the docstring is what is out of step.
+
+### `warp_affine` extrapolates just outside the top-left edge
+
+The bounds check is `ixs >= 0 && iys >= 0 && ...` where `ixs = xs | 0`, and
+`| 0` truncates **toward zero**. So a source coordinate of `-0.5` yields
+`ixs = 0`, passes the check, and is treated as inside the image. The
+interpolation weight `a = xs - ixs` is then **negative**, and the "bilinear
+interpolation" becomes an extrapolation.
+
+The result can leave `[0, 255]`, and because the destination is a `Uint8Array`
+it **wraps modulo 256** rather than clamping. On a 23×17 test warp with a
+`(-0.5, -0.5)` translation: 13 pixels sampled with a negative weight, 4 of them
+out of range and wrapped.
+
+Practical effect: speckle along the top and left edges of a warped image, where
+`fill_value` was probably intended. Coordinates below `-1` are unaffected —
+they truncate to `-1` and fail the check correctly.
+
+Characterized in `tests/reference/imgproc.test.ts`; **not yet filed as an
+issue.**
 
 ### `invert_3x3` on a singular matrix
 
