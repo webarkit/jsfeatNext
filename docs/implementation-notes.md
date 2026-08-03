@@ -384,9 +384,18 @@ reached only through another module.
 
 Concretely: `src/imgproc/convol.ts` exports two functions. `_convol_u8` is
 heavily exercised through `gaussian_blur`. **`_convol`, the ~120-line float
-path, is executed by none of the 255 tests** — every `gaussian_blur` call in
-the suite passes a `U8` image. Verified by instrumenting the function and
-running the whole suite: zero hits.
+path, was executed by none of the tests** — every `gaussian_blur` call in the
+suite passed a `U8` image. Now covered, via `gaussian_blur` on `F32` matrices.
 
 The audit missed it because `convol.ts` *is* referenced, just never directly.
-A line-coverage report would have surfaced it mechanically.
+A line-coverage report would have surfaced it mechanically (#123).
+
+**A note on how to check this sort of thing.** The first attempt instrumented
+the function with `console.error` and counted lines in the Vitest output. That
+method is worthless: Vitest swallows worker console output, so it reports zero
+hits whether or not the code ran — it returned zero even after the float path
+was demonstrably covered. It gave the right answer by luck.
+
+Inject a `throw` instead. It cannot be swallowed, and it distinguishes the two
+cases unambiguously: with the coverage absent the suite passes untouched, and
+with it present the suite fails loudly at that line.

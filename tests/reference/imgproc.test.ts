@@ -43,6 +43,7 @@ import {
     refBoxBlur,
     refBoxBlurAsImplemented,
     refGaussianBlurU8,
+    refGaussianBlurF32,
     refSobel,
     refScharr,
     refIntegralImage,
@@ -176,6 +177,40 @@ describe("ground truth: gaussian_blur vs a naive separable convolution", () => {
         const intKernel = new Int32Array(5);
         jsfeatNext.math.get_gaussian_kernel(5, 0, intKernel, jsfeatNext.U8_t);
         expectExact("gradient k=5", dst.data, refGaussianBlurU8(src.data, W, H, intKernel), W * H);
+    });
+
+    it("covers the FLOAT convolution path, which no other test reaches", () => {
+        // gaussian_blur branches on `is_u8`: U8 sources go to _convol_u8,
+        // everything else to _convol. Every other gaussian_blur call in the
+        // suite passes a U8 image, so _convol — about 120 lines — was executed
+        // by none of the 255 tests. Verified by instrumenting it and running
+        // the whole suite: zero hits. See #123.
+        //
+        // The float path uses the float kernel (summing to 1) with no shift and
+        // no clamp, but the intermediate still round-trips through the F32
+        // destination between passes, so it is quantised to float32 precision —
+        // the same structural quirk as the U8 path, at a different width.
+        const noise = noiseImage(W, H, 777);
+        for (const size of [3, 5, 7, 9]) {
+            const src = new jsfeatNext.matrix_t(W, H, F32C1);
+            for (let i = 0; i < W * H; i++) src.data[i] = noise.data[i];
+            const dst = new jsfeatNext.matrix_t(W, H, F32C1);
+            ip.gaussian_blur(src, dst, size, 0);
+
+            const floatKernel = new Float32Array(size);
+            jsfeatNext.math.get_gaussian_kernel(size, 0, floatKernel, jsfeatNext.F32_t);
+            expectExact(`F32 k=${size}`, dst.data, refGaussianBlurF32(src.data, W, H, floatKernel), W * H);
+        }
+    });
+
+    it("keeps the float path in range and preserves a constant", () => {
+        // Cheap invariants on the same branch: an average cannot leave the
+        // input's range, and a constant image must survive unchanged.
+        const src = new jsfeatNext.matrix_t(W, H, F32C1);
+        src.data.fill(42.5);
+        const dst = new jsfeatNext.matrix_t(W, H, F32C1);
+        ip.gaussian_blur(src, dst, 5, 0);
+        for (let i = 0; i < W * H; i++) expect(dst.data[i]).toBeCloseTo(42.5, 4);
     });
 
     it("matches when sigma is given explicitly rather than derived", () => {

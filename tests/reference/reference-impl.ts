@@ -171,37 +171,94 @@ export function refGaussianBlurU8(
     h: number,
     intKernel: ArrayLike<number>
 ): Int32Array {
-    const k = intKernel.length;
+    // U8: integer kernel, truncating `>> 8` clamped to 255, and the
+    // intermediate held in a U8-equivalent buffer between passes.
+    return separableBlur(
+        src,
+        w,
+        h,
+        intKernel,
+        (sum) => Math.min(sum >> 8, 255),
+        () => new Int32Array(w * h)
+    );
+}
+
+/**
+ * The same separable blur down the `F32`/`S32` branch (`_convol` rather than
+ * `_convol_u8`), which `gaussian_blur` takes for any non-`U8` source.
+ *
+ * The differences from the `U8` path are the ones that matter for a reference:
+ *
+ *  - the kernel is the FLOAT one, summing to 1, so there is no `>> 8`;
+ *  - nothing is shifted or clamped — the raw sum is stored;
+ *  - but the intermediate still round-trips through the destination between
+ *    passes, so with an `F32` destination it is quantised to **float32**
+ *    precision, not held at float64. Same structural quirk as the U8 path,
+ *    different precision.
+ *
+ * @param floatKernel Kernel from `get_gaussian_kernel(size, sigma, k, F32_t)`.
+ */
+export function refGaussianBlurF32(
+    src: ArrayLike<number>,
+    w: number,
+    h: number,
+    floatKernel: ArrayLike<number>
+): Float32Array {
+    return separableBlur(
+        src,
+        w,
+        h,
+        floatKernel,
+        (sum) => sum,
+        () => new Float32Array(w * h)
+    ) as Float32Array;
+}
+
+/**
+ * Shared skeleton for both blur paths: replicate-padded separable convolution,
+ * horizontal then vertical, with the intermediate passing through a buffer of
+ * the destination's own type — which is where each path loses precision.
+ */
+function separableBlur(
+    src: ArrayLike<number>,
+    w: number,
+    h: number,
+    kernel: ArrayLike<number>,
+    finish: (sum: number) => number,
+    makeBuffer: () => Int32Array | Float32Array
+) {
+    const k = kernel.length;
     const half = k >> 1;
 
-    /** One separable pass along a line, with replicated ends. */
-    const convolveLine = (read: (i: number) => number, n: number) => {
-        const padded = new Int32Array(n + 2 * half);
+    /** One pass along a line of length `n`, with replicated ends. */
+    const convolveLine = (read: (i: number) => number, n: number, out: Int32Array | Float32Array) => {
+        const padded = new Float64Array(n + 2 * half);
         for (let i = 0; i < half; i++) padded[i] = read(0);
         for (let i = 0; i < n; i++) padded[half + i] = read(i);
         for (let i = 0; i < half; i++) padded[half + n + i] = read(n - 1);
 
-        const out = new Int32Array(n);
         for (let i = 0; i < n; i++) {
             let sum = 0;
-            for (let t = 0; t < k; t++) sum += padded[i + t] * intKernel[t];
-            out[i] = Math.min(sum >> 8, 255);
+            for (let t = 0; t < k; t++) sum += padded[i + t] * kernel[t];
+            out[i] = finish(sum);
         }
-        return out;
     };
 
-    // pass 1: horizontal, quantised to 8 bits before pass 2 sees it
-    const mid = new Int32Array(w * h);
+    // pass 1: horizontal. `mid` has the destination's type, so storing here
+    // reproduces the precision the implementation loses between passes.
+    const mid = makeBuffer();
+    const rowScratch = makeBuffer().subarray(0, w);
     for (let y = 0; y < h; y++) {
-        const row = convolveLine((x) => src[y * w + x], w);
-        for (let x = 0; x < w; x++) mid[y * w + x] = row[x];
+        convolveLine((x) => src[y * w + x], w, rowScratch);
+        for (let x = 0; x < w; x++) mid[y * w + x] = rowScratch[x];
     }
 
     // pass 2: vertical over that quantised intermediate
-    const out = new Int32Array(w * h);
+    const out = makeBuffer();
+    const colScratch = makeBuffer().subarray(0, h);
     for (let x = 0; x < w; x++) {
-        const col = convolveLine((y) => mid[y * w + x], h);
-        for (let y = 0; y < h; y++) out[y * w + x] = col[y];
+        convolveLine((y) => mid[y * w + x], h, colScratch);
+        for (let y = 0; y < h; y++) out[y * w + x] = colScratch[y];
     }
     return out;
 }
