@@ -1,4 +1,67 @@
 
+## 0.11.0 - 2026-08-03
+
+### 🐛 Bug Fixes
+
+- Reject non-square input in svd_invert instead of returning garbage (refs #102) (ff07687)
+
+- Restore closing brace and apply the n*n fix to both SVD tests (9fad73e)
+
+
+### 📚 Documentation
+
+- Link the newly filed issues from the implementation notes (refs #87) (093fcca)
+
+- Record what the reference approach cannot answer (refs #87) (2a88d36)
+
+
+### 🧪 Testing
+
+- Add linalg and matmath invariant tests (refs #87) (4c66488)
+
+- Check the full SVD reconstruction, not just the first row (e525b06)
+
+- Drop unused rng import from the matmath tests (84ecd4d)
+
+- Add imgproc invariant tests (refs #87) (1e75a31)
+
+- Close a monotonicity gap in the equalize_histogram test (refs #87) (71982da)
+
+- Add math, detector and optical-flow invariants (refs #87) (23da8a7)
+
+- Correct the ORB margin and LK scope rationale (refs #87) (0f1741d)
+
+- Link the ORB edge-fill characterization to issue #110 (940e75e)
+
+- Use the yape singleton and stop overclaiming LK seed behaviour (refs #87) (bf3cbe9)
+
+- Drop the stale yape API-divergence note (refs #41) (79455f4)
+
+- Add boundary-input tests, finding a box_blur bug (refs #87, #114) (58efb77)
+
+- Cover data structures, node_utils and the buffer pool (refs #87) (d0e1414)
+
+- Cover the three pool users the balance test missed (refs #87) (9bd10f9)
+
+- Sweep the box_blur positive test instead of sampling it (refs #87, #114) (7ce000f)
+
+- Check buffer-pool balance after every test (refs #87) (e3f6431)
+
+- Add ground-truth tests and implementation notes (refs #87) (7c268d9)
+
+- Pin gaussian_blur and warp_affine against references (refs #87) (a7bc07d)
+
+- Pin resample against an exact area average (refs #87) (50db39d)
+
+- Cover the float convolution path (refs #87, #123) (382aebf)
+
+
+### 🧹 Miscellaneous
+
+- Add LGPL license headers to every source file and bundle (closes #112) (90b90bd)
+
+
+
 ## 0.10.1 - 2026-07-26
 
 ### ♻️ Refactoring
