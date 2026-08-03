@@ -1,5 +1,5 @@
 /*!
- * jsfeatNext v0.10.1 — https://github.com/webarkit/jsfeatNext
+ * jsfeatNext v0.11.0 — https://github.com/webarkit/jsfeatNext
  *
  * SPDX-License-Identifier: LGPL-3.0-or-later
  * Copyright 2026 WebARKit. Author(s): Walter Perdan @kalwalt
@@ -100,7 +100,7 @@ var e = class {
 	S32C2_t: 514
 }, a = {
 	name: "@webarkit/jsfeat-next",
-	version: "0.10.1",
+	version: "0.11.0",
 	description: "Typescript version of jsfeat for WebARKit",
 	main: "dist/jsfeatNext.js",
 	module: "dist/jsfeatNext.mjs",
@@ -121,6 +121,7 @@ var e = class {
 		"dev-ts": "vite build --watch",
 		"format-check": "prettier --check .",
 		format: "prettier --write .",
+		"license-check": "node scripts/check-license-headers.mjs",
 		test: "vitest run",
 		"test:watch": "vitest",
 		docs: "typedoc"
