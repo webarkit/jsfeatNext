@@ -1,7 +1,7 @@
 # features2d expansion plan — GMS, TEBLID, FREAK (issues J1–J5)
 
-**Status:** issues opened as #130–#137; milestone 1.1.0 created. The #80 and #83 re-scopes are still pending.
-**Date:** 2026-08-16.
+**Status:** applied — issues #130–#137 opened, milestone 1.1.0 created, #80 and #83 re-scoped.
+**Date:** 2026-08-17.
 **Scope:** jsfeatNext only. The PureCV counterpart (P1–P7) is cross-referenced, not specified here.
 
 This document is the durable record of a design session that turned a rough
@@ -336,7 +336,7 @@ Extracted from #83, whose body already carries the full prototype.
 Eight new issues plus two re-scopes (#80 narrowed to FREAK, #83 narrowed to
 `pose_estimator`). Milestone
 [1.1.0](https://github.com/webarkit/jsfeatNext/milestone/3) was created on
-2026-08-16, without a due date. Everything added to 1.0.0 is correctness
+2026-08-17, without a due date. Everything added to 1.0.0 is correctness
 coverage on code that already ships.
 
 ---
@@ -358,7 +358,7 @@ does not match.
 
 The PureCV counterpart (P1 `integral`, P2 TEBLID, P3 GMS, P4 FREAK,
 P5 StarDetector, P6 adapter, P7 `no_std`) is a **plan, not a set of issues**:
-as of 2026-08-16 that repository has three open issues (#94, #81, #67 — Miri
+as of 2026-08-17 that repository has three open issues (#94, #81, #67 — Miri
 coverage and an architecture diagram) and none of P1–P7 exists yet. They are
 written up here so that whoever opens them starts from the same decisions.
 
@@ -369,11 +369,13 @@ plus the ORB pyramid is the established path here.
 
 ## 9. Open items
 
-- #80 still carries its original wording and milestone; #83 still claims the
-  `bfmatcher` half that has moved to #133. Both re-scopes are written up but not
-  applied.
 - Milestone 1.1.0 has no due date, deliberately — there is no basis to estimate
   one until 1.0.0 has a realistic close.
+- A backlog audit run alongside this plan found more to tidy, none of it part of
+  this plan's scope: #40 is closeable (its only outstanding item, the
+  static-facade API, was deliberately rejected by #41), #87 is closeable with
+  its remaining third tracked in #132, and #46's checklist has four long-closed
+  items still unticked. #10 was closed and its one live item split out as #139.
 - The BEBLID cut (D6) is **approved for PureCV too**. Nothing needs undoing
   there — P1–P7 were never opened — so the decision simply has to be carried
   into P2 when it is written, rather than applied to existing work.
