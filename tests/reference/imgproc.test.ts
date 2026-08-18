@@ -98,12 +98,42 @@ describe("ground truth: box_blur_gray vs a naive clamped-window mean", () => {
         // Since #114 the library divides the window sum EXACTLY by the area, so
         // `refBoxBlur` (exact division) is its oracle with no tolerance anywhere
         // — including radius 3, which used to come out 1 low from the float
-        // reciprocal. The below-kernel shapes are now covered too, in the
-        // separate suite below; here we stay at or above the kernel.
+        // reciprocal. Below-kernel shapes are covered separately below, on
+        // non-uniform data; here we stay at or above the kernel.
         for (const [w, h] of SHAPES) {
             const src = noiseImage(w, h, 4242);
             for (let radius = 1; radius <= 5; radius++) {
                 if (Math.min(w, h) < 2 * radius + 1) continue;
+                const dst = dstImage(w, h);
+                ip.box_blur_gray(src, dst, radius, 0);
+                expectExact(`${w}x${h} r=${radius}`, dst.data, refBoxBlur(src.data, w, h, radius), w * h);
+            }
+        }
+    });
+
+    it("matches the reference on small NON-UNIFORM shapes, below and at the kernel (#114)", () => {
+        // The critical coverage for the #114 fix. A uniform image is symmetric
+        // to a transpose and cannot distinguish a mis-clamped replicated border
+        // (every pixel is equal, so a wrong-but-in-range index reads the same
+        // value), so the uniform suite cannot verify the border/transpose
+        // indexing on the exact shapes the fix is about. These do: an asymmetric
+        // pattern (different in x and y) over 1xN, Nx1 and small squares, at
+        // radii that put the window past the image on one or both axes.
+        const pattern = (w: number, h: number) => image(w, h, (x, y) => (x * 37 + y * 101 + 13) & 0xff);
+        const SMALL: [number, number][] = [
+            [1, 1],
+            [1, 5],
+            [5, 1],
+            [2, 3],
+            [3, 2],
+            [3, 3],
+            [4, 4],
+            [2, 7],
+            [7, 2],
+        ];
+        for (const [w, h] of SMALL) {
+            const src = pattern(w, h);
+            for (let radius = 1; radius <= 4; radius++) {
                 const dst = dstImage(w, h);
                 ip.box_blur_gray(src, dst, radius, 0);
                 expectExact(`${w}x${h} r=${radius}`, dst.data, refBoxBlur(src.data, w, h, radius), w * h);
