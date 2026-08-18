@@ -226,4 +226,89 @@ describe("intentional divergences from jsfeat", () => {
             }
         });
     });
+    describe("imgproc.box_blur_gray clamps the window and divides exactly (#114)", () => {
+        /**
+         * jsfeat's box blur diverges from a correct average in two ways, both
+         * inherited and both registered here:
+         *
+         *  1. Below the kernel size (`cols < 2r+1` or `rows < 2r+1`) its
+         *     sliding-window sums are never primed, so it reads outside the
+         *     image and returns garbage — famously NOT preserving a uniform
+         *     image. jsfeatNext clamps the window to the image (replicated
+         *     border), so a uniform image round-trips at every size.
+         *  2. It scales by the float reciprocal `1 / area` and truncates, which
+         *     comes out 1 low wherever the true mean is an integer the reciprocal
+         *     undershoots. The clearest case is a uniform 128 at radius 3:
+         *     `128 * 49 * (1/49) = 127.999999999999986` -> 127. jsfeatNext
+         *     divides exactly, so it stays 128.
+         *
+         * Parity is preserved where jsfeat is correct: at radius 2 on non-edge
+         * data the two agree bit-for-bit, which is what tests/parity pins.
+         */
+        it("preserves a uniform image below the kernel size, where jsfeat returns garbage", () => {
+            const W = 4,
+                H = 4,
+                V = 128,
+                RADIUS = 2; // window 5 > image 4, so jsfeat's sums are never primed
+            const next = new jsfeatNext.matrix_t(W, H, U8C1);
+            const orig = new jsfeat.matrix_t(W, H, OU8C1);
+            next.data.fill(V);
+            orig.data.fill(V);
+            const dstN = new jsfeatNext.matrix_t(W, H, U8C1);
+            const dstO = new jsfeat.matrix_t(W, H, OU8C1);
+            jsfeatNext.imgproc.box_blur_gray(next, dstN, RADIUS, 0);
+            jsfeat.imgproc.box_blur_gray(orig, dstO, RADIUS, 0);
+
+            // jsfeatNext: uniform in, uniform out.
+            for (let i = 0; i < W * H; i++) expect(dstN.data[i]).toBe(V);
+            // jsfeat: at least one pixel is wrong, which is the whole point.
+            let jsfeatWrong = 0;
+            for (let i = 0; i < W * H; i++) if (dstO.data[i] !== V) jsfeatWrong++;
+            expect(jsfeatWrong).toBeGreaterThan(0);
+        });
+
+        it("returns the exact mean at radius 3 where jsfeat comes out 1 low", () => {
+            const W = 32,
+                H = 32,
+                V = 128,
+                RADIUS = 3;
+            const next = new jsfeatNext.matrix_t(W, H, U8C1);
+            const orig = new jsfeat.matrix_t(W, H, OU8C1);
+            next.data.fill(V);
+            orig.data.fill(V);
+            const dstN = new jsfeatNext.matrix_t(W, H, U8C1);
+            const dstO = new jsfeat.matrix_t(W, H, OU8C1);
+            jsfeatNext.imgproc.box_blur_gray(next, dstN, RADIUS, 0);
+            jsfeat.imgproc.box_blur_gray(orig, dstO, RADIUS, 0);
+
+            // Interior only, to isolate the reciprocal defect from any border.
+            for (let y = RADIUS; y < H - RADIUS; y++) {
+                for (let x = RADIUS; x < W - RADIUS; x++) {
+                    expect(dstN.data[y * W + x]).toBe(128);
+                    expect(dstO.data[y * W + x]).toBe(127);
+                }
+            }
+        });
+
+        it("still matches jsfeat exactly at radius 2 on non-uniform data (parity preserved)", () => {
+            // The divergence is scoped: where jsfeat is correct, jsfeatNext
+            // agrees bit-for-bit. Radius 2 on noise never crosses a reciprocal
+            // boundary, and the image is larger than the kernel.
+            const W = 24,
+                H = 20,
+                RADIUS = 2;
+            const next = new jsfeatNext.matrix_t(W, H, U8C1);
+            const orig = new jsfeat.matrix_t(W, H, OU8C1);
+            let seed = 1234;
+            for (let i = 0; i < W * H; i++) {
+                seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+                next.data[i] = orig.data[i] = (seed >>> 16) & 0xff;
+            }
+            const dstN = new jsfeatNext.matrix_t(W, H, U8C1);
+            const dstO = new jsfeat.matrix_t(W, H, OU8C1);
+            jsfeatNext.imgproc.box_blur_gray(next, dstN, RADIUS, 0);
+            jsfeat.imgproc.box_blur_gray(orig, dstO, RADIUS, 0);
+            for (let i = 0; i < W * H; i++) expect(dstN.data[i]).toBe(dstO.data[i]);
+        });
+    });
 });

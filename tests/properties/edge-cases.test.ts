@@ -162,38 +162,25 @@ describe("edge cases: compute_integral_image at boundary sizes", () => {
     });
 });
 
-describe("edge cases: box_blur_gray below kernel size — KNOWN BUG #114", () => {
-    // A blur is an average, so a uniform image must round-trip at ANY size.
-    // box_blur_gray only manages it once the image is at least as large as the
-    // kernel; below that the sliding-window sums are never correctly primed and
-    // the output is grossly wrong. Bit-identical in original jsfeat, so this is
-    // inherited rather than a jsfeatNext regression.
+describe("box_blur_gray preserves a uniform image at every size (#114 fixed)", () => {
+    // A blur is an average, so a uniform image must round-trip at ANY size and
+    // radius. Before #114 two things broke that: the sliding-window sums were
+    // never primed when the image was smaller than the kernel, and the float
+    // `1 / area` reciprocal came out 1 low at radius 3. The window is now
+    // clamped to the image and the area divides exactly, so both are fixed.
     //
-    // These are CHARACTERIZATION tests pinning today's broken output. When #114
-    // is fixed they must fail — that is the point.
+    // These are the inverse of the old characterization tests, which pinned the
+    // broken output; they now assert the invariant directly.
 
-    it("is correct at every size at or above the kernel, in both dimensions", () => {
-        // The real invariant, asserted across the whole region where it holds
-        // rather than at one sampled point per radius.
-        //
-        // The reliable region is BOTH cols >= 2r+1 AND rows >= 2r+1 — not
-        // `min(cols, rows)`. The two passes run along cols and then along rows,
-        // and either being shorter than the window is enough to break it. Below
-        // the region the result is erratic rather than uniformly wrong: some
-        // dimension pairs land on the right value by coincidence, which is why
-        // the failing side is pinned with `it.fails` instead of exact values.
-        // See #114.
+    it("round-trips a uniform image at every size from 1x1 up, below and above the kernel", () => {
         const offenders: string[] = [];
         for (const radius of [1, 2, 3, 4]) {
-            const kernel = 2 * radius + 1;
-            for (let cols = kernel; cols <= kernel + 6; cols++) {
-                for (let rows = kernel; rows <= kernel + 6; rows++) {
+            for (let cols = 1; cols <= 2 * radius + 3; cols++) {
+                for (let rows = 1; rows <= 2 * radius + 3; rows++) {
                     const dst = dstImage(cols, rows);
                     ip.box_blur_gray(flat(cols, rows, 128), dst, radius, 0);
                     const { min, max } = pixelRange(dst, cols, rows);
-                    // radius 3 lands 1 low from float truncation — a separate
-                    // defect with its own test below, so allow a single level
-                    if (Math.abs(min - 128) > 1 || Math.abs(max - 128) > 1) {
+                    if (min !== 128 || max !== 128) {
                         offenders.push(`${cols}x${rows} r=${radius} -> [${min},${max}]`);
                     }
                 }
@@ -202,43 +189,14 @@ describe("edge cases: box_blur_gray below kernel size — KNOWN BUG #114", () =>
         expect(offenders).toEqual([]);
     });
 
-    it("is exact for radii whose reciprocal window area rounds up", () => {
-        for (const radius of [1, 2, 4]) {
+    it("is exact at every radius on a large uniform image, radius 3 included", () => {
+        // Radius 3 was the visible face of the float-reciprocal defect:
+        // 128 * 49 * (1 / 49) = 127.999999999999986 truncated to 127. Exact
+        // division removes it, and the other radii stay exact.
+        for (const radius of [1, 2, 3, 4, 5, 8]) {
             const dst = dstImage(32, 32);
             ip.box_blur_gray(flat(32, 32, 128), dst, radius, 0);
             const { min, max } = pixelRange(dst, 32, 32);
-            expect([min, max]).toEqual([128, 128]);
-        }
-    });
-
-    it("BUG #114: radius 3 comes out 1 low even on a large image", () => {
-        // scale is the float 1/49, and 128 * 49 * (1/49) = 127.999999999999986,
-        // which truncates to 127. Only radius 3 hits this for radii 1..8.
-        const dst = dstImage(32, 32);
-        ip.box_blur_gray(flat(32, 32, 128), dst, 3, 0);
-        const { min, max } = pixelRange(dst, 32, 32);
-        expect([min, max]).toEqual([127, 127]);
-    });
-
-    // Declared with `it.fails`: the body asserts the CORRECT behaviour, and the
-    // test passes only because that assertion currently fails. Fix #114 and
-    // this flips to a failure, forcing a deliberate update.
-    //
-    // Deliberately not pinning the wrong values. They are not stable — the
-    // window reads outside the image, so the result depends on surrounding
-    // library state. The identical call returns 85 in isolation and 142 when
-    // run after the tests above it. That instability is itself part of the bug
-    // and is recorded in #114; asserting the numbers would just be flaky.
-    it.fails("BUG #114: a uniform image is NOT preserved when smaller than the kernel", () => {
-        for (const [size, radius] of [
-            [1, 1],
-            [2, 1],
-            [1, 2],
-            [4, 2],
-        ] as [number, number][]) {
-            const dst = dstImage(size, size);
-            ip.box_blur_gray(flat(size, size, 128), dst, radius, 0);
-            const { min, max } = pixelRange(dst, size, size);
             expect([min, max]).toEqual([128, 128]);
         }
     });
