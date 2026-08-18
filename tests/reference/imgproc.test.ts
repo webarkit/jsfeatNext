@@ -94,25 +94,29 @@ describe("ground truth: box_blur_gray vs a naive clamped-window mean", () => {
         [32, 24],
     ];
 
-    it("matches the reference exactly at every radius and shape", () => {
-        // Compared against the float-reciprocal reference, so no tolerance is
-        // needed anywhere — including radius 3, whose truncation is part of the
-        // arithmetic being modelled rather than slack to be absorbed.
+    it("matches the exact clamped-window mean at every radius and shape (#114)", () => {
+        // Since #114 the library divides the window sum EXACTLY by the area, so
+        // `refBoxBlur` (exact division) is its oracle with no tolerance anywhere
+        // — including radius 3, which used to come out 1 low from the float
+        // reciprocal. The below-kernel shapes are now covered too, in the
+        // separate suite below; here we stay at or above the kernel.
         for (const [w, h] of SHAPES) {
             const src = noiseImage(w, h, 4242);
             for (let radius = 1; radius <= 5; radius++) {
-                if (Math.min(w, h) < 2 * radius + 1) continue; // #114 territory
+                if (Math.min(w, h) < 2 * radius + 1) continue;
                 const dst = dstImage(w, h);
                 ip.box_blur_gray(src, dst, radius, 0);
-                expectExact(`${w}x${h} r=${radius}`, dst.data, refBoxBlurAsImplemented(src.data, w, h, radius), w * h);
+                expectExact(`${w}x${h} r=${radius}`, dst.data, refBoxBlur(src.data, w, h, radius), w * h);
             }
         }
     });
 
-    it("differs from exact division only at radius 3, and only by 1", () => {
-        // Isolates the #114 truncation defect: the library's answer is right
-        // wherever the reciprocal is exactly representable, and one low where
-        // it is not. Asserting the shape of the error rather than tolerating it.
+    it("the old float reciprocal differed from exact division only at radius 3, by 1", () => {
+        // Documents why #114 was worth fixing. `refBoxBlurAsImplemented` models
+        // the arithmetic the library used BEFORE the fix (multiply by the float
+        // `1 / area`); comparing it to exact division shows the error was right
+        // wherever the reciprocal is representable and one low where it is not.
+        // The library no longer behaves this way — this pins the motivation.
         for (const [w, h] of SHAPES) {
             const src = noiseImage(w, h, 4242);
             for (let radius = 1; radius <= 5; radius++) {
@@ -137,7 +141,7 @@ describe("ground truth: box_blur_gray vs a naive clamped-window mean", () => {
         const src = image(W, H, (x, y) => (x * 7 + y * 3) & 0xff);
         const dst = dstImage(W, H);
         ip.box_blur_gray(src, dst, 2, 0);
-        expectExact("gradient r=2", dst.data, refBoxBlurAsImplemented(src.data, W, H, 2), W * H);
+        expectExact("gradient r=2", dst.data, refBoxBlur(src.data, W, H, 2), W * H);
     });
 });
 

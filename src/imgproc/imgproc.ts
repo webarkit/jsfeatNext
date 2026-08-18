@@ -153,176 +153,67 @@ export class imgproc extends jsfeatNext {
         if (typeof options === "undefined") {
             options = 0;
         }
-        const w = src.cols,
-            h = src.rows,
-            h2 = h << 1,
-            w2 = w << 1;
-        let i = 0,
-            x = 0,
-            y = 0,
-            end = 0;
+        const w = src.cols | 0,
+            h = src.rows | 0;
+        const radiusPlusOne = (radius + 1) | 0;
         const windowSize = ((radius << 1) + 1) | 0;
-        const radiusPlusOne = (radius + 1) | 0,
-            radiusPlus2 = (radiusPlusOne + 1) | 0;
-        const scale = options & JSFEAT_CONSTANTS.BOX_BLUR_NOSCALE ? 1 : 1.0 / (windowSize * windowSize);
+        const area = (windowSize * windowSize) | 0;
+        const noscale = (options & JSFEAT_CONSTANTS.BOX_BLUR_NOSCALE) !== 0;
 
         const tmp_buff = this.cache.get_buffer((w * h) << 2);
-
-        let sum = 0,
-            dstIndex = 0,
-            srcIndex = 0,
-            nextPixelIndex = 0,
-            previousPixelIndex = 0;
-        const data_i32 = tmp_buff.i32; // to prevent overflow
-        let data_u8 = src.data;
-        let hold = 0;
+        const data_i32 = tmp_buff.i32; // first pass, kept at full int precision
 
         dst.resize(w, h, src.channel);
 
-        // first pass
-        // no need to scale
-        //data_u8 = src.data;
-        //data_i32 = tmp;
+        let x = 0,
+            y = 0,
+            i = 0,
+            sum = 0,
+            base = 0,
+            lo = 0,
+            hi = 0;
+
+        // First pass: horizontal box sum of each row, written TRANSPOSED into
+        // `data_i32` (element [x, y] at `x * h + y`). The window is clamped to
+        // the row, so the border replicates and the running sum stays correct
+        // even when `w < windowSize` — the case that produced garbage before
+        // (issue #114).
+        const src_u8 = src.data;
         for (y = 0; y < h; ++y) {
-            dstIndex = y;
-            sum = radiusPlusOne * data_u8[srcIndex];
-
-            for (i = (srcIndex + 1) | 0, end = (srcIndex + radius) | 0; i <= end; ++i) {
-                sum += data_u8[i];
+            base = y * w;
+            // Prime the window centred on x = 0: positions -radius..0 all clamp
+            // to column 0, so it contributes `radius + 1` copies of that pixel.
+            sum = radiusPlusOne * src_u8[base];
+            for (i = 1; i <= radius; ++i) {
+                sum += src_u8[base + (i < w ? i : w - 1)];
             }
-
-            nextPixelIndex = (srcIndex + radiusPlusOne) | 0;
-            previousPixelIndex = srcIndex;
-            hold = data_u8[previousPixelIndex];
-            for (x = 0; x < radius; ++x, dstIndex += h) {
-                data_i32[dstIndex] = sum;
-                sum += data_u8[nextPixelIndex] - hold;
-                nextPixelIndex++;
+            for (x = 0; x < w; ++x) {
+                data_i32[x * h + y] = sum;
+                hi = x + radiusPlusOne; // pixel entering the window: x + radius + 1
+                lo = x - radius; // pixel leaving the window: x - radius
+                sum += src_u8[base + (hi < w ? hi : w - 1)] - src_u8[base + (lo > 0 ? lo : 0)];
             }
-            for (; x < w - radiusPlus2; x += 2, dstIndex += h2) {
-                data_i32[dstIndex] = sum;
-                sum += data_u8[nextPixelIndex] - data_u8[previousPixelIndex];
-
-                data_i32[dstIndex + h] = sum;
-                sum += data_u8[nextPixelIndex + 1] - data_u8[previousPixelIndex + 1];
-
-                nextPixelIndex += 2;
-                previousPixelIndex += 2;
-            }
-            for (; x < w - radiusPlusOne; ++x, dstIndex += h) {
-                data_i32[dstIndex] = sum;
-                sum += data_u8[nextPixelIndex] - data_u8[previousPixelIndex];
-
-                nextPixelIndex++;
-                previousPixelIndex++;
-            }
-
-            hold = data_u8[nextPixelIndex - 1];
-            for (; x < w; ++x, dstIndex += h) {
-                data_i32[dstIndex] = sum;
-
-                sum += hold - data_u8[previousPixelIndex];
-                previousPixelIndex++;
-            }
-
-            srcIndex += w;
         }
-        //
-        // second pass
-        srcIndex = 0;
-        //data_i32 = tmp; // this is a transpose
-        data_u8 = dst.data;
 
-        // dont scale result
-        if (scale == 1) {
-            for (y = 0; y < w; ++y) {
-                dstIndex = y;
-                sum = radiusPlusOne * data_i32[srcIndex];
-
-                for (i = (srcIndex + 1) | 0, end = (srcIndex + radius) | 0; i <= end; ++i) {
-                    sum += data_i32[i];
-                }
-
-                nextPixelIndex = srcIndex + radiusPlusOne;
-                previousPixelIndex = srcIndex;
-                hold = data_i32[previousPixelIndex];
-
-                for (x = 0; x < radius; ++x, dstIndex += w) {
-                    data_u8[dstIndex] = sum;
-                    sum += data_i32[nextPixelIndex] - hold;
-                    nextPixelIndex++;
-                }
-                for (; x < h - radiusPlus2; x += 2, dstIndex += w2) {
-                    data_u8[dstIndex] = sum;
-                    sum += data_i32[nextPixelIndex] - data_i32[previousPixelIndex];
-
-                    data_u8[dstIndex + w] = sum;
-                    sum += data_i32[nextPixelIndex + 1] - data_i32[previousPixelIndex + 1];
-
-                    nextPixelIndex += 2;
-                    previousPixelIndex += 2;
-                }
-                for (; x < h - radiusPlusOne; ++x, dstIndex += w) {
-                    data_u8[dstIndex] = sum;
-
-                    sum += data_i32[nextPixelIndex] - data_i32[previousPixelIndex];
-                    nextPixelIndex++;
-                    previousPixelIndex++;
-                }
-                hold = data_i32[nextPixelIndex - 1];
-                for (; x < h; ++x, dstIndex += w) {
-                    data_u8[dstIndex] = sum;
-
-                    sum += hold - data_i32[previousPixelIndex];
-                    previousPixelIndex++;
-                }
-
-                srcIndex += h;
+        // Second pass: box sum along the transposed rows (the original columns),
+        // written back into `dst` in normal layout. Same clamped running sum.
+        // The scaled path divides EXACTLY by the window area instead of
+        // multiplying by the float reciprocal `1 / area`; that reciprocal
+        // truncated 128 to 127 at radius 3 (issue #114), so a uniform image did
+        // not round-trip. Exact integer division fixes it and, since the input
+        // is non-negative, `Math.floor` is the same truncation jsfeat intended.
+        const dst_out = dst.data;
+        for (y = 0; y < w; ++y) {
+            base = y * h;
+            sum = radiusPlusOne * data_i32[base];
+            for (i = 1; i <= radius; ++i) {
+                sum += data_i32[base + (i < h ? i : h - 1)];
             }
-        } else {
-            for (y = 0; y < w; ++y) {
-                dstIndex = y;
-                sum = radiusPlusOne * data_i32[srcIndex];
-
-                for (i = (srcIndex + 1) | 0, end = (srcIndex + radius) | 0; i <= end; ++i) {
-                    sum += data_i32[i];
-                }
-
-                nextPixelIndex = srcIndex + radiusPlusOne;
-                previousPixelIndex = srcIndex;
-                hold = data_i32[previousPixelIndex];
-
-                for (x = 0; x < radius; ++x, dstIndex += w) {
-                    data_u8[dstIndex] = sum * scale;
-                    sum += data_i32[nextPixelIndex] - hold;
-                    nextPixelIndex++;
-                }
-                for (; x < h - radiusPlus2; x += 2, dstIndex += w2) {
-                    data_u8[dstIndex] = sum * scale;
-                    sum += data_i32[nextPixelIndex] - data_i32[previousPixelIndex];
-
-                    data_u8[dstIndex + w] = sum * scale;
-                    sum += data_i32[nextPixelIndex + 1] - data_i32[previousPixelIndex + 1];
-
-                    nextPixelIndex += 2;
-                    previousPixelIndex += 2;
-                }
-                for (; x < h - radiusPlusOne; ++x, dstIndex += w) {
-                    data_u8[dstIndex] = sum * scale;
-
-                    sum += data_i32[nextPixelIndex] - data_i32[previousPixelIndex];
-                    nextPixelIndex++;
-                    previousPixelIndex++;
-                }
-                hold = data_i32[nextPixelIndex - 1];
-                for (; x < h; ++x, dstIndex += w) {
-                    data_u8[dstIndex] = sum * scale;
-
-                    sum += hold - data_i32[previousPixelIndex];
-                    previousPixelIndex++;
-                }
-
-                srcIndex += h;
+            for (x = 0; x < h; ++x) {
+                dst_out[x * w + y] = noscale ? sum : Math.floor(sum / area);
+                hi = x + radiusPlusOne;
+                lo = x - radius;
+                sum += data_i32[base + (hi < h ? hi : h - 1)] - data_i32[base + (lo > 0 ? lo : 0)];
             }
         }
 
