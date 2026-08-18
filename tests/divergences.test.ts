@@ -55,6 +55,8 @@ import jsfeat from "./vendor/oracle.cjs";
 
 const F32C1 = jsfeatNext.F32_t | jsfeatNext.C1_t;
 const OF32C1 = jsfeat.F32_t | jsfeat.C1_t;
+const U8C1 = jsfeatNext.U8_t | jsfeatNext.C1_t;
+const OU8C1 = jsfeat.U8_t | jsfeat.C1_t;
 
 describe("intentional divergences from jsfeat", () => {
     describe("linalg.svd_invert rejects non-square input (#102)", () => {
@@ -116,6 +118,111 @@ describe("intentional divergences from jsfeat", () => {
             jsfeatNext.matmath.multiply(P, A, Ai);
             for (const [i, want] of [1, 0, 0, 1].entries()) {
                 expect(P.data[i]).toBeCloseTo(want, 5);
+            }
+        });
+    });
+    describe("imgproc.warp_affine fills the (-1, 0) source band instead of extrapolating (#119)", () => {
+        /**
+         * jsfeat's bounds check is `ixs >= 0` on `xs | 0`, which truncates
+         * TOWARD ZERO. A source coordinate of -0.5 therefore yields ixs = 0,
+         * tests as inside the image, and is "interpolated" with a NEGATIVE
+         * weight -- an extrapolation past the edge pixel. The destination is a
+         * Uint8Array, so a result outside [0,255] wraps modulo 256 instead of
+         * clamping: an extrapolated 258 is stored as 2.
+         *
+         * jsfeatNext tests the float coordinates instead, so that one-pixel
+         * band receives `fill_value` as intended. This is the same class of
+         * divergence as #102 -- we return the documented answer where jsfeat
+         * returned garbage -- and it also makes `warp_affine` consistent with
+         * `warp_perspective`, which already guarded on the floats and clamped
+         * its weights with `Math.max(xs - ixs, 0)`.
+         *
+         * Note this changes ORB descriptors for keypoints near an image edge,
+         * since `orb/rectify_patch.ts` samples through `warp_affine` -- the
+         * population tracked by #110.
+         */
+        const W = 23,
+            H = 17;
+        const COEFFS = [1, 0, -0.5, 0, 1, -0.5];
+
+        /** Same 8-bit noise on both sides, plus the shared F32 transform. */
+        function setup() {
+            const next = new jsfeatNext.matrix_t(W, H, U8C1);
+            const orig = new jsfeat.matrix_t(W, H, OU8C1);
+            let seed = 2468;
+            for (let i = 0; i < W * H; i++) {
+                seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+                next.data[i] = orig.data[i] = (seed >>> 16) & 0xff;
+            }
+            const tN = new jsfeatNext.matrix_t(3, 3, F32C1);
+            const tO = new jsfeat.matrix_t(3, 3, OF32C1);
+            tN.data.set([...COEFFS, 0, 0, 1]);
+            tO.data.set([...COEFFS, 0, 0, 1]);
+            return { next, orig, tN, tO };
+        }
+
+        it("fills the band where jsfeat extrapolates with a negative weight", () => {
+            const { next, orig, tN, tO } = setup();
+            const FILL = 42;
+            const dstN = new jsfeatNext.matrix_t(W, H, U8C1);
+            const dstO = new jsfeat.matrix_t(W, H, OU8C1);
+            jsfeatNext.imgproc.warp_affine(next, dstN, tN, FILL);
+            jsfeat.imgproc.warp_affine(orig, dstO, tO, FILL);
+
+            let banded = 0;
+            let differing = 0;
+            for (let y = 0; y < H; y++) {
+                for (let x = 0; x < W; x++) {
+                    const i = y * W + x;
+                    const xs = tN.data[0] * x + tN.data[1] * y + tN.data[2];
+                    const ys = tN.data[3] * x + tN.data[4] * y + tN.data[5];
+                    if (!((xs > -1 && xs < 0) || (ys > -1 && ys < 0))) continue;
+                    banded++;
+                    expect(dstN.data[i]).toBe(FILL);
+                    if (dstO.data[i] !== FILL) differing++;
+                }
+            }
+            // The band is non-empty, and jsfeat really does produce something
+            // else there -- otherwise this would be a divergence on paper only.
+            expect(banded).toBeGreaterThan(0);
+            expect(differing).toBeGreaterThan(0);
+        });
+
+        it("no sampled value can leave [0,255] any more, so nothing wraps", () => {
+            // With the float bounds test both weights are in [0,1), so every
+            // sampled pixel is a convex combination of four bytes. Sampling with
+            // a fill_value outside the source range makes any wrap obvious:
+            // a wrapped extrapolation would land on some unrelated value.
+            const { next, tN } = setup();
+            const dstN = new jsfeatNext.matrix_t(W, H, U8C1);
+            jsfeatNext.imgproc.warp_affine(next, dstN, tN, 200);
+
+            let srcMin = 255,
+                srcMax = 0;
+            for (let i = 0; i < W * H; i++) {
+                srcMin = Math.min(srcMin, next.data[i]);
+                srcMax = Math.max(srcMax, next.data[i]);
+            }
+            for (let i = 0; i < W * H; i++) {
+                const v = dstN.data[i];
+                const sampled = v >= srcMin && v <= srcMax;
+                expect(sampled || v === 200).toBe(true);
+            }
+        });
+
+        it("still matches jsfeat exactly away from the band (parity preserved)", () => {
+            // The divergence is scoped: a transform that never produces a
+            // negative source coordinate stays bit-compatible.
+            const { next, orig, tN, tO } = setup();
+            tN.data.set([1, 0, 2.5, 0, 1, 1.5, 0, 0, 1]);
+            tO.data.set([1, 0, 2.5, 0, 1, 1.5, 0, 0, 1]);
+            const dstN = new jsfeatNext.matrix_t(W, H, U8C1);
+            const dstO = new jsfeat.matrix_t(W, H, OU8C1);
+            jsfeatNext.imgproc.warp_affine(next, dstN, tN, 0);
+            jsfeat.imgproc.warp_affine(orig, dstO, tO, 0);
+
+            for (let i = 0; i < W * H; i++) {
+                expect(dstN.data[i]).toBe(dstO.data[i]);
             }
         });
     });

@@ -244,7 +244,29 @@ describe("parity: imgproc vs original jsfeat.imgproc", () => {
         const dstO = new jsfeat.matrix_t(W, H, OU8C1);
         ip.warp_affine(next, dstN, tN, 0);
         jsfeat.imgproc.warp_affine(orig, dstO, tO, 0);
-        expectSame(dstN.data, dstO.data, W * H);
+
+        // Parity holds everywhere EXCEPT the one-pixel band where a source
+        // coordinate falls in (-1, 0): jsfeat treats it as inside and
+        // extrapolates with a negative weight, jsfeatNext fills it (#119).
+        // Asserting the difference is exactly that band -- rather than skipping
+        // the comparison -- keeps this test meaningful and pins the blast
+        // radius, so an unrelated regression in warp_affine still fails here.
+        let diverged = 0;
+        for (let y = 0; y < H; y++) {
+            for (let x = 0; x < W; x++) {
+                const i = y * W + x;
+                const xs = tN.data[0] * x + tN.data[1] * y + tN.data[2];
+                const ys = tN.data[3] * x + tN.data[4] * y + tN.data[5];
+                const inBand = (xs > -1 && xs < 0) || (ys > -1 && ys < 0);
+                if (inBand) {
+                    diverged++;
+                    expect(dstN.data[i]).toBe(0); // fill_value
+                } else {
+                    expect(dstN.data[i]).toBe(dstO.data[i]);
+                }
+            }
+        }
+        expect(diverged).toBeGreaterThan(0);
     });
 
     it("hough_transform — original jsfeat is BROKEN here, jsfeatNext fixes it (documented divergence)", () => {

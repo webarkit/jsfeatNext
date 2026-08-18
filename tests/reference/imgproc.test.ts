@@ -322,34 +322,40 @@ describe("ground truth: warp_affine vs naive bilinear sampling", () => {
         }
     });
 
-    it("treats source coordinates in (-1, 0) as inside, extrapolating with a negative weight", () => {
-        // `xs | 0` truncates toward zero, so xs = -0.5 gives ixs = 0 and passes
-        // the `ixs >= 0` bounds check. The interpolation weight `a = xs - ixs`
-        // is then negative and the result is an extrapolation, which can leave
-        // [0,255] and wrap in the U8 destination. Characterizing the current
-        // behaviour, not endorsing it.
+    it("fills source coordinates in (-1, 0) instead of extrapolating (#119)", () => {
+        // `xs | 0` truncates toward zero, so before #119 a source coordinate of
+        // -0.5 gave ixs = 0, passed the `ixs >= 0` bounds check, and was
+        // "interpolated" with a negative weight -- an extrapolation that could
+        // leave [0,255] and wrap in the U8 destination. The bounds test now
+        // reads the float coordinates, so that band receives `fill_value`.
+        //
+        // Original jsfeat still extrapolates here; see tests/divergences.test.ts.
         const src = noiseImage(W, H, 2468);
+        const FILL = 42;
         const { matrix, coefficients } = transform([1, 0, -0.5, 0, 1, -0.5]);
         const dst = new jsfeatNext.matrix_t(W, H, U8C1);
-        ip.warp_affine(src, dst, matrix, 42);
+        ip.warp_affine(src, dst, matrix, FILL);
 
-        // count how many sampled pixels get a negative weight
-        let negativeWeight = 0;
+        // Every pixel whose source coordinate lands in the (-1, 0) band on
+        // either axis must now be filled, and there must be some of them --
+        // otherwise this test would pass vacuously.
+        let banded = 0;
         for (let y = 0; y < H; y++) {
             for (let x = 0; x < W; x++) {
                 const xs = coefficients[0] * x + coefficients[1] * y + coefficients[2];
                 const ys = coefficients[3] * x + coefficients[4] * y + coefficients[5];
-                const ixs = xs | 0;
-                const iys = ys | 0;
-                if (ixs >= 0 && iys >= 0 && ixs < W - 1 && iys < H - 1 && (xs - ixs < 0 || ys - iys < 0)) {
-                    negativeWeight++;
-                }
+                const inBand = (xs > -1 && xs < 0) || (ys > -1 && ys < 0);
+                if (!inBand) continue;
+                banded++;
+                expect(dst.data[y * W + x]).toBe(FILL);
             }
         }
-        expect(negativeWeight).toBeGreaterThan(0);
+        expect(banded).toBeGreaterThan(0);
 
-        // and the reference reproduces it, wrapping included
-        expectExact("negative-weight warp", dst.data, refWarpAffine(src.data, W, H, W, H, coefficients, 42), W * H);
+        // No sample can leave [0,255] any more: with the float bounds test both
+        // weights are in [0,1), so every sampled value is a convex combination
+        // of four bytes. Nothing can wrap.
+        expectExact("filled band warp", dst.data, refWarpAffine(src.data, W, H, W, H, coefficients, FILL), W * H);
     });
 });
 
