@@ -200,6 +200,19 @@ describe("box_blur_gray preserves a uniform image at every size (#114 fixed)", (
             expect([min, max]).toEqual([128, 128]);
         }
     });
+
+    it("preserves a uniform image at a radius past the int32 area overflow", () => {
+        // The window area is windowSize^2; at radius >= 23170 that squares past
+        // 2^31, so coercing it with `| 0` would wrap negative and the exact
+        // division would return garbage. A degenerate but legal call (radius far
+        // larger than the image, so every clamped window is the whole image)
+        // must still round-trip a uniform image. Regression guard for the `area`
+        // coercion caught in review of the #114 fix.
+        const dst = dstImage(8, 8);
+        ip.box_blur_gray(flat(8, 8, 128), dst, 30000, 0);
+        const { min, max } = pixelRange(dst, 8, 8);
+        expect([min, max]).toEqual([128, 128]);
+    });
 });
 
 describe("edge cases: detectors on tiny images and oversized borders", () => {

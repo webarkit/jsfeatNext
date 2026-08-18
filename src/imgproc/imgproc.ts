@@ -157,7 +157,10 @@ export class imgproc extends jsfeatNext {
             h = src.rows | 0;
         const radiusPlusOne = (radius + 1) | 0;
         const windowSize = ((radius << 1) + 1) | 0;
-        const area = (windowSize * windowSize) | 0;
+        // NOT `| 0`: the area is a square, so it overflows a signed 32-bit int
+        // once windowSize passes ~46340 (radius ~23170). Kept as a float — it is
+        // only ever a divisor in `Math.floor(sum / area)`, so there is no cost.
+        const area = windowSize * windowSize;
         const noscale = (options & JSFEAT_CONSTANTS.BOX_BLUR_NOSCALE) !== 0;
 
         const tmp_buff = this.cache.get_buffer((w * h) << 2);
