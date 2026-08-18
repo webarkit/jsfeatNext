@@ -325,22 +325,30 @@ export function refScharr(src: ArrayLike<number>, w: number, h: number) {
 }
 
 /**
- * Affine warp with bilinear sampling, reproducing jsfeat's behaviour exactly.
+ * Affine warp with bilinear sampling — the specification `imgproc.warp_affine`
+ * is checked against.
  *
- * Three details are needed for exactness, and each one cost a measurement:
+ * Two details are needed for exactness, and each one cost a measurement:
  *
  *  1. Read the transform coefficients back out of the `matrix_t`. It is `F32`,
  *     so the implementation sees float32-rounded values, not whatever float64
  *     literals the caller wrote.
  *  2. Store the result through a `Uint8Array`. The library writes into a U8
- *     destination, so an out-of-range value WRAPS modulo 256 rather than
- *     clamping — and out-of-range values do occur, see below.
- *  3. The bounds check uses `xs | 0`, which truncates TOWARD ZERO. A source
- *     coordinate of `-0.5` therefore gives `ixs = 0` and passes `ixs >= 0`, so
- *     the pixel is treated as inside the image and the "interpolation" runs
- *     with a NEGATIVE weight — extrapolating instead of interpolating. On a
- *     23x17 test warp this affected 13 pixels, 4 of which left [0,255] and
- *     wrapped. Visible as speckle along the top and left edges of a warp.
+ *     destination, so an out-of-range value would WRAP modulo 256 rather than
+ *     clamp. Since #119 that can no longer happen — see below — but the store
+ *     is kept faithful to the implementation rather than relying on that.
+ *
+ * The bounds test reads the FLOAT coordinates, not their truncation. `xs | 0`
+ * rounds toward zero, so before #119 a source coordinate of `-0.5` gave
+ * `ixs = 0`, passed `ixs >= 0`, and was "interpolated" with a negative weight
+ * — extrapolating instead of interpolating. On a 23x17 test warp that affected
+ * 13 pixels, 4 of which left [0,255] and wrapped, visible as speckle along the
+ * top and left edges. Original jsfeat still behaves that way; the divergence is
+ * registered in `tests/divergences.test.ts`.
+ *
+ * With the float test, both interpolation weights are always in [0, 1), so the
+ * sampled value is a convex combination of four bytes and can no longer leave
+ * [0, 255] at all.
  *
  * @param fill Value written where the source coordinate is out of bounds.
  */
@@ -362,7 +370,7 @@ export function refWarpAffine(
             const ixs = xs | 0;
             const iys = ys | 0;
 
-            if (ixs >= 0 && iys >= 0 && ixs < srcW - 1 && iys < srcH - 1) {
+            if (xs >= 0 && ys >= 0 && ixs < srcW - 1 && iys < srcH - 1) {
                 const a = xs - ixs;
                 const b = ys - iys;
                 const off = srcW * iys + ixs;
