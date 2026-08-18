@@ -67,28 +67,28 @@ function clamp(v: number, n: number) {
 }
 
 /**
- * Box blur: mean of the `(2r+1)²` neighbourhood, borders replicated.
+ * Box blur: mean of the `(2r+1)²` neighbourhood, borders replicated, with EXACT
+ * division by the window area.
  *
- * Verified bit-exact against `imgproc.box_blur_gray` for radius 1 and 2 on
- * non-uniform input. Radius 3 differs by at most 1 because the library scales
- * by the float `1/49` and truncates — see #114, which also covers the much
- * larger breakage when the image is smaller than the kernel.
+ * Since #114 this is what `imgproc.box_blur_gray` computes, so it is the
+ * library's oracle: bit-exact at every radius and every size, including images
+ * smaller than the kernel. (Before #114 the library scaled by the float `1/area`
+ * and truncated, which came out 1 low at radius 3; that historical behaviour is
+ * `refBoxBlurAsImplemented` below.)
  */
 export function refBoxBlur(src: ArrayLike<number>, w: number, h: number, radius: number): Int32Array {
     return boxBlur(src, w, h, radius, false);
 }
 
 /**
- * The same box blur, but reproducing the library's ARITHMETIC as well as its
- * maths: it scales by the float reciprocal `1/area` and truncates, rather than
- * dividing exactly.
+ * The box blur as `imgproc.box_blur_gray` computed it BEFORE #114: scaling by
+ * the float reciprocal `1/area` and truncating, rather than dividing exactly.
  *
- * This exists so the ground-truth comparison can be exact at every radius. The
- * two differ only where the reciprocal is not exactly representable — radius 3,
- * where `128 * 49 * (1/49) = 127.999999999999986` truncates to 127 (#114). With
- * an exact-division reference the only way to accommodate that is a ±1
- * tolerance, and a tolerance wide enough to absorb the defect is also wide
- * enough to hide a real off-by-one.
+ * The library no longer behaves this way — kept only to document why #114
+ * mattered. The two references differ only where the reciprocal is not exactly
+ * representable — radius 3, where `128 * 49 * (1/49) = 127.999999999999986`
+ * truncates to 127. Do NOT use this as the oracle for the current library; use
+ * `refBoxBlur`.
  */
 export function refBoxBlurAsImplemented(src: ArrayLike<number>, w: number, h: number, radius: number): Int32Array {
     return boxBlur(src, w, h, radius, true);

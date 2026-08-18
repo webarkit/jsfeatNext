@@ -153,6 +153,11 @@ export class imgproc extends jsfeatNext {
         if (typeof options === "undefined") {
             options = 0;
         }
+        // Coerce the radius to an integer up front. The index arithmetic below
+        // (`x - radius`, the warm-up bound) uses it directly, so a fractional
+        // radius would otherwise produce fractional typed-array indices, whose
+        // reads are `undefined`, poisoning the running sum to NaN.
+        radius = radius | 0;
         const w = src.cols | 0,
             h = src.rows | 0;
         const radiusPlusOne = (radius + 1) | 0;
