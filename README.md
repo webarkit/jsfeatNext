@@ -43,7 +43,7 @@ In the browser (UMD build), the global is the namespace directly:
 - TypeScript definitions, with full TSDoc on every public class/method (`npm run docs` to generate a browsable API reference locally)
 - UMD (browser `<script>`) + ESM builds, built with **Vite** library mode
 - npm package
-- 57+ characterization tests asserting numeric/behavioral parity against the original jsfeat
+- 250+ tests across 22 files: characterization tests asserting numeric/behavioral parity against the original jsfeat, plus property/invariant tests, ground-truth reference tests, and a registry of intentional divergences
 
 ## Modules 📚
 
