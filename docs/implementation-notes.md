@@ -197,26 +197,113 @@ Verified with five seeds — zeros, a copy of `prev_xy`, `+1`, `+50`, and
 `-9999` everywhere — all producing **bit-identical** output. Identical code
 path in original jsfeat, so the docstring is what is out of step.
 
-### `warp_affine` extrapolates just outside the top-left edge
+### `warp_affine` extrapolated just outside the top-left edge — FIXED in [#119](https://github.com/webarkit/jsfeatNext/issues/119)
 
-The bounds check is `ixs >= 0 && iys >= 0 && ...` where `ixs = xs | 0`, and
-`| 0` truncates **toward zero**. So a source coordinate of `-0.5` yields
-`ixs = 0`, passes the check, and is treated as inside the image. The
-interpolation weight `a = xs - ixs` is then **negative**, and the "bilinear
-interpolation" becomes an extrapolation.
+Kept because the mechanism is worth understanding and because original jsfeat
+still behaves this way.
 
-The result can leave `[0, 255]`, and because the destination is a `Uint8Array`
-it **wraps modulo 256** rather than clamping. On a 23×17 test warp with a
+The bounds check was `ixs >= 0 && iys >= 0 && ...` where `ixs = xs | 0`, and
+`| 0` truncates **toward zero**. So a source coordinate of `-0.5` yielded
+`ixs = 0`, passed the check, and was treated as inside the image. The
+interpolation weight `a = xs - ixs` was then **negative**, and the "bilinear
+interpolation" became an extrapolation.
+
+The result could leave `[0, 255]`, and because the destination is a `Uint8Array`
+it **wrapped modulo 256** rather than clamping. On a 23×17 test warp with a
 `(-0.5, -0.5)` translation: 13 pixels sampled with a negative weight, 4 of them
-out of range and wrapped.
+out of range and wrapped. Concretely, with `src[0] = 200` and `src[1] = 20`,
+a weight of `-0.5` gives `200 + (-0.5)(20 - 200) = 290`, stored as **34** — a
+bright pixel becomes a dark one. Visible as speckle along the top and left
+edges, where `fill_value` was intended.
 
-Practical effect: speckle along the top and left edges of a warped image, where
-`fill_value` was probably intended. Coordinates below `-1` are unaffected —
-they truncate to `-1` and fail the check correctly.
+The fix tests the **float** coordinates (`xs >= 0 && ys >= 0`) instead of their
+truncation. Two consequences worth noting:
 
-Identical bounds check in original jsfeat, so inherited rather than introduced
-here. Characterized in `tests/reference/imgproc.test.ts`; tracked as
-[#119](https://github.com/webarkit/jsfeatNext/issues/119).
+- It matches what `warp_perspective` in the same file already did (`xs > 0 &&
+  ys > 0`, plus `Math.max(xs - ixs, 0)` on the weights). The two warps were
+  inconsistent; they no longer are.
+- Both weights are now always in `[0, 1)`, so every sample is a convex
+  combination of four bytes. Leaving `[0, 255]` is not merely unlikely, it is
+  **unreachable** — the wrap path is gone rather than guarded.
+
+Identical bounds check in original jsfeat (`tests/vendor/jsfeat-master.js:3524`),
+so inherited rather than introduced here. The divergence is registered in
+`tests/divergences.test.ts`.
+
+#### How OpenCV does it, and why parity with it is unreachable
+
+Useful context before anyone tries to pin `warp_affine` against `cv2.warpAffine`
+in the ground-truth harness ([#132](https://github.com/webarkit/jsfeatNext/issues/132)).
+
+Verified against OpenCV **4.14.0-pre**, `modules/imgproc/src/imgwarp.cpp`, not
+recalled: line references below are from that source.
+
+**1. The bug is structurally impossible in OpenCV's formulation.** Coordinates
+are computed in fixed point — `INTER_BITS = 5`, so 32 sub-pixel steps
+(`imgproc.hpp:292-295`) — and split as (`imgwarp.cpp:2351-2356`):
+
+```cpp
+int X = (X0 + adelta[x1]) >> (AB_BITS - INTER_BITS);
+xy[x1*2]  = saturate_cast<short>(X >> INTER_BITS);              // integer part
+alpha[x1] = (short)((Y & (INTER_TAB_SIZE-1))*INTER_TAB_SIZE +
+                    (X & (INTER_TAB_SIZE-1)));                  // fractional part
+```
+
+Two operations do the work, and both matter:
+
+- `X >> INTER_BITS` is an **arithmetic** right shift, so it rounds toward
+  −∞ — a true floor, unlike `| 0` which truncates toward zero.
+- `X & (INTER_TAB_SIZE-1)` masks the low 5 bits. On a negative two's-complement
+  integer that yields the **non-negative remainder**.
+
+Together they are the mathematically correct decomposition `x = floor(x) +
+frac(x)` with `frac(x) ∈ [0, 1)`. jsfeat's pair — truncate toward zero, then
+subtract — is not, and that is the whole of #119. OpenCV did not guard against
+the negative case; it picked arithmetic where the case cannot arise.
+
+**2. Partial neighbourhoods are interpolated, not discarded.** In
+`RemapBilinear` (`imgwarp.cpp:758-797`) a destination pixel is filled wholesale
+only when the **entire** 2×2 lies outside:
+
+```cpp
+if( borderType == BORDER_CONSTANT &&
+    (sx >= ssize.width || sx+1 < 0 || sy >= ssize.height || sy+1 < 0) )
+    D[0] = cval[0];
+```
+
+Note `sx+1 < 0`, not `sx < 0`: at `sx = -1` the neighbour at `sx+1 = 0` is
+inside, so the pixel survives. Otherwise each of the four taps is resolved
+individually through `borderInterpolate`, taps that fall outside take the border
+value, and all four are still blended:
+
+```cpp
+D[0] = castOp(WT(v0*w[0] + v1*w[1] + v2*w[2] + v3*w[3]));
+```
+
+jsfeat instead requires the whole neighbourhood to be inside
+(`ixs < src_width - 1`), so it discards those pixels entirely — see the note in
+section 4 on what the identity transform loses.
+
+**3. Saturation, not wrap.** The cast on the `U8` path saturates, so an
+out-of-range accumulation clamps to 255. Assigning to a `Uint8Array` in
+JavaScript keeps the low 8 bits instead, which is why an extrapolated 290 became
+34 rather than 255.
+
+**4. Quantised weights.** `w = wtab + FXY[dx]*4` reads four coefficients from a
+precomputed table indexed by the quantised fractional part
+(`INTER_TAB_SIZE2 = 1024` entries). jsfeat uses full float weights.
+
+##### Consequence
+
+Points 2, 3 and 4 mean **bit-exactness with `cv2.warpAffine` is unreachable by
+design**, even where both implementations are correct. `refWarpAffine` in
+`tests/reference/reference-impl.ts` therefore stays the specification for this
+function; OpenCV is not a usable oracle for it.
+
+One nuance worth keeping straight: on pure interpolation accuracy jsfeat's
+full-float weights are *better* than OpenCV's 1/32 quantisation. The fixed point
+is a SIMD optimisation, not an accuracy choice, and it does not transfer to
+JavaScript — porting it here would cost precision and buy nothing.
 
 ### `invert_3x3` on a singular matrix — [#120](https://github.com/webarkit/jsfeatNext/issues/120)
 
@@ -241,9 +328,29 @@ silently. This is an intentional divergence, registered in
 
 ### `warp_affine` / `warp_perspective` under the identity transform
 
-Does **not** reproduce the input exactly: the interior is bit-exact but the
-outermost 1-pixel ring is filled with `fill_value`, because bilinear sampling
-treats it as out of bounds.
+Does **not** reproduce the input exactly: the interior is bit-exact, but the
+**right column and the bottom row** are filled with `fill_value`, because
+bilinear sampling needs a full 2×2 neighbourhood and the check is
+`ixs < src_width - 1 && iys < src_height - 1`.
+
+Earlier revisions of this note said "the outermost 1-pixel ring". That is
+wrong, and the correction is kept rather than silently edited: left and top are
+reproduced exactly, since a source coordinate of `0` is inside. Measured on a
+6×5 identity warp, `F` marking a filled pixel:
+
+```
+. . . . . F
+. . . . . F
+. . . . . F
+. . . . . F
+F F F F F F
+```
+
+OpenCV does not lose these: it applies `borderMode` per sample, so an edge pixel
+whose 2×2 neighbourhood is only partly inside still gets interpolated. Whether
+to follow suit is open — unlike #119 this is deterministic, defensible
+behaviour rather than garbage, so changing it would be the expensive kind of
+parity break.
 
 ### `equalize_histogram` of a uniform image returns 255
 
