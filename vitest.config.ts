@@ -6,7 +6,16 @@ export default defineConfig({
         environment: "node",
         include: ["tests/**/*.test.ts"],
         // Wraps every test with the shared buffer-pool leak check (#87).
+        // Applies to `vitest run` only — `benchmark` below opts out, since the
+        // check would add work inside the measurement.
         setupFiles: ["./tests/setup/pool-balance.ts"],
+        benchmark: {
+            // Throughput benchmarks live in bench/ and run via `npm run bench`
+            // (issue #86). Kept out of `include` above so the test suite never
+            // pays for them, and out of setupFiles so nothing instruments the
+            // timed region.
+            include: ["bench/**/*.bench.ts"],
+        },
         coverage: {
             // A GAP DETECTOR, not a quality score (#123). It answers "which code
             // does no test touch?" — never "is the code well tested?": all five

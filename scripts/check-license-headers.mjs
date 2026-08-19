@@ -107,6 +107,8 @@ function collect() {
     add(["src/**/*.ts"], "derived", "js");
     // our own tests: original work, no derived portions
     add(["tests/**/*.ts"], "original", "js");
+    // benchmarks (#86): our own harness, same reasoning as tests/
+    add(["bench/**/*.ts"], "original", "js");
     // example pages descend from jsfeat's sample pages; our ESM helpers do not
     add(["examples/*.html"], "derived", "html");
     add(["examples/js/*.mjs"], "original", "js");
