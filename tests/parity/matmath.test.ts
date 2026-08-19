@@ -170,6 +170,27 @@ describe("parity: matmath vs original jsfeat.matmath", () => {
         expectDataClose(inv, invo, 9);
     });
 
+    it("invert_3x3 — singular input stays byte-identical to jsfeat (#120)", () => {
+        // #120 added a 1/0 status return but did NOT touch the numbers: a
+        // singular matrix still yields the exact same non-finite pattern jsfeat
+        // produces from 1/det. Compared with Object.is so each +Infinity,
+        // -Infinity and NaN has to match jsfeat's slot exactly — a strictly
+        // stronger guard than "at least one entry is non-finite".
+        const vals = [1, 2, 3, 2, 4, 6, 1, 1, 1]; // rows 1,2 dependent -> det 0
+        const a = new jsfeatNext.matrix_t(3, 3, F32C1);
+        const ao = new jsfeat.matrix_t(3, 3, jsfeat.F32_t | jsfeat.C1_t);
+        a.data.set(vals);
+        ao.data.set(vals);
+        const inv = new jsfeatNext.matrix_t(3, 3, F32C1);
+        const invo = new jsfeat.matrix_t(3, 3, jsfeat.F32_t | jsfeat.C1_t);
+
+        expect(mm.invert_3x3(a, inv)).toBe(0); // jsfeatNext reports singular...
+        jsfeat.matmath.invert_3x3(ao, invo); // ...jsfeat gives no such signal
+        for (let i = 0; i < 9; i++) {
+            expect(Object.is(inv.data[i], invo.data[i])).toBe(true);
+        }
+    });
+
     it("multiply_3x3", () => {
         const { next: a, orig: ao } = makePair(3, 3, 13);
         const { next: b, orig: bo } = makePair(3, 3, 14);
