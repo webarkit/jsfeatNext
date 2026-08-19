@@ -73,8 +73,12 @@ export class optical_flow_lk extends jsfeatNext {
      * @param prev_pyr Pyramid of the previous frame.
      * @param curr_pyr Pyramid of the current frame.
      * @param prev_xy  Input point coordinates, interleaved `[x0,y0,x1,y1,…]`.
-     * @param curr_xy  Output tracked coordinates (same layout). Seed it with
-     *                 a prediction or a copy of `prev_xy`.
+     * @param curr_xy  **Pure output** — tracked coordinates in the same layout.
+     *                 Only needs to be allocated; its incoming contents are
+     *                 ignored. The coarsest level starts from `prev_xy`, not from
+     *                 `curr_xy`, so seeding it with a prediction has no effect
+     *                 (issue #111). OpenCV's opt-in `OPTFLOW_USE_INITIAL_FLOW`
+     *                 has no equivalent here yet.
      * @param count    Number of points to track.
      * @param win_size Side of the square tracking window (e.g. 15 or 21).
      * @param max_iter Max refinement iterations per level. Default 30.
