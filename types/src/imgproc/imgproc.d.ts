@@ -147,6 +147,14 @@ export declare class imgproc extends jsfeatNext {
      * Only the first 6 coefficients of `transform` are used, mapping
      * destination → source coordinates (inverse warping).
      *
+     * A sample is inside `src` only when its source coordinate is ≥ 0 on both
+     * axes and leaves a full bilinear neighbourhood available; everything else
+     * receives `fill_value`. The bounds test therefore looks at the float
+     * coordinates rather than their truncation — `xs | 0` rounds toward zero,
+     * so a coordinate of `-0.5` would otherwise test as `0`, pass as inside,
+     * and be "interpolated" with a negative weight (issue #119). This matches
+     * what {@link warp_perspective} already did.
+     *
      * @param src        Source grayscale image.
      * @param dst        Destination image (same size as `src`).
      * @param transform  2×3 (or 3×3, first 6 entries) dst→src affine transform.
