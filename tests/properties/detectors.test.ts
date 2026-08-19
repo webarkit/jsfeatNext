@@ -365,12 +365,16 @@ describe("detector invariants", () => {
             const STEPS = 360;
             // Bounded non-uniform pattern in [20, 179]; +40 stays <= 219, so the
             // lift never saturates and every in-image sample shifts by exactly 40.
-            const patt = (dx: number) => (x: number, y: number) => 20 + (((x * 37 + y * 101) ^ (x * 13)) % 160) + dx;
+            // `>>> 0` forces the XOR to an unsigned 32-bit int, so `% 160` cannot
+            // go negative and the range is guaranteed [20, 179].
+            const patt = (dx: number) => (x: number, y: number) =>
+                20 + ((((x * 37 + y * 101) ^ (x * 13)) >>> 0) % 160) + dx;
             const sweep = (offset: number, distance: number) => {
                 const img = image(96, 96, patt(offset));
                 const corners = Array.from({ length: STEPS }, (_, a) => {
                     const k = new jsfeatNext.keypoint_t(distance, 48, 0, 0, -1);
-                    k.angle = (a * 360) / STEPS;
+                    // keypoint_t.angle is RADIANS: sweep one full circle evenly.
+                    k.angle = (a / STEPS) * 2 * Math.PI;
                     return k;
                 });
                 const d = new jsfeatNext.matrix_t(32, STEPS, U8C1);
