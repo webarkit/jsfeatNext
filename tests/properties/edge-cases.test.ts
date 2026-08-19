@@ -299,6 +299,15 @@ describe("edge cases: linalg and matmath on degenerate matrices", () => {
         for (const [i, want] of [1, 0, 0, 0, 1, 0, 0, 0, 1].entries()) {
             expect(P.data[i]).toBeCloseTo(want, 5);
         }
+
+        // An invertible matrix with a NEGATIVE determinant must also return 1.
+        // This is what guards the `Math.abs` in the singularity check: a row
+        // swap has det = -1, and without the abs `-1 < EPSILON` would falsely
+        // report it singular.
+        const neg = square(3, [0, 1, 0, 1, 0, 0, 0, 0, 1]); // det = -1
+        expect(jsfeatNext.matmath.mat3x3_determinant(neg)).toBe(-1);
+        const negI = new jsfeatNext.matrix_t(3, 3, F32C1);
+        expect(jsfeatNext.matmath.invert_3x3(neg, negI)).toBe(1);
     });
 });
 
