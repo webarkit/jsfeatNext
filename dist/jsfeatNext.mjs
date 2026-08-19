@@ -1,5 +1,5 @@
 /*!
- * jsfeatNext v0.11.0 — https://github.com/webarkit/jsfeatNext
+ * jsfeatNext v0.12.0 — https://github.com/webarkit/jsfeatNext
  *
  * SPDX-License-Identifier: LGPL-3.0-or-later
  * Copyright 2026 WebARKit. Author(s): Walter Perdan @kalwalt
@@ -100,7 +100,7 @@ var e = class {
 	S32C2_t: 514
 }, a = {
 	name: "@webarkit/jsfeat-next",
-	version: "0.11.0",
+	version: "0.12.0",
 	description: "Typescript version of jsfeat for WebARKit",
 	main: "dist/jsfeatNext.js",
 	module: "dist/jsfeatNext.mjs",
@@ -152,7 +152,7 @@ var e = class {
 		vitest: "^4.1.10"
 	}
 }, o, s = new r();
-s.allocate(30, 640 * 4);
+s.allocate(30, 2560);
 var c = class {
 	constructor() {
 		this.dt = new e(), this.cache = s;
@@ -306,9 +306,7 @@ var m = class extends c {
 			case 2:
 				f[0] = .0625, f[1] = .25, f[2] = .375, f[3] = .25, f[4] = .0625, u = 1;
 				break;
-			case 3:
-				f[0] = .03125, f[1] = .109375, f[2] = .21875, f[3] = .28125, f[4] = .21875, f[5] = .109375, f[6] = .03125, u = 1;
-				break;
+			case 3: f[0] = .03125, f[1] = .109375, f[2] = .21875, f[3] = .28125, f[4] = .21875, f[5] = .109375, f[6] = .03125, u = 1;
 		}
 		else for (c = t > 0 ? t : ((e - 1) * .5 - 1) * .3 + .8, l = -.5 / (c * c); a < e; ++a) o = a - (e - 1) * .5, s = Math.exp(l * o * o), f[a] = s, u += s;
 		if (r & i.U8_t) for (u = 256 / u, a = 0; a < e; ++a) n[a] = f[a] * u + .5 | 0;
@@ -334,10 +332,11 @@ var m = class extends c {
 	}
 	qsort(e, t, n, r) {
 		let i, a, o, s, c = 0, l = 0, u = 0, d = 0, f = 0, p = 0, m = 0, h = 0, g = 0, _ = 0, v = 0, y = 0, b = 0, x = 0, S = 0, C = 0, w = 0, T = 0, E = this.qsort_stack;
-		if (!(n - t + 1 <= 1)) for (E[0] = t, E[1] = n; c >= 0;) for (l = E[c << 1], u = E[(c << 1) + 1], c--;;) if (f = u - l + 1, f <= 7) {
-			for (m = l + 1; m <= u; m++) for (h = m; h > l && r(e[h], e[h - 1]); h--) i = e[h], e[h] = e[h - 1], e[h - 1] = i;
-			break;
-		} else {
+		if (!(n - t + 1 <= 1)) for (E[0] = t, E[1] = n; c >= 0;) for (l = E[c << 1], u = E[(c << 1) + 1], c--;;) {
+			if (f = u - l + 1, f <= 7) {
+				for (m = l + 1; m <= u; m++) for (h = m; h > l && r(e[h], e[h - 1]); h--) i = e[h], e[h] = e[h - 1], e[h - 1] = i;
+				break;
+			}
 			for (T = 0, _ = l, y = u, x = l + (f >> 1), f > 40 && (g = f >> 3, S = l, C = l + g, w = l + (g << 1), a = e[S], o = e[C], s = e[w], l = r(a, o) ? r(o, s) ? C : r(a, s) ? w : S : r(s, o) ? C : r(a, s) ? S : w, S = x - g, C = x, w = x + g, a = e[S], o = e[C], s = e[w], x = r(a, o) ? r(o, s) ? C : r(a, s) ? w : S : r(s, o) ? C : r(a, s) ? S : w, S = u - (g << 1), C = u - g, w = u, a = e[S], o = e[C], s = e[w], u = r(a, o) ? r(o, s) ? C : r(a, s) ? w : S : r(s, o) ? C : r(a, s) ? S : w), S = l, C = x, w = u, a = e[S], o = e[C], s = e[w], x = r(a, o) ? r(o, s) ? C : r(a, s) ? w : S : r(s, o) ? C : r(a, s) ? S : w, x != _ && (i = e[x], e[x] = e[_], e[_] = i, x = _), l = v = _ + 1, u = b = y, a = e[x];;) {
 				for (; l <= u && !r(a, e[l]);) r(e[l], a) || (l > v && (i = e[v], e[v] = e[l], e[l] = i), T = 1, v++), l++;
 				for (; l <= u && !r(e[u], a);) r(a, e[u]) || (u < b && (i = e[b], e[b] = e[u], e[u] = i), T = 1, b--), u--;
@@ -395,33 +394,20 @@ var m = class extends c {
 		a > r && o > n && (t.resize(n, r, e.channel), e.type & i.U8_t && t.type & i.U8_t && a * o / (r * n) < 256 ? u(e, t, this.cache, n, r) : d(e, t, this.cache, n, r));
 	}
 	box_blur_gray(e, t, n, r) {
-		r === void 0 && (r = 0);
-		let a = e.cols, o = e.rows, s = o << 1, c = a << 1, l = 0, u = 0, d = 0, f = 0, p = (n << 1) + 1 | 0, m = n + 1 | 0, h = m + 1 | 0, g = r & i.BOX_BLUR_NOSCALE ? 1 : 1 / (p * p), _ = this.cache.get_buffer(a * o << 2), v = 0, y = 0, b = 0, x = 0, S = 0, C = _.i32, w = e.data, T = 0;
-		for (t.resize(a, o, e.channel), d = 0; d < o; ++d) {
-			for (y = d, v = m * w[b], l = b + 1 | 0, f = b + n | 0; l <= f; ++l) v += w[l];
-			for (x = b + m | 0, S = b, T = w[S], u = 0; u < n; ++u, y += o) C[y] = v, v += w[x] - T, x++;
-			for (; u < a - h; u += 2, y += s) C[y] = v, v += w[x] - w[S], C[y + o] = v, v += w[x + 1] - w[S + 1], x += 2, S += 2;
-			for (; u < a - m; ++u, y += o) C[y] = v, v += w[x] - w[S], x++, S++;
-			for (T = w[x - 1]; u < a; ++u, y += o) C[y] = v, v += T - w[S], S++;
-			b += a;
+		r === void 0 && (r = 0), n |= 0;
+		let a = e.cols | 0, o = e.rows | 0, s = n + 1 | 0, c = (n << 1) + 1 | 0, l = c * c, u = (r & i.BOX_BLUR_NOSCALE) !== 0, d = this.cache.get_buffer(a * o << 2), f = d.i32;
+		t.resize(a, o, e.channel);
+		let p = 0, m = 0, h = 0, g = 0, _ = 0, v = 0, y = 0, b = e.data;
+		for (m = 0; m < o; ++m) {
+			for (_ = m * a, g = s * b[_], h = 1; h <= n; ++h) g += b[_ + (h < a ? h : a - 1)];
+			for (p = 0; p < a; ++p) f[p * o + m] = g, y = p + s, v = p - n, g += b[_ + (y < a ? y : a - 1)] - b[_ + (v > 0 ? v : 0)];
 		}
-		if (b = 0, w = t.data, g == 1) for (d = 0; d < a; ++d) {
-			for (y = d, v = m * C[b], l = b + 1 | 0, f = b + n | 0; l <= f; ++l) v += C[l];
-			for (x = b + m, S = b, T = C[S], u = 0; u < n; ++u, y += a) w[y] = v, v += C[x] - T, x++;
-			for (; u < o - h; u += 2, y += c) w[y] = v, v += C[x] - C[S], w[y + a] = v, v += C[x + 1] - C[S + 1], x += 2, S += 2;
-			for (; u < o - m; ++u, y += a) w[y] = v, v += C[x] - C[S], x++, S++;
-			for (T = C[x - 1]; u < o; ++u, y += a) w[y] = v, v += T - C[S], S++;
-			b += o;
+		let x = t.data;
+		for (m = 0; m < a; ++m) {
+			for (_ = m * o, g = s * f[_], h = 1; h <= n; ++h) g += f[_ + (h < o ? h : o - 1)];
+			for (p = 0; p < o; ++p) x[p * a + m] = u ? g : Math.floor(g / l), y = p + s, v = p - n, g += f[_ + (y < o ? y : o - 1)] - f[_ + (v > 0 ? v : 0)];
 		}
-		else for (d = 0; d < a; ++d) {
-			for (y = d, v = m * C[b], l = b + 1 | 0, f = b + n | 0; l <= f; ++l) v += C[l];
-			for (x = b + m, S = b, T = C[S], u = 0; u < n; ++u, y += a) w[y] = v * g, v += C[x] - T, x++;
-			for (; u < o - h; u += 2, y += c) w[y] = v * g, v += C[x] - C[S], w[y + a] = v * g, v += C[x + 1] - C[S + 1], x += 2, S += 2;
-			for (; u < o - m; ++u, y += a) w[y] = v * g, v += C[x] - C[S], x++, S++;
-			for (T = C[x - 1]; u < o; ++u, y += a) w[y] = v * g, v += T - C[S], S++;
-			b += o;
-		}
-		this.cache.put_buffer(_);
+		this.cache.put_buffer(d);
 	}
 	gaussian_blur(e, t, n, r) {
 		let a = new m();
@@ -572,7 +558,7 @@ var m = class extends c {
 	warp_affine(e, t, n, r) {
 		r === void 0 && (r = 0);
 		let i = e.cols, a = e.rows, o = t.cols, s = t.rows, c = e.data, l = t.data, u = 0, d = 0, f = 0, p = 0, m = 0, h = 0, g = 0, _ = 0, v = 0, y = 0, b = 0, x = n.data, S = x[0], C = x[1], w = x[2], T = x[3], E = x[4], D = x[5];
-		for (let e = 0; d < s; ++d) for (h = C * d + w, g = E * d + D, u = 0; u < o; ++u, ++e, h += S, g += T) p = h | 0, m = g | 0, p >= 0 && m >= 0 && p < i - 1 && m < a - 1 ? (_ = h - p, v = g - m, f = i * m + p, y = c[f] + _ * (c[f + 1] - c[f]), b = c[f + i] + _ * (c[f + i + 1] - c[f + i]), l[e] = y + v * (b - y)) : l[e] = r;
+		for (let e = 0; d < s; ++d) for (h = C * d + w, g = E * d + D, u = 0; u < o; ++u, ++e, h += S, g += T) p = h | 0, m = g | 0, h >= 0 && g >= 0 && p < i - 1 && m < a - 1 ? (_ = h - p, v = g - m, f = i * m + p, y = c[f] + _ * (c[f + 1] - c[f]), b = c[f + i] + _ * (c[f + i + 1] - c[f + i]), l[e] = y + v * (b - y)) : l[e] = r;
 	}
 	skindetector(e, t) {
 		let n, r, i, a, o = e.width * e.height;
@@ -752,23 +738,23 @@ var v = class {
 		this.cache.put_buffer(z);
 	}
 	lu_solve(e, t) {
-		let n = 0, r = 0, a = 0, o = 1, s = e.cols, c = e.data, l = t.data, u, d, f;
+		let n = 0, r = 0, a = 0, o = 1, s = e.cols, c = e.data, l = t.data, u, d, f, p;
 		for (n = 0; n < s; n++) {
 			for (a = n, r = n + 1; r < s; r++) Math.abs(c[r * s + n]) > Math.abs(c[a * s + n]) && (a = r);
 			if (Math.abs(c[a * s + n]) < i.EPSILON) return 0;
 			if (a != n) {
-				for (r = n; r < s; r++) g(c, n * s + r, a * s + r, void 0);
-				g(l, n, a, void 0), o = -o;
+				for (r = n; r < s; r++) g(c, n * s + r, a * s + r, u);
+				g(l, n, a, u), o = -o;
 			}
-			for (d = -1 / c[n * s + n], r = n + 1; r < s; r++) {
-				for (u = c[r * s + n] * d, a = n + 1; a < s; a++) c[r * s + a] += u * c[n * s + a];
-				l[r] += u * l[n];
+			for (f = -1 / c[n * s + n], r = n + 1; r < s; r++) {
+				for (d = c[r * s + n] * f, a = n + 1; a < s; a++) c[r * s + a] += d * c[n * s + a];
+				l[r] += d * l[n];
 			}
-			c[n * s + n] = -d;
+			c[n * s + n] = -f;
 		}
 		for (n = s - 1; n >= 0; n--) {
-			for (f = l[n], a = n + 1; a < s; a++) f -= c[n * s + a] * l[a];
-			l[n] = f * c[n * s + n];
+			for (p = l[n], a = n + 1; a < s; a++) p -= c[n * s + a] * l[a];
+			l[n] = p * c[n * s + n];
 		}
 		return 1;
 	}
@@ -2062,53 +2048,60 @@ function A(e, t, n, r, i) {
 }
 function j(e, t, n, r, i, a, o, s) {
 	let c = 0, l = 0, u = o - 1 | 0, d = 0, f = 0, p = 0, m = 0, h = 0;
-	if (d = e[t + a[l]], d <= i) if (d >= r) if (f = e[t + a[u]], f <= i) if (f >= r) {
-		n[t] = 0;
-		return;
-	} else if (u++, p = e[t + a[u]], p > i) if (u++, m = e[t + a[u]], m > i) h = 3;
-	else if (m < r) h = 6;
-	else {
-		n[t] = 0;
-		return;
-	}
-	else if (u++, m = e[t + a[u]], m > i) h = 7;
-	else if (m < r) h = 2;
-	else {
-		n[t] = 0;
-		return;
-	}
-	else if (u++, p = e[t + a[u]], p > i) if (u++, m = e[t + a[u]], m > i) h = 3;
-	else if (m < r) h = 6;
-	else {
-		n[t] = 0;
-		return;
-	}
-	else if (p < r) if (u++, m = e[t + a[u]], m > i) h = 7;
-	else if (m < r) h = 2;
-	else {
-		n[t] = 0;
-		return;
-	}
-	else {
-		n[t] = 0;
-		return;
-	}
-	else {
-		if (f = e[t + a[u]], f > i) {
-			n[t] = 0;
-			return;
+	if (d = e[t + a[l]], d <= i) {
+		if (d >= r) {
+			if (f = e[t + a[u]], f <= i) {
+				if (f >= r) {
+					n[t] = 0;
+					return;
+				}
+				if (u++, p = e[t + a[u]], p > i) {
+					if (u++, m = e[t + a[u]], m > i) h = 3;
+					else if (m < r) h = 6;
+					else {
+						n[t] = 0;
+						return;
+					}
+				} else if (u++, m = e[t + a[u]], m > i) h = 7;
+				else if (m < r) h = 2;
+				else {
+					n[t] = 0;
+					return;
+				}
+			} else if (u++, p = e[t + a[u]], p > i) {
+				if (u++, m = e[t + a[u]], m > i) h = 3;
+				else if (m < r) h = 6;
+				else {
+					n[t] = 0;
+					return;
+				}
+			} else if (p < r) {
+				if (u++, m = e[t + a[u]], m > i) h = 7;
+				else if (m < r) h = 2;
+				else {
+					n[t] = 0;
+					return;
+				}
+			} else {
+				n[t] = 0;
+				return;
+			}
+		} else {
+			if (f = e[t + a[u]], f > i) {
+				n[t] = 0;
+				return;
+			}
+			if (u++, p = e[t + a[u]], p > i) {
+				n[t] = 0;
+				return;
+			}
+			if (u++, m = e[t + a[u]], m > i) {
+				n[t] = 0;
+				return;
+			}
+			h = 1;
 		}
-		if (u++, p = e[t + a[u]], p > i) {
-			n[t] = 0;
-			return;
-		}
-		if (u++, m = e[t + a[u]], m > i) {
-			n[t] = 0;
-			return;
-		}
-		h = 1;
-	}
-	else {
+	} else {
 		if (f = e[t + a[u]], f < r) {
 			n[t] = 0;
 			return;
@@ -2394,7 +2387,6 @@ function j(e, t, n, r, i, a, o, s) {
 			}
 			n[t] = 0;
 			return;
-		default: break;
 	}
 	n[t] = c + s * e[t];
 }

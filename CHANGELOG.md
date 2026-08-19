@@ -1,4 +1,37 @@
 
+## 0.12.0 - 2026-08-19
+
+### 🐛 Bug Fixes
+
+- Fill the (-1, 0) source band in warp_affine instead of extrapolating (caac2a6)
+
+- Make box_blur_gray correct below the kernel size and at radius 3 (6771c8c)
+
+- Keep box_blur_gray window area as a float to avoid int32 overflow (85f1e15)
+
+
+### 📚 Documentation
+
+- Add the features2d expansion plan for GMS, TEBLID and FREAK (fcb0819)
+
+- Record the applied state of the features2d plan (6c00f7e)
+
+- Correct the stale test-suite description (2d9af65)
+
+- Record the warp_affine fix and how OpenCV differs (601cbb1)
+
+
+### 📦 Build
+
+- Bump vite from 8.1.5 to 8.2.1 (a2fa8e8)
+
+
+### 🧪 Testing
+
+- Address Copilot review of the box_blur_gray fix (#114) (22581c0)
+
+
+
 ## 0.11.0 - 2026-08-03
 
 ### 🐛 Bug Fixes
