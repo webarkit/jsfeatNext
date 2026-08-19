@@ -5,6 +5,7 @@
 ![Dependabot Badge](https://flat.badgen.net/dependabot/@webarkit/jsfeat-next?icon=dependabot)
 [![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square)](https://github.com/prettier/prettier)
 [![CI](https://github.com/webarkit/jsfeatNext/actions/workflows/CI.yml/badge.svg)](https://github.com/webarkit/jsfeatNext/actions/workflows/CI.yml)
+[![codecov](https://codecov.io/gh/webarkit/jsfeatNext/graph/badge.svg)](https://codecov.io/gh/webarkit/jsfeatNext)
 [![X (formerly Twitter) Follow](https://img.shields.io/twitter/follow/WebarkitO)](https://x.com/WebarkitO)
 
 # jsfeatNext 🚀

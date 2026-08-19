@@ -25,7 +25,8 @@ export default defineConfig({
             // coverage/coverage-summary.json (json-summary reporter) or the
             // HTML report, not a grep over the table.
             all: true,
-            reporter: ["text-summary", "text", "html"],
+            // lcov feeds the Codecov upload in CI; the others are for humans.
+            reporter: ["text-summary", "text", "html", "lcov"],
             reportsDirectory: "coverage",
         },
     },

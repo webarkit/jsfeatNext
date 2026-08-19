@@ -1,0 +1,21 @@
+# Codecov configuration (follow-up to issue #123).
+#
+# Coverage in this repo is a GAP DETECTOR, not a gate — see vitest.config.ts.
+# Both statuses are informational: Codecov reports project and diff coverage
+# on every PR but can never fail one. The per-PR comment stays on because the
+# diff-coverage table (how much of the NEW code is exercised) is the one thing
+# the CI-printed summary cannot show.
+
+coverage:
+    status:
+        project:
+            default:
+                informational: true
+        patch:
+            default:
+                informational: true
+
+comment:
+    layout: "condensed_header, diff, files"
+    behavior: default
+    require_changes: true # stay silent on PRs that do not move coverage
