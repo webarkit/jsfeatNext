@@ -311,6 +311,14 @@ export default class matmath {
      * those that check it can react before the `NaN`/`Infinity` propagates
      * (issue #120). Mirrors {@link linalg.lu_solve}'s `1`/`0` convention.
      *
+     * The threshold is **absolute** on the raw determinant, which scales with
+     * the cube of the entry magnitude, so a well-conditioned matrix whose
+     * entries are all very small (roughly below `0.005`) can be reported
+     * singular even though its inverse is finite. This does not arise for the
+     * O(1)-scaled matrices in this library (homographies, the normalization
+     * matrix); normalize the input if you invert arbitrarily-scaled 3×3s and
+     * need the status to be reliable.
+     *
      * @param from 3×3 source matrix. @param to 3×3 destination.
      */
     invert_3x3(from: matrix_t, to: matrix_t): number {
