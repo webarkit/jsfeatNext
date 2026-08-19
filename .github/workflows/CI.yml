@@ -43,3 +43,13 @@ jobs:
             # threshold fails the build, deliberately — see vitest.config.ts.
             - name: Test (with coverage summary)
               run: npm run test:coverage
+
+            # Uploads lcov to Codecov for per-PR diff coverage and trends.
+            # Never fails the build: statuses are informational (codecov.yml),
+            # and an upload error (e.g. token missing on a fork PR) is ignored.
+            - name: Upload coverage to Codecov
+              uses: codecov/codecov-action@v5
+              with:
+                  token: ${{ secrets.CODECOV_TOKEN }}
+                  files: ./coverage/lcov.info
+                  fail_ci_if_error: false
