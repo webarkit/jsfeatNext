@@ -49,12 +49,12 @@ import { U8C1, F32C1, uniformImage, dstImage, keypointPool, pixelRange } from ".
  * and says nothing about any of it.
  *
  * Most of what follows asserts that an invariant established elsewhere still
- * holds at the boundary. `box_blur_gray` below kernel size used to be a
- * characterization of inherited-broken behaviour; #114 fixed it, so that block
- * now asserts the invariant (a uniform image round-trips at every size). One
- * block still CHARACTERIZES behaviour that is wrong but inherited from jsfeat —
- * `invert_3x3` on a singular matrix — labelled, citing its issue, and written
- * to be replaced by a fix rather than kept.
+ * holds at the boundary. Two blocks here used to CHARACTERIZE inherited-broken
+ * behaviour, pinned so a fix would be a deliberate change; both have since been
+ * fixed and now assert the invariant instead: `box_blur_gray` below kernel size
+ * (#114 — a uniform image round-trips at every size) and `invert_3x3` on a
+ * singular matrix (#120 — it now returns 0 to report the singularity). No
+ * characterization-of-a-defect blocks remain.
  */
 
 const ip = jsfeatNext.imgproc;
