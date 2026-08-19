@@ -41,6 +41,7 @@
  */
 
 import { matrix_t } from "../matrix_t/matrix_t";
+import { JSFEAT_CONSTANTS } from "../constants/constants";
 
 /**
  * General matrix arithmetic on {@link matrix_t} operands: transpose,
@@ -301,12 +302,18 @@ export default class matmath {
 
     /**
      * Inverts a 3×3 matrix by the adjugate/determinant closed form
-     * (no pivoting — the input must be non-singular). Safe to call with
-     * `from === to` (in-place inversion).
+     * (no pivoting). Safe to call with `from === to` (in-place inversion).
+     *
+     * @returns `1` if the matrix was invertible, `0` if it is singular
+     * (`|det| < EPSILON`). On a singular input the destination is still written
+     * — with the non-finite values `1/det` produces, byte-identical to original
+     * jsfeat — so callers ignoring the return keep the previous behaviour, while
+     * those that check it can react before the `NaN`/`Infinity` propagates
+     * (issue #120). Mirrors {@link linalg.lu_solve}'s `1`/`0` convention.
      *
      * @param from 3×3 source matrix. @param to 3×3 destination.
      */
-    invert_3x3(from: matrix_t, to: matrix_t): void {
+    invert_3x3(from: matrix_t, to: matrix_t): number {
         const A = from.data,
             invA = to.data;
         const t1 = A[4];
@@ -325,7 +332,8 @@ export default class matmath {
         const t20 = A[6];
         const t21 = t20 * t14;
         const t23 = t20 * t17;
-        const t26 = 1.0 / (t9 * t2 - t11 * t5 - t15 * t2 + t18 * t5 + t21 * t4 - t23 * t1);
+        const det = t9 * t2 - t11 * t5 - t15 * t2 + t18 * t5 + t21 * t4 - t23 * t1;
+        const t26 = 1.0 / det;
         invA[0] = (t1 * t2 - t4 * t5) * t26;
         invA[1] = -(t14 * t2 - t17 * t5) * t26;
         invA[2] = -(-t14 * t4 + t17 * t1) * t26;
@@ -335,6 +343,8 @@ export default class matmath {
         invA[6] = -(-t13 * t5 + t1 * t20) * t26;
         invA[7] = -(t8 * t5 - t21) * t26;
         invA[8] = (t9 - t15) * t26;
+
+        return Math.abs(det) < JSFEAT_CONSTANTS.EPSILON ? 0 : 1;
     }
 
     /**

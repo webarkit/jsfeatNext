@@ -275,17 +275,30 @@ describe("edge cases: linalg and matmath on degenerate matrices", () => {
         expect(2 * x0 + 6 * x1).toBeCloseTo(2, 4);
     });
 
-    it("CHARACTERIZATION: invert_3x3 of a singular matrix silently yields non-finite values", () => {
-        // Same family as #102: no error, no signal, just garbage the caller
-        // will happily use. Pinned so a future guard is a deliberate change.
-        const singular = square(3, [1, 2, 3, 2, 4, 6, 1, 1, 1]);
+    it("invert_3x3 reports failure on a singular matrix and success on an invertible one (#120)", () => {
+        // #120: invert_3x3 now returns 1/0 like lu_solve, so a caller can react
+        // before the NaN/Infinity propagates. The numeric output is unchanged —
+        // still the non-finite values 1/det produces, byte-identical to jsfeat —
+        // so this is an additive signal, not a divergence.
+        const singular = square(3, [1, 2, 3, 2, 4, 6, 1, 1, 1]); // rows 1,2 dependent
         expect(jsfeatNext.matmath.mat3x3_determinant(singular)).toBe(0);
 
         const inverse = new jsfeatNext.matrix_t(3, 3, F32C1);
-        jsfeatNext.matmath.invert_3x3(singular, inverse);
+        expect(jsfeatNext.matmath.invert_3x3(singular, inverse)).toBe(0);
+        // ...and the output is still the old non-finite garbage (parity kept).
         let nonFinite = 0;
         for (let i = 0; i < 9; i++) if (!Number.isFinite(inverse.data[i])) nonFinite++;
         expect(nonFinite).toBeGreaterThan(0);
+
+        // An invertible matrix returns 1 and a finite, correct inverse (A·A⁻¹ = I).
+        const A = square(3, [2, 0, 1, 1, 3, 2, 1, 0, 1]);
+        const Ai = new jsfeatNext.matrix_t(3, 3, F32C1);
+        expect(jsfeatNext.matmath.invert_3x3(A, Ai)).toBe(1);
+        const P = new jsfeatNext.matrix_t(3, 3, F32C1);
+        jsfeatNext.matmath.multiply_3x3(P, A, Ai);
+        for (const [i, want] of [1, 0, 0, 0, 1, 0, 0, 0, 1].entries()) {
+            expect(P.data[i]).toBeCloseTo(want, 5);
+        }
     });
 });
 
