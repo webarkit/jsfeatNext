@@ -78,5 +78,9 @@ export function rectify_patch(
     H.data[4] = cosine;
     H.data[5] = (-sine - cosine) * psize * 0.5 + py;
 
+    // Constant fill of 128: patch samples that fall outside `src` read this
+    // fixed value rather than image content, which silently degrades the
+    // descriptor for keypoints within ~20 px of an edge. See the margin note on
+    // `orb.describe` and issue #110.
     imgProcessor.warp_affine(src, dst, H, 128);
 }

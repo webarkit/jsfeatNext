@@ -38,7 +38,7 @@
 
 import { describe, it, expect } from "vitest";
 import jsfeatNext from "../../src/jsfeatNext";
-import { U8C1, cornerScene, uniformImage, keypointPool, hammingDistance } from "./helpers";
+import { U8C1, cornerScene, uniformImage, keypointPool, hammingDistance, image } from "./helpers";
 
 /**
  * Property/invariant tests for the detectors and the ORB descriptor
@@ -347,6 +347,40 @@ describe("detector invariants", () => {
             expect(distance).toBeGreaterThan(0);
             // ...but only a handful of bits: only edge-adjacent patches suffer.
             expect(distance).toBeLessThan(bits * 0.01);
+        });
+
+        it("the 20px safe margin holds at the WORST rotation, not just angle 0 (#110)", () => {
+            // The scene tests above describe at angle 0, where the sampling
+            // pattern reaches at most 13px on an axis. The worst case is the
+            // diagonal — 13*sqrt(2) = 18.4px — reached only under rotation, so an
+            // angle-0 test cannot see it. This sweeps one keypoint over 360
+            // angles at a controlled distance from the left edge and checks the
+            // brightness-offset invariance there.
+            //
+            // Pins the re-measurement done for the 0.12.0 release: #119 changed
+            // warp_affine to FILL the (-1,0) source band with the 128 constant
+            // (instead of extrapolating brightness-consistently), which widened
+            // the contaminated band by ~2px. Contamination now vanishes from
+            // distance 19 up, so 20 is safe with ~1px slack; it is present at 16.
+            const STEPS = 360;
+            // Bounded non-uniform pattern in [20, 179]; +40 stays <= 219, so the
+            // lift never saturates and every in-image sample shifts by exactly 40.
+            const patt = (dx: number) => (x: number, y: number) => 20 + (((x * 37 + y * 101) ^ (x * 13)) % 160) + dx;
+            const sweep = (offset: number, distance: number) => {
+                const img = image(96, 96, patt(offset));
+                const corners = Array.from({ length: STEPS }, (_, a) => {
+                    const k = new jsfeatNext.keypoint_t(distance, 48, 0, 0, -1);
+                    k.angle = (a * 360) / STEPS;
+                    return k;
+                });
+                const d = new jsfeatNext.matrix_t(32, STEPS, U8C1);
+                orb.describe(img, corners, STEPS, d);
+                return d;
+            };
+            // At distance 20 the whole rotated reach stays inside: bit-identical.
+            expect(hammingDistance(sweep(0, 20).data, sweep(40, 20).data, STEPS * 32)).toBe(0);
+            // At distance 16 the diagonal samples cross the edge: invariance lost.
+            expect(hammingDistance(sweep(0, 16).data, sweep(40, 16).data, STEPS * 32)).toBeGreaterThan(0);
         });
 
         it("gives clearly different descriptors to different keypoints", () => {
