@@ -26,6 +26,7 @@
     "format": "prettier --write .",
     "license-check": "node scripts/check-license-headers.mjs",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "docs": "typedoc"
   },
@@ -49,6 +50,7 @@
   },
   "homepage": "https://github.com/webarkit/jsfeatNext#readme",
   "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.11",
     "prettier": "~3.9.4",
     "typedoc": "^0.28.20",
     "typescript": "^6.0.3",

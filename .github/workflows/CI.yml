@@ -38,5 +38,8 @@ jobs:
             - name: License header check
               run: npm run license-check
 
-            - name: Test
-              run: npm run test --if-present
+            # Runs the suite once, with the coverage summary printed in the log
+            # (issue #123). Coverage is a gap detector here, not a gate: no
+            # threshold fails the build, deliberately — see vitest.config.ts.
+            - name: Test (with coverage summary)
+              run: npm run test:coverage
