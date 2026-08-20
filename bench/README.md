@@ -90,37 +90,63 @@ Since jsfeatNext is a port of jsfeat, ratios near **1.0× are the expected, heal
 
 ## Open finding: the YAPE detectors are consistently slower
 
-The first real signal this harness produced. Measured on an idle machine
-(power connected, browser and editor closed), discarding the warm-up run:
+The first real signal this harness produced. Eight samples, pooled from two
+separate sessions on an idle machine (power connected, browser and editor
+closed), each discarding a warm-up run:
 
-| case | run 1 | run 2 | verdict |
-| --- | --- | --- | --- |
-| `fast_corners` thr 20 | 1.06× | 1.07× | noise |
-| `fast_corners` thr 60 | 1.11× | 1.06× | noise |
-| **`yape06`** | **1.35×** | **1.37×** | **real** |
-| **`yape`** | **1.31×** | **1.33×** | **real** |
+| case | session A | session B | direction | verdict |
+| --- | --- | --- | --- | --- |
+| `fast_corners` thr 20 | 1.02 / 1.06\* / 1.14 / 1.01\* | 1.08 / 1.06 / 1.01\* / 1.04 | flips | noise |
+| `fast_corners` thr 60 | 1.04 / 1.09 / 1.05\* / 1.08 | 1.06 / 1.05 / 1.11 / 1.10 | mostly jsfeat | below floor |
+| **`yape06`** | 1.30 / 1.33 / 1.38 / 1.27 | 1.45 / 1.35 / 1.11 / 1.32 | **always jsfeat** | **real** |
+| **`yape`** | 1.53 / 1.38 / 1.25 / 1.42 | 1.30 / 1.23 / 1.24 / 1.26 | **always jsfeat** | **real** |
 
-All in jsfeat's favour. `fast_corners` sits under the ~1.15× floor, so it says
-nothing. `yape06` and `yape` are well outside it and reproduce to within
-±0.02 — that tightness is itself evidence: noise disperses, a real difference
-converges.
+\* = jsfeatNext was the faster side in that run; every other figure favours
+jsfeat.
 
-Worth recording how this was established, because the first attempt got it
-wrong. An earlier measurement taken with a browser and editor open put
-`fast_corners` as high as 1.23× and `yape06` at 1.51×. On the idle machine
-`fast_corners` collapsed into the noise floor while the YAPE gap **held and
-tightened**. CPU contention had inflated everything; only one of the two
-findings survived. Follow the "clean measurement" steps above before believing
-any number here.
+`yape06` and `yape` favour jsfeat in **all eight** samples and sit around 1.3x.
+That consistency of *direction* is the evidence — not any single magnitude. The
+magnitudes are noisier than they first appeared: `yape06` spans 1.11 to 1.45
+and `yape` 1.23 to 1.53. Quote this as "roughly 1.3x", never to two decimals.
+
+Note which case is tight is **not stable between sessions**: session A had
+`yape06` clustered and `yape` spread, session B the reverse. Four samples are
+not enough to characterise a spread, only a direction. Do not read a tight
+cluster within one session as precision.
+
+`fast_corners` at threshold 20 changes sign and is plain noise. Threshold 60 is
+more equivocal — it never favours jsfeatNext across eight samples, but never
+clears the ~1.15x floor either. Recorded as below-floor-but-directional rather
+than folded in with thr 20; it is not a finding, and it is not quite nothing.
+
+### How this was established, including two wrong turns
+
+The first measurement was taken with a browser and editor open. It put
+`fast_corners` as high as 1.23x and `yape06` at 1.51x. On an idle machine
+`fast_corners` collapsed into the noise floor while the YAPE gap held: CPU
+contention had inflated everything, and only one of the two findings survived.
+
+The second was worse, because the harness itself was wrong. `set_threshold`
+mutates a singleton and was being called from the `describe` bodies, which
+Vitest runs during collection — so both `fast_corners` suites actually ran at
+threshold 60, and the case labelled "threshold 20" measured the same workload as
+its neighbour. The ratio stayed valid (both sides ran at 60), but one case was
+not measuring what it claimed to. Caught in review; see the `threshold()` helper
+in `detectors.bench.ts` for the fix and why the obvious alternatives do not work.
+
+That episode also cost an over-confident claim: an earlier version of this
+section reported the YAPE ratios as reproducing "to within +/-0.02". That was
+two samples. Eight give a range roughly ten times wider. The finding survived;
+the precision claim did not.
 
 It is not an algorithmic difference: corner counts are identical on both sides
 (26,016 / 12,919 / 49,258 / 149), so both do the same work.
 
-**Leading hypothesis — not proven.** jsfeat defines its per-pixel helpers as
+**Leading hypothesis - not proven.** jsfeat defines its per-pixel helpers as
 closures *inside* the module IIFE, in the same scope as `detect`:
 
 ```js
-var hessian_min_eigen_value = function (src, off, tr, Dxx, Dyy, Dxy, Dyx) { … };
+var hessian_min_eigen_value = function (src, off, tr, Dxx, Dyy, Dxy, Dyx) { ... };
 ```
 
 jsfeatNext imports the same helpers from a separate module (`yape06_utils.ts`).
