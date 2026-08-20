@@ -8,30 +8,85 @@ npm run bench
 
 ## Read the ratio, not the absolute numbers
 
-Every case runs **twice in the same process**: once through jsfeatNext, once through the vendored original jsfeat (`tests/vendor/oracle.cjs`). What matters is the **ratio** Vitest prints in the `BENCH Summary` block:
+Every case runs **twice in the same process**: once through jsfeatNext, once through the vendored original jsfeat (`tests/vendor/oracle.cjs`). What matters is the **ratio** Vitest prints in the `BENCH Summary` block, which reads like this (shape only — see the noise floor below before reading any single number as a result):
 
 ```
-jsfeat (reference) - imgproc.gaussian_blur — U8 fast path
-  1.06x faster than jsfeatNext
+<winner> - imgproc.gaussian_blur — U8 fast path
+  1.0Nx faster than <loser>
 ```
 
 The `hz` / `mean` columns above it are **not** comparable across machines, and largely not comparable across runs on the same machine either.
 
 ### Why
 
-Absolute throughput depends on the CPU model, its thermal and boost state, what else the machine is doing, and the Node version. On a shared CI runner two identical runs commonly differ by 20–50%. A number recorded on one box and diffed against another box reports **noise as a regression** — and the natural response (widen the threshold until it stops shouting) leaves you with a measurement that can no longer detect anything.
+Absolute throughput depends on the CPU model, its thermal and boost state, what else the machine is doing, and the Node version. A shared CI runner has none of those pinned — it is a VM whose neighbours you cannot see — so its absolute numbers wander for reasons that have nothing to do with the code. (We have not measured that spread on this project's CI; the locally-measured jitter is in the noise-floor section below.) A number recorded on one box and diffed against another box reports **noise as a regression** — and the natural response (widen the threshold until it stops shouting) leaves you with a measurement that can no longer detect anything.
 
 Running both implementations back to back cancels almost all of that. A slow runner halves both sides; the ratio survives. So:
 
 - ✅ *"jsfeatNext runs `gaussian_blur` U8 at 0.94× jsfeat"* — portable, comparable next month, comparable on CI.
 - ❌ *"1240 ops/s"* — true only for that box, that minute.
 
+## The noise floor: ignore anything under ~1.15×
+
+The ratio cancels the *machine*, but not the ordinary run-to-run jitter of a JIT
+language: GC timing, when V8 decides to optimise a function, cache state.
+
+Measured on a developer laptop, `gaussian_blur` U8 across four consecutive runs
+of an **unchanged** tree:
+
+| run | result |
+| --- | --- |
+| 1 | jsfeat 1.06× faster |
+| 2 | jsfeatNext 1.10× faster |
+| 3 | jsfeatNext 1.14× faster |
+| 4 | jsfeatNext 1.05× faster |
+
+Note it changes **sign**. The two implementations are indistinguishable here —
+which is the expected result for a port doing the same arithmetic — and the
+spread is roughly ±10–15%.
+
+So, in practice:
+
+- **under ~1.15×** — noise. Do not investigate, do not "fix", do not record it
+  as a finding.
+- **a consistent shift across several runs**, or anything **beyond ~1.2×** —
+  worth looking at.
+
+Always re-run a few times before believing a number. A single run is a sample
+of one.
+
+## How to get a clean measurement
+
+What actually moves the numbers on a developer machine, roughly in order of
+impact:
+
+| Factor | Effect |
+| --- | --- |
+| **CPU contention** | The dominant one. Another busy process means the OS scheduler hands the bench less CPU time — a browser with many tabs, a background build, an antivirus scan. |
+| **Thermal state / turbo boost** | Has *memory*: the first seconds run boosted, then the clock drops under sustained load. So the **first** bench of a session tends to look faster than the last — a systematic bias in favour of whatever is measured first. |
+| **Power profile** | On a laptop, **on battery vs plugged in** can change everything: Windows throttles aggressively on battery. |
+| **Memory pressure / GC** | Smaller than people assume, but real: with RAM nearly full the collector runs more often and that time lands inside the measurement. These benches allocate their buffers *outside* the timed region, so this is a minor factor here. |
+
+In practice:
+
+1. **Plug in the power** — do not bench on battery.
+2. **Close the browser and other heavy apps.**
+3. **Run twice, ignore the first run** — it pays the JIT warm-up.
+4. If a number matters, **run it 3–4 times.** If the sign flips, it is noise.
+
+The reassuring part: the A/B ratio already absorbs most of these effects,
+because both implementations meet the same conditions in the same seconds.
+That is precisely why the ratio is the metric. The steps above tighten the
+residual jitter — they are not what makes the measurement valid.
+
 ## What a change means
 
-- A ratio drifting **down** across commits: jsfeatNext lost ground against the same reference workload. That is the regression signal.
-- A ratio moving **up**: an optimization landed, and by how much.
+Judged **against the noise floor above**, not in isolation:
 
-Since jsfeatNext is a port of jsfeat, ratios near **1.0× are the expected, healthy state** — the two are doing the same arithmetic. A ratio that suddenly moves is more interesting than its exact value.
+- A ratio drifting **down** across several runs and commits: jsfeatNext lost ground against the same reference workload. That is the regression signal.
+- A ratio moving **up** the same way: an optimization landed, and by how much.
+
+Since jsfeatNext is a port of jsfeat, ratios near **1.0× are the expected, healthy state** — the two are doing the same arithmetic. A *sustained* move is interesting; a single-run move is not.
 
 ## No results are committed
 
@@ -61,3 +116,17 @@ Later phases fill in the remaining modules (`fast_corners`, `yape`, `optical_flo
 ## Not in CI (yet)
 
 Running these on a shared runner is planned as a **separate, non-blocking, manually triggered** workflow — never a gate. That is phase 3 of #86, deliberately left until there is real data on how stable the ratios are in that environment.
+
+## Further reading
+
+The noise floor above is our own measurement, on this machine. For the general
+problem of benchmarking on managed runtimes and on CI:
+
+- **[`benchmark-action/github-action-benchmark`](https://github.com/benchmark-action/github-action-benchmark)** — the reference project for running benchmarks in CI. Worth noting that its default regression alert threshold is **200%** (a 2× slowdown): a default that conservative is itself a statement about how noisy hosted runners are.
+- **[tinybench](https://github.com/tinylibs/tinybench)** — what `vitest bench` uses underneath. Explains the `rme` and `samples` columns. Note `rme` is the error *within* one measurement (ours runs ~1–3%, comfortably low); the variance *between* runs is a different and much larger thing — that is what the noise floor above measures.
+- **[Vitest benchmarking docs](https://vitest.dev/guide/features.html#benchmarking)** — the `bench()` API and its options.
+- **Georges, Buytaert & Eeckhout, _"Statistically Rigorous Java Performance Evaluation"_ (OOPSLA 2007)** — the classic treatment of why single runs on a JIT runtime mislead: warm-up, non-deterministic GC, the need for repeated measurements. Written for the JVM, but every problem it describes applies to V8.
+
+GitHub does not guarantee reproducible performance on hosted runners — it
+specifies the hardware, not isolation from neighbours. The absence of that
+guarantee matters more than any particular percentage.
