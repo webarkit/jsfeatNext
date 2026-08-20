@@ -27,7 +27,7 @@
     "license-check": "node scripts/check-license-headers.mjs",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "bench": "vitest bench --run",
+    "bench": "vitest bench",
     "test:watch": "vitest",
     "docs": "typedoc"
   },
