@@ -51,9 +51,9 @@ import { noiseImage, keypointPool } from "../tests/properties/helpers";
  * ratio between the two, NOT the `hz` of either.
  *
  * Absolute throughput depends on the machine, the CPU's thermal state, what else
- * is running, and the Node version — on a shared CI runner it varies 20-50%
- * between identical runs. Committing such a number as a baseline and diffing
- * against it reports noise as regressions. The ratio, measured for both
+ * is running, and the Node version, none of which a shared CI runner pins down.
+ * Committing such a number as a baseline and diffing against it reports noise as
+ * regressions. The ratio, measured for both
  * implementations in the same process at the same moment, cancels almost all of
  * that: a slow runner halves both sides and leaves the ratio intact.
  *
