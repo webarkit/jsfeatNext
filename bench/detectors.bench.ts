@@ -82,6 +82,20 @@ const W = 640;
 const H = 480;
 const BORDER = 20;
 
+/**
+ * Keypoint pool size, shared by every case.
+ *
+ * Sized to the densest detector here (yape06, 49,258) plus ~20% headroom, not
+ * to the image. `detect` writes `corners[i]` with no length check, so an
+ * undersized pool throws rather than truncating — an overrun still fails
+ * loudly, it just fails at 60k instead of 307k.
+ *
+ * Image-sized pools (W * H = 307,200 each) would allocate ~2.4M keypoint
+ * objects across the four suites for a workload whose worst case needs 49,258.
+ * That is GC pressure inside a performance measurement, for no coverage.
+ */
+const POOL = 60000;
+
 /** The same deterministic noise on both sides. */
 function pair() {
     const next = noiseImage(W, H, 4242);
@@ -90,49 +104,80 @@ function pair() {
     return { next, orig };
 }
 
+/**
+ * `fast_corners.set_threshold` mutates the singleton, so it CANNOT be called
+ * from a `describe` body: Vitest runs every `describe` callback during
+ * collection, before any `bench` callback runs. The last assignment in the file
+ * would win and every case would silently measure that one threshold.
+ *
+ * Nor can it go in `beforeAll` — Vitest's bench mode does not run the standard
+ * test hooks at all, so the call would simply never happen and both cases would
+ * run at the constructor default.
+ *
+ * `bench`'s own `setup` option is the one that works. It runs once per mode
+ * (warmup, then run) rather than per iteration, so it costs nothing inside the
+ * timed region.
+ */
+function threshold(thr: number) {
+    return {
+        setup: () => {
+            jsfeatNext.fast_corners.set_threshold(thr);
+            jsfeat.fast_corners.set_threshold(thr);
+        },
+    };
+}
+
 describe("fast_corners.detect — threshold 20 (~26k corners)", () => {
     const { next, orig } = pair();
-    // Pools are allocated once, outside the timed region, and sized to the
-    // image: detect() writes corners[i] with no length check, so an undersized
-    // pool throws rather than truncating.
-    const poolN = keypointPool(W * H);
-    const poolO = keypointPool(W * H);
+    // Pools are allocated once, outside the timed region.
+    const poolN = keypointPool(POOL);
+    const poolO = keypointPool(POOL);
 
-    jsfeatNext.fast_corners.set_threshold(20);
-    jsfeat.fast_corners.set_threshold(20);
+    bench(
+        "jsfeatNext",
+        () => {
+            jsfeatNext.fast_corners.detect(next, poolN, BORDER);
+        },
+        threshold(20)
+    );
 
-    bench("jsfeatNext", () => {
-        jsfeatNext.fast_corners.detect(next, poolN, BORDER);
-    });
-
-    bench("jsfeat (reference)", () => {
-        jsfeat.fast_corners.detect(orig, poolO, BORDER);
-    });
+    bench(
+        "jsfeat (reference)",
+        () => {
+            jsfeat.fast_corners.detect(orig, poolO, BORDER);
+        },
+        threshold(20)
+    );
 });
 
 describe("fast_corners.detect — threshold 60 (~13k corners)", () => {
     // Half the corners of the case above: separates the per-pixel scan cost
     // from the per-corner cost, which the single-threshold case conflates.
     const { next, orig } = pair();
-    const poolN = keypointPool(W * H);
-    const poolO = keypointPool(W * H);
+    const poolN = keypointPool(POOL);
+    const poolO = keypointPool(POOL);
 
-    jsfeatNext.fast_corners.set_threshold(60);
-    jsfeat.fast_corners.set_threshold(60);
+    bench(
+        "jsfeatNext",
+        () => {
+            jsfeatNext.fast_corners.detect(next, poolN, BORDER);
+        },
+        threshold(60)
+    );
 
-    bench("jsfeatNext", () => {
-        jsfeatNext.fast_corners.detect(next, poolN, BORDER);
-    });
-
-    bench("jsfeat (reference)", () => {
-        jsfeat.fast_corners.detect(orig, poolO, BORDER);
-    });
+    bench(
+        "jsfeat (reference)",
+        () => {
+            jsfeat.fast_corners.detect(orig, poolO, BORDER);
+        },
+        threshold(60)
+    );
 });
 
 describe("yape06.detect (~49k corners)", () => {
     const { next, orig } = pair();
-    const poolN = keypointPool(W * H);
-    const poolO = keypointPool(W * H);
+    const poolN = keypointPool(POOL);
+    const poolO = keypointPool(POOL);
 
     bench("jsfeatNext", () => {
         jsfeatNext.yape06.detect(next, poolN, BORDER);
@@ -144,11 +189,12 @@ describe("yape06.detect (~49k corners)", () => {
 });
 
 describe("yape.detect — radius 5 (~149 corners)", () => {
-    // yape needs init() to size its internal buffers; done once here, outside
-    // the timed region, mirroring examples/sample_yape.html (radius 5, 1 level).
+    // yape needs init() to size its internal buffers. Unlike set_threshold this
+    // is safe in the describe body: both sides are initialised to the same
+    // dimensions, so collection-order clobbering is a no-op here.
     const { next, orig } = pair();
-    const poolN = keypointPool(W * H);
-    const poolO = keypointPool(W * H);
+    const poolN = keypointPool(POOL);
+    const poolO = keypointPool(POOL);
 
     jsfeatNext.yape.init(W, H, 5, 1);
     jsfeat.yape.init(W, H, 5, 1);
