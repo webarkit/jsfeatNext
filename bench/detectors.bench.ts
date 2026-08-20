@@ -127,11 +127,33 @@ function threshold(thr: number) {
     };
 }
 
+/**
+ * `detect`'s return value is discarded inside every timed `bench` callback --
+ * checking it there would put a branch inside the measured region. Instead,
+ * call once outside the timed region, with a scratch pool, and assert both
+ * implementations agree. If a future change makes them diverge, this throws
+ * during collection rather than silently reporting a ratio for two different
+ * workloads.
+ */
+function assertEqualCounts(name: string, next: number, orig: number) {
+    if (next !== orig) {
+        throw new Error(`${name}: jsfeatNext found ${next} corners, jsfeat found ${orig}`);
+    }
+}
+
 describe("fast_corners.detect — threshold 20 (~26k corners)", () => {
     const { next, orig } = pair();
     // Pools are allocated once, outside the timed region.
     const poolN = keypointPool(POOL);
     const poolO = keypointPool(POOL);
+
+    jsfeatNext.fast_corners.set_threshold(20);
+    jsfeat.fast_corners.set_threshold(20);
+    assertEqualCounts(
+        "fast_corners thr 20",
+        jsfeatNext.fast_corners.detect(next, keypointPool(POOL), BORDER),
+        jsfeat.fast_corners.detect(orig, keypointPool(POOL), BORDER)
+    );
 
     bench(
         "jsfeatNext",
@@ -157,6 +179,14 @@ describe("fast_corners.detect — threshold 60 (~13k corners)", () => {
     const poolN = keypointPool(POOL);
     const poolO = keypointPool(POOL);
 
+    jsfeatNext.fast_corners.set_threshold(60);
+    jsfeat.fast_corners.set_threshold(60);
+    assertEqualCounts(
+        "fast_corners thr 60",
+        jsfeatNext.fast_corners.detect(next, keypointPool(POOL), BORDER),
+        jsfeat.fast_corners.detect(orig, keypointPool(POOL), BORDER)
+    );
+
     bench(
         "jsfeatNext",
         () => {
@@ -179,6 +209,12 @@ describe("yape06.detect (~49k corners)", () => {
     const poolN = keypointPool(POOL);
     const poolO = keypointPool(POOL);
 
+    assertEqualCounts(
+        "yape06",
+        jsfeatNext.yape06.detect(next, keypointPool(POOL), BORDER),
+        jsfeat.yape06.detect(orig, keypointPool(POOL), BORDER)
+    );
+
     bench("jsfeatNext", () => {
         jsfeatNext.yape06.detect(next, poolN, BORDER);
     });
@@ -198,6 +234,12 @@ describe("yape.detect — radius 5 (~149 corners)", () => {
 
     jsfeatNext.yape.init(W, H, 5, 1);
     jsfeat.yape.init(W, H, 5, 1);
+
+    assertEqualCounts(
+        "yape r5",
+        jsfeatNext.yape.detect(next, keypointPool(POOL), 5),
+        jsfeat.yape.detect(orig, keypointPool(POOL), 5)
+    );
 
     bench("jsfeatNext", () => {
         jsfeatNext.yape.detect(next, poolN, 5);

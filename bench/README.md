@@ -97,7 +97,7 @@ closed), each discarding a warm-up run:
 | case | session A | session B | direction | verdict |
 | --- | --- | --- | --- | --- |
 | `fast_corners` thr 20 | 1.02 / 1.06\* / 1.14 / 1.01\* | 1.08 / 1.06 / 1.01\* / 1.04 | flips | noise |
-| `fast_corners` thr 60 | 1.04 / 1.09 / 1.05\* / 1.08 | 1.06 / 1.05 / 1.11 / 1.10 | mostly jsfeat | below floor |
+| `fast_corners` thr 60 | 1.04 / 1.09 / 1.05\* / 1.08 | 1.06 / 1.05 / 1.11 / 1.10 | 7/8 jsfeat | below floor |
 | **`yape06`** | 1.30 / 1.33 / 1.38 / 1.27 | 1.45 / 1.35 / 1.11 / 1.32 | **always jsfeat** | **real** |
 | **`yape`** | 1.53 / 1.38 / 1.25 / 1.42 | 1.30 / 1.23 / 1.24 / 1.26 | **always jsfeat** | **real** |
 
@@ -115,9 +115,10 @@ not enough to characterise a spread, only a direction. Do not read a tight
 cluster within one session as precision.
 
 `fast_corners` at threshold 20 changes sign and is plain noise. Threshold 60 is
-more equivocal — it never favours jsfeatNext across eight samples, but never
-clears the ~1.15x floor either. Recorded as below-floor-but-directional rather
-than folded in with thr 20; it is not a finding, and it is not quite nothing.
+more equivocal — jsfeatNext wins once out of eight samples (marked \* above),
+jsfeat the other seven, and none of the eight clears the ~1.15x floor.
+Recorded as below-floor-but-directional rather than folded in with thr 20; it
+is not a finding, and it is not quite nothing.
 
 ### How this was established, including two wrong turns
 
