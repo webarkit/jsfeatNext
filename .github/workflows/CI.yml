@@ -48,7 +48,7 @@ jobs:
             # Never fails the build: statuses are informational (codecov.yml),
             # and an upload error (e.g. token missing on a fork PR) is ignored.
             - name: Upload coverage to Codecov
-              uses: codecov/codecov-action@v5
+              uses: codecov/codecov-action@v7
               with:
                   token: ${{ secrets.CODECOV_TOKEN }}
                   files: ./coverage/lcov.info
