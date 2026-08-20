@@ -1,5 +1,5 @@
 /*!
- * jsfeatNext v0.12.0 — https://github.com/webarkit/jsfeatNext
+ * jsfeatNext v0.13.0 — https://github.com/webarkit/jsfeatNext
  *
  * SPDX-License-Identifier: LGPL-3.0-or-later
  * Copyright 2026 WebARKit. Author(s): Walter Perdan @kalwalt
@@ -100,7 +100,7 @@ var e = class {
 	S32C2_t: 514
 }, a = {
 	name: "@webarkit/jsfeat-next",
-	version: "0.12.0",
+	version: "0.13.0",
 	description: "Typescript version of jsfeat for WebARKit",
 	main: "dist/jsfeatNext.js",
 	module: "dist/jsfeatNext.mjs",
@@ -123,6 +123,8 @@ var e = class {
 		format: "prettier --write .",
 		"license-check": "node scripts/check-license-headers.mjs",
 		test: "vitest run",
+		"test:coverage": "vitest run --coverage",
+		bench: "vitest bench",
 		"test:watch": "vitest",
 		docs: "typedoc"
 	},
@@ -144,6 +146,7 @@ var e = class {
 	bugs: { url: "https://github.com/webarkit/jsfeatNext/issues" },
 	homepage: "https://github.com/webarkit/jsfeatNext#readme",
 	devDependencies: {
+		"@vitest/coverage-v8": "^4.1.11",
 		prettier: "~3.9.4",
 		typedoc: "^0.28.20",
 		typescript: "^6.0.3",
@@ -628,8 +631,8 @@ var v = class {
 		n[0] = n[4] = n[8] = t, n[1] = n[2] = n[3] = 0, n[5] = n[6] = n[7] = 0;
 	}
 	invert_3x3(e, t) {
-		let n = e.data, r = t.data, i = n[4], a = n[8], o = n[5], s = n[7], c = n[0], l = c * i, u = c * o, d = n[3], f = n[1], p = d * f, m = n[2], h = d * m, g = n[6], _ = g * f, v = g * m, y = 1 / (l * a - u * s - p * a + h * s + _ * o - v * i);
-		r[0] = (i * a - o * s) * y, r[1] = -(f * a - m * s) * y, r[2] = -(-f * o + m * i) * y, r[3] = -(d * a - o * g) * y, r[4] = (c * a - v) * y, r[5] = -(u - h) * y, r[6] = -(-d * s + i * g) * y, r[7] = -(c * s - _) * y, r[8] = (l - p) * y;
+		let n = e.data, r = t.data, a = n[4], o = n[8], s = n[5], c = n[7], l = n[0], u = l * a, d = l * s, f = n[3], p = n[1], m = f * p, h = n[2], g = f * h, _ = n[6], v = _ * p, y = _ * h, b = u * o - d * c - m * o + g * c + v * s - y * a, x = 1 / b;
+		return r[0] = (a * o - s * c) * x, r[1] = -(p * o - h * c) * x, r[2] = -(-p * s + h * a) * x, r[3] = -(f * o - s * _) * x, r[4] = (l * o - y) * x, r[5] = -(d - g) * x, r[6] = -(-f * c + a * _) * x, r[7] = -(l * c - v) * x, r[8] = (u - m) * x, Math.abs(b) < i.EPSILON ? 0 : 1;
 	}
 	multiply_3x3(e, t, n) {
 		let r = e.data, i = t.data, a = n.data, o = i[0], s = i[1], c = i[2], l = i[3], u = i[4], d = i[5], f = i[6], p = i[7], m = i[8], h = a[0], g = a[1], _ = a[2], v = a[3], y = a[4], b = a[5], x = a[6], S = a[7], C = a[8];

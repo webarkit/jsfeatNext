@@ -1,4 +1,54 @@
 
+## 0.13.0 - 2026-08-20
+
+### ⚡ Performance
+
+- Shrink the ORB keypoint pool and drop a redundant CLI flag (04e00d6)
+
+
+### 🐛 Bug Fixes
+
+- Invert_3x3 reports singularity instead of only returning NaN (ba76305)
+
+
+### 👷 CI
+
+- Upload coverage for per-PR diff reporting (78a3c44)
+
+
+### 📚 Documentation
+
+- Document the 20px edge margin for describe(), and pin it under rotation (9b7ca1a)
+
+- Correct the curr_xy docstring — it is pure output (#111) (e759037)
+
+- Document the noise floor, drop an unmeasured claim, add guidance (58012cc)
+
+
+### 📦 Build
+
+- Bump codecov/codecov-action from 5 to 7 (c0a490e)
+
+
+### 🚀 Features
+
+- Add a throughput benchmark harness measured as ratios vs jsfeat (79bd30b)
+
+
+### 🧪 Testing
+
+- Fix the rotation sweep in the #110 margin test (Copilot review) (8f727c1)
+
+- Refresh the overview after the invert_3x3 fix (e95957a)
+
+- Guard the abs check and document the epsilon's scale-dependence (74786be)
+
+- Pin invert_3x3's singular output byte-identical to jsfeat (#120) (7f7d4c9)
+
+- Add Vitest v8 coverage reporting as a gap detector (f24878a)
+
+
+
 ## 0.12.0 - 2026-08-19
 
 ### 🐛 Bug Fixes
