@@ -175,17 +175,26 @@ describe("orb.describe — 256-bit descriptors per keypoint", () => {
     // Textured noise rather than cornerScene: the latter is built for the
     // correctness tests (a handful of clean shapes) and yields only ~27
     // keypoints at this border, so the bench would mostly time call overhead.
-    // Noise yields tens of thousands; capped at KEYPOINTS to match the scale a
-    // real AR frame describes (the pinball sample caps at 500).
-    const KEYPOINTS = 500;
+    //
+    // The FAST threshold is what caps the count, NOT a small pool: detect()
+    // writes `corners[corners_cnt]` with no length check, so an undersized pool
+    // throws rather than truncating. At threshold 120 on this seed the image
+    // yields ~366 keypoints — the scale a real AR frame describes (the pinball
+    // sample caps at 500) — and POOL leaves ample headroom.
+    //
+    // Sizing the pool to the image instead (keypointPool(W * H)) would allocate
+    // 307k objects, ~25 MB, live for the whole run: GC pressure fed into every
+    // later bench, i.e. noise in the very measurement this file exists to keep
+    // clean.
+    const POOL = 1024;
     const src = noiseImage(W, H, 4242);
     const orig = new jsfeat.matrix_t(W, H, OU8C1);
     orig.data.set(src.data);
 
-    jsfeatNext.fast_corners.set_threshold(20);
-    const cornersN = keypointPool(W * H);
-    const detected = jsfeatNext.fast_corners.detect(src, cornersN, 20);
-    const count = Math.min(detected, KEYPOINTS);
+    jsfeatNext.fast_corners.set_threshold(120);
+    const cornersN = keypointPool(POOL);
+    const count = jsfeatNext.fast_corners.detect(src, cornersN, 20);
+    if (count > POOL) throw new Error(`bench pool too small: ${count} keypoints detected`);
     for (let i = 0; i < count; i++) cornersN[i].angle = (i % 360) * (Math.PI / 180);
 
     // Mirror the same keypoints into oracle-owned objects.
