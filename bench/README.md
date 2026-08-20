@@ -88,13 +88,58 @@ Judged **against the noise floor above**, not in isolation:
 
 Since jsfeatNext is a port of jsfeat, ratios near **1.0× are the expected, healthy state** — the two are doing the same arithmetic. A *sustained* move is interesting; a single-run move is not.
 
+## Open finding: the YAPE detectors are consistently slower
+
+The first real signal this harness produced. Measured on an idle machine
+(power connected, browser and editor closed), discarding the warm-up run:
+
+| case | run 1 | run 2 | verdict |
+| --- | --- | --- | --- |
+| `fast_corners` thr 20 | 1.06× | 1.07× | noise |
+| `fast_corners` thr 60 | 1.11× | 1.06× | noise |
+| **`yape06`** | **1.35×** | **1.37×** | **real** |
+| **`yape`** | **1.31×** | **1.33×** | **real** |
+
+All in jsfeat's favour. `fast_corners` sits under the ~1.15× floor, so it says
+nothing. `yape06` and `yape` are well outside it and reproduce to within
+±0.02 — that tightness is itself evidence: noise disperses, a real difference
+converges.
+
+Worth recording how this was established, because the first attempt got it
+wrong. An earlier measurement taken with a browser and editor open put
+`fast_corners` as high as 1.23× and `yape06` at 1.51×. On the idle machine
+`fast_corners` collapsed into the noise floor while the YAPE gap **held and
+tightened**. CPU contention had inflated everything; only one of the two
+findings survived. Follow the "clean measurement" steps above before believing
+any number here.
+
+It is not an algorithmic difference: corner counts are identical on both sides
+(26,016 / 12,919 / 49,258 / 149), so both do the same work.
+
+**Leading hypothesis — not proven.** jsfeat defines its per-pixel helpers as
+closures *inside* the module IIFE, in the same scope as `detect`:
+
+```js
+var hessian_min_eigen_value = function (src, off, tr, Dxx, Dyy, Dxy, Dyx) { … };
+```
+
+jsfeatNext imports the same helpers from a separate module (`yape06_utils.ts`).
+`hessian_min_eigen_value` runs once per candidate pixel — tens of thousands of
+times per frame — and a local closure is a far easier inlining target for V8
+than a cross-module import.
+
+Confirming this needs a profile, not a benchmark. The cheap experiment is to
+move the helper into the same module and see whether the gap closes; that is a
+change to `src/`, so it belongs in its own issue rather than here (#86 is
+measurement infrastructure and explicitly rules out micro-optimising).
+
 ## No results are committed
 
 There is deliberately no `bench/results/*.json` in the repo. A committed baseline invites exactly the cross-machine comparison described above, and produces noisy diffs on every run. The ratio is recomputed from scratch each time, which is what makes it trustworthy.
 
 If historical tracking is wanted later, the thing to store is the **ratio**, not the raw `hz`.
 
-## Current scope (phase 1)
+## Phase 1: imgproc and ORB
 
 | Case | Why it is here |
 | --- | --- |
@@ -104,7 +149,25 @@ If historical tracking is wanted later, the thing to store is the **ratio**, not
 | `resample` — float path | The non-U8 branch, bypassing fixed point |
 | `orb.describe` | The per-frame hot spot (~5 ms in the pinball sample). Structurally unlike the filters: per-keypoint cost, sparse access through a rotated patch warp |
 
-Later phases fill in the remaining modules (`fast_corners`, `yape`, `optical_flow_lk`, `linalg`, `motion_estimator`, the cache pool) one PR at a time.
+## Phase 2: detectors
+
+| Case | Why it is here |
+| --- | --- |
+| `fast_corners.detect` — threshold 20 (~26k corners) | The detector the ORB pipeline uses |
+| `fast_corners.detect` — threshold 60 (~13k corners) | Half the corners: separates per-pixel scan cost from per-corner cost |
+| `yape06.detect` (~49k corners) | The densest detector at these settings |
+| `yape.detect` — radius 5 (~149 corners) | Needs `init()`; a very different corner density from the others |
+
+Detector cost scales with the number of corners found, so the counts were
+verified identical on both sides before writing the benches — otherwise the
+ratio would compare workloads rather than implementations.
+
+A second comparison comes free here: all four run over the same image in the
+same process, so their `hz` are comparable **to each other** within a run.
+"yape06 costs N× fast_corners" is as portable as the jsfeat ratio.
+
+Later phases fill in the remaining modules (`optical_flow_lk`, `linalg`,
+`motion_estimator`, the cache pool) one PR at a time.
 
 ## Notes on the inputs
 
