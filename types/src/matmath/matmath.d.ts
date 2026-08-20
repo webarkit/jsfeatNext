@@ -65,12 +65,26 @@ export default class matmath {
     identity_3x3(M: matrix_t, value: number): void;
     /**
      * Inverts a 3×3 matrix by the adjugate/determinant closed form
-     * (no pivoting — the input must be non-singular). Safe to call with
-     * `from === to` (in-place inversion).
+     * (no pivoting). Safe to call with `from === to` (in-place inversion).
+     *
+     * @returns `1` if the matrix was invertible, `0` if it is singular
+     * (`|det| < EPSILON`). On a singular input the destination is still written
+     * — with the non-finite values `1/det` produces, byte-identical to original
+     * jsfeat — so callers ignoring the return keep the previous behaviour, while
+     * those that check it can react before the `NaN`/`Infinity` propagates
+     * (issue #120). Mirrors {@link linalg.lu_solve}'s `1`/`0` convention.
+     *
+     * The threshold is **absolute** on the raw determinant, which scales with
+     * the cube of the entry magnitude, so a well-conditioned matrix whose
+     * entries are all very small (roughly below `0.005`) can be reported
+     * singular even though its inverse is finite. This does not arise for the
+     * O(1)-scaled matrices in this library (homographies, the normalization
+     * matrix); normalize the input if you invert arbitrarily-scaled 3×3s and
+     * need the status to be reliable.
      *
      * @param from 3×3 source matrix. @param to 3×3 destination.
      */
-    invert_3x3(from: matrix_t, to: matrix_t): void;
+    invert_3x3(from: matrix_t, to: matrix_t): number;
     /**
      * Fixed-size 3×3 product `C = A · B`, fully unrolled. All operands are
      * read into locals first, so `C` may alias `A` or `B`.
