@@ -193,8 +193,8 @@ A second comparison comes free here: all four run over the same image in the
 same process, so their `hz` are comparable **to each other** within a run.
 "yape06 costs N× fast_corners" is as portable as the jsfeat ratio.
 
-Later phases fill in the remaining modules (`linalg`, `motion_estimator`, the
-cache pool) one PR at a time.
+Later phases fill in the remaining modules (`motion_estimator`, the cache
+pool) one PR at a time.
 
 ## Phase 2, continued: optical_flow_lk
 
@@ -217,6 +217,53 @@ then 1.05x jsfeat — the sign flips and stays close to the noise floor.
 **No finding.** Unlike YAPE, `optical_flow_lk` is close to a line-for-line port
 (both sides share the same pyramidal-search structure), so parity here is the
 expected result, not a surprise worth investigating.
+
+## Phase 2, continued: linalg — a second, larger open finding
+
+| Case | Why it is here |
+| --- | --- |
+| `linalg.lu_solve` / `cholesky_solve` (6x6) | The affine motion model's normal-equation solve (`AtA`/`AtB` in `motion_model.ts`) |
+| `linalg.svd_decompose` / `svd_solve` / `svd_invert` / `eigenVV` (9x9) | The homography DLT's eigen/SVD step (`mLtL` in `motion_model.ts`); the SVD variants are benched at the same size for comparability even though `motion_model` takes the eigen route |
+
+Inputs are deterministic well-conditioned SPD matrices (`MᵀM + nI`), built
+locally so both sides get identical bytes — see the module docstring for why
+a poorly conditioned system would make the bench measure numerical luck
+instead of throughput. `lu_solve` and `cholesky_solve` overwrite their operands
+in place, so those two cases re-copy fresh input via `bench()`'s `setup` option
+every call; the SVD/eigen functions are documented and verified not to mutate
+their input, so they need no such copy.
+
+Four runs on an idle machine, discarding a warm-up:
+
+| case | r1 | r2 | r3 | r4 | verdict |
+| --- | --- | --- | --- | --- | --- |
+| `lu_solve` | 1.44 | 1.88 | 1.54 | 1.34 | **real** |
+| `cholesky_solve` | 1.19 | 1.04 | 1.02\* | 1.73 | noisy, mostly jsfeat |
+| `svd_decompose` | 2.75 | 1.31 | 1.42 | 1.32 | **real** (one outlier) |
+| `svd_solve` | 1.37 | 1.44 | 1.38 | 1.29 | **real** |
+| **`svd_invert`** | **1.31** | **1.33** | **1.32** | **1.34** | **real, very tight** |
+| `eigenVV` | 1.45 | 1.41 | 1.25 | 1.23 | **real** |
+
+\* = jsfeatNext was faster that run.
+
+jsfeat is faster in every sample of five of the six cases — `svd_invert`
+reproduces to within ±0.02 across all four runs, tighter than anything else
+measured in this suite so far. Only `cholesky_solve` is genuinely noisy
+(direction flips once); the `svd_decompose` 2.75x in run 1 is a single outlier
+against three runs clustered at 1.3-1.4x and is reported rather than discarded,
+since discarding inconvenient samples without a stated reason (unlike the
+CPU-contention episodes documented above) would be cherry-picking.
+
+**This is the same shape of result as the YAPE finding above, on a much larger
+share of one module.** Both are TS classes whose methods route through `this`
+(here, `this.cache.get_buffer(...)` inside `svd_solve`/`eigenVV`), called
+against jsfeat originals written as closures inside a single IIFE. Two
+instances of the same pattern is not yet a proven cause, but it is now the
+leading candidate for *why* jsfeatNext's class-based module design might carry
+a throughput cost jsfeat's closure-per-module style does not, on hot paths
+called thousands of times per frame. Recorded here as an open finding for a
+future issue, same as YAPE — confirming it needs a profile, and any fix would
+touch `src/`, which #86 explicitly rules out doing here.
 
 ## Notes on the inputs
 
