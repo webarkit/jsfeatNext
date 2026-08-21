@@ -193,7 +193,7 @@ A second comparison comes free here: all four run over the same image in the
 same process, so their `hz` are comparable **to each other** within a run.
 "yape06 costs N× fast_corners" is as portable as the jsfeat ratio.
 
-Later phases fill in the remaining modules (the cache pool) one PR at a time.
+Phase 2 covers every module this way, one PR at a time.
 
 ## Phase 2, continued: optical_flow_lk
 
@@ -317,6 +317,55 @@ Not yet profiled. Given `ransac`'s magnitude and tightness closely match
 once it lands, is a plausible candidate to shrink this finding too, but that
 is a hypothesis to check by re-running this bench after #159, not a claim
 made now.
+
+## Phase 2, continued: the cache pool — last module of this phase
+
+| Case | Why it is here |
+| --- | --- |
+| `cache.get_buffer` + `put_buffer` — steady state | The overwhelmingly common path: real callers request the same size call after call for the life of a session, so a node almost never needs to grow |
+| `cache.get_buffer` — forced resize every call | The rare path (`_pool_node_t.resize`: a fresh `ArrayBuffer` + four typed-array views), isolated by requesting a monotonically larger size every call so it always fires |
+
+Unlike every other file in this suite, this one uses the real global
+singletons rather than fresh instances — `jsfeat.cache` is a single
+IIFE-closure object, not a constructor, so there is no `new jsfeat.cache()`
+to fall back on. Both sides pre-allocate identically at module load
+(`allocate(30, 640 * 4)`), so this isn't a compromise: it's the more
+faithful bench, given jsfeatNext's shared-cache design (#41) exists
+specifically to mirror jsfeat's one-pool-per-process model. Every
+`get_buffer` is paired with a `put_buffer` before the next iteration, so the
+pool's size never drifts; the only side effect is that resized nodes stay
+larger for the rest of the process, which is harmless by the pool's own
+"at least this size" contract. See the file's docstring for the full
+reasoning, including why it's a different risk category from the
+`Math.random` leak fixed in `motion_estimator.bench.ts`.
+
+Five runs on an idle machine (one extra beyond the usual four, because the
+first four disagreed sharply enough to want another data point):
+
+| case | r1 | r2 | r3 | r4 | r5 | verdict |
+| --- | --- | --- | --- | --- | --- | --- |
+| steady state | 1.05 | 1.04 | 1.01 | 1.86\* | 1.16 | **not measurable this way** |
+| forced resize | — | 1.17 | 1.29 | 1.04 | 1.06 | weak, consistent direction, small magnitude |
+
+\* = jsfeatNext faster that run; every other steady-state figure favours
+jsfeat.
+
+**Steady state is not a finding — it's an instrument limit.** At 11+ million
+operations/second, each call is under 100 nanoseconds, close to what
+`performance.now()`'s resolution can distinguish at all. The sign flips
+repeatedly and one run swings to 1.86x in jsfeatNext's favour — a magnitude
+this suite has never seen anywhere else, immediately followed by a run
+favouring jsfeat by 1.16x. Read as noise, not parity and not a slowdown; the
+honest conclusion is that pure pointer-shuffling is currently below what this
+harness can resolve, not that the two implementations are equally fast.
+
+**Forced resize is a real but small signal**: jsfeat wins all four samples,
+never flipping, but two of the four (1.04, 1.06) sit close enough to the
+~1.15x noise floor that this is weaker evidence than `svd_invert` or
+`ransac`. Recorded rather than promoted to an open finding — consistent
+direction across four runs is suggestive, not yet the kind of tight,
+above-floor signal this file otherwise requires before calling something a
+finding.
 
 ## Notes on the inputs
 
