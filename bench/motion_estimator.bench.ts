@@ -36,7 +36,7 @@
  *
  */
 
-import { bench, describe, afterAll } from "vitest";
+import { bench, describe } from "vitest";
 import jsfeatNext from "../src/jsfeatNext";
 import jsfeat from "../tests/vendor/oracle.cjs";
 import { point_t } from "../src/point_t/point_t";
@@ -88,8 +88,18 @@ import { rng } from "../tests/properties/helpers";
  * never need to be re-synchronized because they never have a chance to drift
  * apart in the first place. (A plain reassignment is used rather than
  * `vi.spyOn` so the once-per-mode reset stays cheap and outside the timed
- * region either way.) The original `Math.random` is restored in `afterAll`
- * so a stubbed RNG never leaks into another bench file sharing this worker.
+ * region either way.)
+ *
+ * The original `Math.random` is restored via each `bench()` call's own
+ * `teardown` option, NOT a Vitest suite hook (`afterAll`/`afterEach`):
+ * Vitest's bench mode does not run standard test hooks at all (see
+ * `bench/detectors.bench.ts`'s docstring on why `beforeAll` doesn't work for
+ * `set_threshold`) — an earlier version of this file relied on `afterAll`
+ * for this exact cleanup and it silently never ran, leaving `Math.random`
+ * stubbed for any bench file sharing this worker afterwards (caught in
+ * review). `teardown` is tinybench's own option, symmetric to `setup` and
+ * verified to fire the same way: once per mode, after that mode's
+ * iterations finish.
  *
  * ## Input: the parity suite's own fixture, not a new one
  *
@@ -149,9 +159,6 @@ function makeCorrespondences(seed: number) {
 }
 
 const originalRandom = Math.random;
-afterAll(() => {
-    Math.random = originalRandom;
-});
 
 describe("motion_estimator.ransac (homography2d, 40 points, 6 outliers)", () => {
     const { from, to } = makeCorrespondences(1234);
@@ -174,6 +181,9 @@ describe("motion_estimator.ransac (homography2d, 40 points, 6 outliers)", () => 
             setup: () => {
                 Math.random = rng(2024);
             },
+            teardown: () => {
+                Math.random = originalRandom;
+            },
         }
     );
 
@@ -185,6 +195,9 @@ describe("motion_estimator.ransac (homography2d, 40 points, 6 outliers)", () => 
         {
             setup: () => {
                 Math.random = rng(2024);
+            },
+            teardown: () => {
+                Math.random = originalRandom;
             },
         }
     );
@@ -211,6 +224,9 @@ describe("motion_estimator.lmeds (homography2d, 40 points, 6 outliers)", () => {
             setup: () => {
                 Math.random = rng(777);
             },
+            teardown: () => {
+                Math.random = originalRandom;
+            },
         }
     );
 
@@ -222,6 +238,9 @@ describe("motion_estimator.lmeds (homography2d, 40 points, 6 outliers)", () => {
         {
             setup: () => {
                 Math.random = rng(777);
+            },
+            teardown: () => {
+                Math.random = originalRandom;
             },
         }
     );
