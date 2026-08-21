@@ -196,6 +196,28 @@ same process, so their `hz` are comparable **to each other** within a run.
 Later phases fill in the remaining modules (`optical_flow_lk`, `linalg`,
 `motion_estimator`, the cache pool) one PR at a time.
 
+## Phase 2, continued: optical_flow_lk
+
+| Case | Why it is here |
+| --- | --- |
+| `optical_flow_lk.track` (~570 points) | The other per-frame hot spot alongside `orb.describe`; a pyramidal search rather than a per-pixel scan |
+
+Points are FAST corners on the same deterministic noise image, at a threshold
+chosen to land in the few-hundred range — enough to amortise call overhead
+without timing point-selection instead of tracking. Parameters
+(`win_size=20`, `max_iterations=30`, `epsilon=0.01`, `min_eigen_threshold=0.001`,
+3 pyramid levels) mirror `examples/sample_oflow_lk.html`'s defaults rather than
+being picked for the bench. `curr_pyr` is built from the same image as
+`prev_pyr` — the tracker cannot tell a static scene from a stationary one, and
+the point here is throughput, not accuracy (that is
+`tests/properties/optical_flow_lk.test.ts`'s job).
+
+Measured over four runs on an idle machine: 1.03x / 1.23x / 1.10x jsfeatNext,
+then 1.05x jsfeat — the sign flips and stays close to the noise floor.
+**No finding.** Unlike YAPE, `optical_flow_lk` is close to a line-for-line port
+(both sides share the same pyramidal-search structure), so parity here is the
+expected result, not a surprise worth investigating.
+
 ## Notes on the inputs
 
 - All inputs come from the deterministic generators in `tests/properties/helpers.ts` (seeded PRNG), so runs are reproducible.
