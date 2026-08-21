@@ -193,12 +193,11 @@ A second comparison comes free here: all four run over the same image in the
 same process, so their `hz` are comparable **to each other** within a run.
 "yape06 costs N× fast_corners" is as portable as the jsfeat ratio.
 
-Phase 2 covers each module this way, one PR at a time. As of this PR:
-`imgproc`, `orb`, `fast_corners`, `yape06`, `yape`, `optical_flow_lk`,
-`linalg`, `motion_estimator` and the `cache` pool have a bench file.
-`math`, `matmath` and `transform` do not yet, and there is no standalone
-`motion_model` case (only the `motion_estimator` benches that exercise it
-indirectly via `homography2d`).
+Phase 2 covers each module this way, one PR at a time. As of this PR every
+module has a bench file: `imgproc`, `orb`, `fast_corners`, `yape06`, `yape`,
+`optical_flow_lk`, `linalg`, `motion_estimator`, the `cache` pool, and
+`math`/`matmath`/`transform`. There is still no standalone `motion_model`
+case — it is exercised indirectly through the `motion_estimator` benches.
 
 ## Phase 2, continued: optical_flow_lk
 
@@ -369,6 +368,72 @@ none of it above the ~1.15x floor. Unlike the abandoned growing-size design
 `ArrayBuffer` + typed-array-view allocation is generic V8 machinery on both
 sides, not algorithm-specific code — a real difference here would have been
 the surprise, not its absence.
+
+## Phase 2, continued: math, matmath and transform
+
+| Case | Why it is here |
+| --- | --- |
+| `math.get_gaussian_kernel` — size 7 / size 9 | `imgproc.gaussian_blur`'s kernel build. Split because `size <= 7 && odd && sigma <= 0` takes a hardcoded coefficient table and anything else falls through to a `Math.exp` loop — two different cost profiles, like imgproc's U8/F32 split |
+| `math.qsort` (2048 floats) | Public API with no in-tree caller, but the one genuinely algorithmic routine in `math` (hybrid quicksort/insertion sort) — the kind of code a port drifts on |
+| `math.median` (512 floats) | `motion_estimator.lmeds`'s residual median |
+| `matmath.transpose` — 9x9 | `linalg.svd_decompose` calls it five times per decomposition, at the size `motion_model`'s homography DLT uses |
+| `matmath.invert_3x3` / `multiply_3x3` | `motion_model`, per frame |
+| `transform.invert_affine_transform` / `invert_perspective_transform` | Public API, no in-tree caller — see the calling-convention note below |
+
+`qsort` and `median` rewrite the array they are given, so both restore fresh
+input via `setup` (once per mode). That is not a complete fix — within a mode,
+iterations 2..N still work on already-processed data — but it applies equally
+to both sides, so the ratio stays fair even though the absolute `hz` reflects
+the sorted-input case.
+
+`math.perspective_4point_transform` is deliberately not benched: it is
+deprecated and logs a console warning on every call.
+
+Six runs on an idle machine, discarding a warm-up:
+
+| case | r1 | r2 | r3 | r4 | r5 | r6 | verdict |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `get_gaussian_kernel` size 7 | 1.18 | 1.08\* | 1.02\* | 1.19 | 1.43 | 1.21 | flips twice — noise |
+| `get_gaussian_kernel` size 9 | 1.03 | 2.24 | 1.10 | 1.13 | 1.19 | 1.04 | 6/6 jsfeat, below floor |
+| `qsort` | 1.07\* | 1.01 | 1.06\* | 1.04 | 1.07\* | 1.05 | 3/3 — noise |
+| `median` | 1.01 | 1.01 | 1.03 | 1.18\* | 1.10 | 1.02 | noise |
+| `transpose` 9x9 | 1.09 | 1.03 | 1.01\* | 1.05\* | 1.07\* | 1.01 | flips — noise |
+| **`invert_3x3`** | **1.31** | **1.29** | **1.36** | **1.39** | **1.31** | **1.40** | **real** |
+| `multiply_3x3` | 1.88 | 1.08 | 1.09 | 1.04 | 1.07 | 1.09 | 6/6 jsfeat, below floor |
+| `invert_affine_transform` | 1.02\* | 1.05\* | 1.03\* | 1.06\* | 1.00 | 1.02 | noise |
+| `invert_perspective_transform` | 1.03 | 1.93 | 1.00\* | 1.05 | 1.45 | 1.12 | noise |
+
+\* = jsfeatNext was faster in that run; every other figure favours jsfeat.
+
+**`matmath.invert_3x3` is the one real signal here**: jsfeat faster in all six
+samples, 1.29–1.40, never flipping, comfortably above the ~1.15x floor. It is
+called once per model fit in `motion_model` (`motion_model.ts:262`), so it is
+on the per-frame path, not incidental. Same shape as the YAPE and `linalg`
+findings — recorded as an open finding, not acted on here.
+
+`get_gaussian_kernel` size 9 and `multiply_3x3` also favour jsfeat 6/6, but at
+1.03–1.19 and 1.04–1.09 respectively (setting aside one outlier each) — below
+the floor, so directional-but-not-a-finding, the same category as
+`fast_corners` thr 60 above.
+
+### Two corrections this file's own measurements forced
+
+An earlier series for these cases was taken while the machine was busy, and it
+supported **three conclusions that the idle-machine re-run dismantled**:
+`get_gaussian_kernel` size 7 looked like a clean 6/6 directional result and now
+flips twice; `transpose` looked 6/6 and now flips; `qsort` looked like the one
+case where jsfeatNext consistently won (5/6) and is now an even 3/3 split. Only
+`invert_3x3` survived — and it got *tighter* (1.29–1.40 versus 1.01–1.48 on the
+busy machine), the same signature the YAPE finding showed. A reminder that
+contention does not just add scatter: it manufactures apparent direction.
+
+A prediction also failed. The module docstring originally argued that
+`transform` should measurably favour jsfeat, because jsfeatNext's methods take
+`matrix_t` and unwrap `.data` while jsfeat's take raw arrays — two extra
+property loads on a function that is only a dozen float operations. Across six
+runs neither transform case clears the noise floor and both flip sign. The
+matrix_t calling convention has no throughput cost this harness can detect;
+the docstring now says so instead of the prediction.
 
 ## Notes on the inputs
 
