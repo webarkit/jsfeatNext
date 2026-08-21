@@ -193,8 +193,8 @@ A second comparison comes free here: all four run over the same image in the
 same process, so their `hz` are comparable **to each other** within a run.
 "yape06 costs N× fast_corners" is as portable as the jsfeat ratio.
 
-Later phases fill in the remaining modules (`optical_flow_lk`, `linalg`,
-`motion_estimator`, the cache pool) one PR at a time.
+Later phases fill in the remaining modules (`linalg`, `motion_estimator`, the
+cache pool) one PR at a time.
 
 ## Phase 2, continued: optical_flow_lk
 
