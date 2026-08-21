@@ -248,7 +248,7 @@ Four runs on an idle machine, discarding a warm-up:
 | **`svd_invert`** | **1.31** | **1.33** | **1.32** | **1.34** | **real, very tight** |
 | `eigenVV` | 1.45 | 1.41 | 1.25 | 1.23 | **real** |
 
-\* = jsfeatNext was faster that run.
+\* = jsfeatNext was faster in that run.
 
 jsfeat is faster in every sample of five of the six cases — `svd_invert`
 reproduces to within ±0.02 across all four runs, tighter than anything else
@@ -354,7 +354,7 @@ Four runs on an idle machine, discarding a warm-up:
 | steady state | 1.07 | 1.17 | 1.14 | 1.14\* | borderline, one flip |
 | `resize` | 1.08\* | 1.05 | 1.04 | 1.06 | noise, close to 1.0x |
 
-\* = jsfeatNext faster that run; every other figure favours jsfeat.
+\* = jsfeatNext was faster in that run; every other figure favours jsfeat.
 
 **Steady state sits right at the noise floor**, not clearly a finding: three
 of four samples cluster at 1.07–1.17x (jsfeat), the fourth flips to

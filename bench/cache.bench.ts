@@ -50,10 +50,13 @@ import jsfeat from "../tests/vendor/oracle.cjs";
  * ## Why this file uses the real global singletons, not fresh instances
  *
  * Every other file in this suite constructs isolated inputs so nothing
- * leaks between benches. This one can't: `jsfeatNext.cache` is a class
- * (`src/cache/cache.ts`), but jsfeat's `cache` is a single IIFE-closure
- * object (`tests/vendor/jsfeat-master.js`), not a constructor — there is no
- * `new jsfeat.cache()` to fall back on. Both sides pre-allocate the SAME
+ * leaks between benches. This one can't: `jsfeatNext.cache` is a
+ * class-backed singleton *instance* (`shared_cache` in `src/core/core.ts`,
+ * assigned onto the namespace in `src/jsfeatNext.ts` — never construct a
+ * second one with `new`), but jsfeat's `cache` is a single IIFE-closure
+ * object (`tests/vendor/jsfeat-master.js`), not a constructor at all — there
+ * is no `new jsfeat.cache()` to fall back on either way. Both sides
+ * pre-allocate the SAME
  * global singleton at module load with identical parameters
  * (`allocate(30, 640 * 4)` — 31 nodes of 2560 bytes each), so using the
  * singletons directly is not a compromise here: it's the more faithful
@@ -120,9 +123,17 @@ describe("_pool_node_t.resize — forced every call", () => {
     // timed region, isolates exactly the cost this case is named for: one
     // node, one fixed size, every call, both sides doing identical work
     // regardless of how many iterations either completes.
+    //
+    // The node is borrowed in `setup` rather than the `describe` body.
+    // `describe` bodies run during collection, unconditionally, even for a
+    // `bench()` task a name filter (`--testNamePattern`) later excludes from
+    // actually running -- a borrow there would never be matched by this
+    // task's own `teardown`, which only fires for tasks that run. `setup`
+    // only fires for a task that is actually about to execute, so a filtered
+    // out task borrows nothing and leaks nothing (verified empirically).
     const RESIZE_TARGET = 65536;
-    const nodeN = jsfeatNext.cache.get_buffer(1);
-    const nodeO = jsfeat.cache.get_buffer(1);
+    let nodeN: ReturnType<typeof jsfeatNext.cache.get_buffer>;
+    let nodeO: ReturnType<typeof jsfeat.cache.get_buffer>;
 
     bench(
         "jsfeatNext",
@@ -130,10 +141,15 @@ describe("_pool_node_t.resize — forced every call", () => {
             nodeN.resize(RESIZE_TARGET);
         },
         {
-            // teardown fires after both the warmup and the run mode; only
-            // return the node once, after the run mode is the last one, so
-            // it isn't back in the pool (and available to some other caller)
-            // while this case's own "run" iterations are still mutating it.
+            // setup/teardown fire for both the warmup and the run mode; only
+            // borrow once (warmup, the first phase) and only return once
+            // (run, the last phase, proven to fire after warmup), so the
+            // node isn't back in the pool -- available to some other
+            // caller -- while this case's own iterations are still mutating
+            // it.
+            setup: (_task, mode) => {
+                if (mode === "warmup") nodeN = jsfeatNext.cache.get_buffer(1);
+            },
             teardown: (_task, mode) => {
                 if (mode === "run") jsfeatNext.cache.put_buffer(nodeN);
             },
@@ -146,6 +162,9 @@ describe("_pool_node_t.resize — forced every call", () => {
             nodeO.resize(RESIZE_TARGET);
         },
         {
+            setup: (_task, mode) => {
+                if (mode === "warmup") nodeO = jsfeat.cache.get_buffer(1);
+            },
             teardown: (_task, mode) => {
                 if (mode === "run") jsfeat.cache.put_buffer(nodeO);
             },
