@@ -65,7 +65,7 @@ impact:
 | **CPU contention** | The dominant one. Another busy process means the OS scheduler hands the bench less CPU time — a browser with many tabs, a background build, an antivirus scan. |
 | **Thermal state / turbo boost** | Has *memory*: the first seconds run boosted, then the clock drops under sustained load. So the **first** bench of a session tends to look faster than the last — a systematic bias in favour of whatever is measured first. |
 | **Power profile** | On a laptop, **on battery vs plugged in** can change everything: Windows throttles aggressively on battery. |
-| **Memory pressure / GC** | Smaller than people assume, but real: with RAM nearly full the collector runs more often and that time lands inside the measurement. These benches allocate their buffers *outside* the timed region, so this is a minor factor here. |
+| **Memory pressure / GC** | Smaller than people assume, but real: with RAM nearly full the collector runs more often and that time lands inside the measurement. Every case in this suite allocates its buffers *outside* the timed region — with one deliberate exception: `cache.bench.ts`'s `_pool_node_t.resize` case, where the allocation being measured is the whole point, so it runs inside the timed region on purpose. |
 
 In practice:
 
@@ -193,7 +193,12 @@ A second comparison comes free here: all four run over the same image in the
 same process, so their `hz` are comparable **to each other** within a run.
 "yape06 costs N× fast_corners" is as portable as the jsfeat ratio.
 
-Phase 2 covers every module this way, one PR at a time.
+Phase 2 covers each module this way, one PR at a time. As of this PR:
+`imgproc`, `orb`, `fast_corners`, `yape06`, `yape`, `optical_flow_lk`,
+`linalg`, `motion_estimator` and the `cache` pool have a bench file.
+`math`, `matmath` and `transform` do not yet, and there is no standalone
+`motion_model` case (only the `motion_estimator` benches that exercise it
+indirectly via `homography2d`).
 
 ## Phase 2, continued: optical_flow_lk
 
@@ -318,12 +323,12 @@ once it lands, is a plausible candidate to shrink this finding too, but that
 is a hypothesis to check by re-running this bench after #159, not a claim
 made now.
 
-## Phase 2, continued: the cache pool — last module of this phase
+## Phase 2, continued: the cache pool
 
 | Case | Why it is here |
 | --- | --- |
 | `cache.get_buffer` + `put_buffer` — steady state | The overwhelmingly common path: real callers request the same size call after call for the life of a session, so a node almost never needs to grow |
-| `cache.get_buffer` — forced resize every call | The rare path (`_pool_node_t.resize`: a fresh `ArrayBuffer` + four typed-array views), isolated by requesting a monotonically larger size every call so it always fires |
+| `_pool_node_t.resize` — forced every call | The rare path (a fresh `ArrayBuffer` + four typed-array views), isolated by calling `resize()` directly with a fixed target size on one node borrowed once outside the timed region |
 
 Unlike every other file in this suite, this one uses the real global
 singletons rather than fresh instances — `jsfeat.cache` is a single
@@ -331,41 +336,39 @@ IIFE-closure object, not a constructor, so there is no `new jsfeat.cache()`
 to fall back on. Both sides pre-allocate identically at module load
 (`allocate(30, 640 * 4)`), so this isn't a compromise: it's the more
 faithful bench, given jsfeatNext's shared-cache design (#41) exists
-specifically to mirror jsfeat's one-pool-per-process model. Every
-`get_buffer` is paired with a `put_buffer` before the next iteration, so the
-pool's size never drifts; the only side effect is that resized nodes stay
-larger for the rest of the process, which is harmless by the pool's own
-"at least this size" contract. See the file's docstring for the full
-reasoning, including why it's a different risk category from the
-`Math.random` leak fixed in `motion_estimator.bench.ts`.
+specifically to mirror jsfeat's one-pool-per-process model. The steady-state
+case pairs every `get_buffer` with a `put_buffer` before the next iteration,
+so the pool's size never drifts; the only side effect anywhere in this file
+is that the one node the resize case borrows stays permanently larger, which
+is harmless by the pool's own "at least this size" contract. See the file's
+docstring for the full reasoning, including why an earlier version of the
+resize case (growing the requested size every call) made the workload
+depend on how many iterations each side completed, and why it was
+redesigned around `resize()`'s own no-guard behaviour instead (caught in
+review).
 
-Five runs on an idle machine (one extra beyond the usual four, because the
-first four disagreed sharply enough to want another data point):
+Four runs on an idle machine, discarding a warm-up:
 
-| case | r1 | r2 | r3 | r4 | r5 | verdict |
-| --- | --- | --- | --- | --- | --- | --- |
-| steady state | 1.05 | 1.04 | 1.01 | 1.86\* | 1.16 | **not measurable this way** |
-| forced resize | — | 1.17 | 1.29 | 1.04 | 1.06 | weak, consistent direction, small magnitude |
+| case | r1 | r2 | r3 | r4 | verdict |
+| --- | --- | --- | --- | --- | --- |
+| steady state | 1.07 | 1.17 | 1.14 | 1.14\* | borderline, one flip |
+| `resize` | 1.08\* | 1.05 | 1.04 | 1.06 | noise, close to 1.0x |
 
-\* = jsfeatNext faster that run; every other steady-state figure favours
-jsfeat.
+\* = jsfeatNext faster that run; every other figure favours jsfeat.
 
-**Steady state is not a finding — it's an instrument limit.** At 11+ million
-operations/second, each call is under 100 nanoseconds, close to what
-`performance.now()`'s resolution can distinguish at all. The sign flips
-repeatedly and one run swings to 1.86x in jsfeatNext's favour — a magnitude
-this suite has never seen anywhere else, immediately followed by a run
-favouring jsfeat by 1.16x. Read as noise, not parity and not a slowdown; the
-honest conclusion is that pure pointer-shuffling is currently below what this
-harness can resolve, not that the two implementations are equally fast.
+**Steady state sits right at the noise floor**, not clearly a finding: three
+of four samples cluster at 1.07–1.17x (jsfeat), the fourth flips to
+jsfeatNext at the same 1.14x magnitude. At 11+ million operations/second each
+call is under 100 nanoseconds, close to what `performance.now()`'s
+resolution can distinguish — read this as inconclusive rather than as either
+parity or a slowdown, not confidently either way.
 
-**Forced resize is a real but small signal**: jsfeat wins all four samples,
-never flipping, but two of the four (1.04, 1.06) sit close enough to the
-~1.15x noise floor that this is weaker evidence than `svd_invert` or
-`ransac`. Recorded rather than promoted to an open finding — consistent
-direction across four runs is suggestive, not yet the kind of tight,
-above-floor signal this file otherwise requires before calling something a
-finding.
+**`resize` is clean noise** after the redesign — 1.04–1.08x, flipping once,
+none of it above the ~1.15x floor. Unlike the abandoned growing-size design
+(which mixed workload asymmetry into whatever it was measuring), a plain
+`ArrayBuffer` + typed-array-view allocation is generic V8 machinery on both
+sides, not algorithm-specific code — a real difference here would have been
+the surprise, not its absence.
 
 ## Notes on the inputs
 

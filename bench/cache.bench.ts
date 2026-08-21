@@ -60,17 +60,16 @@ import jsfeat from "../tests/vendor/oracle.cjs";
  * bench, since jsfeatNext's whole shared-cache design (#41) exists
  * specifically to mirror jsfeat's one-pool-per-process model.
  *
- * The only side effect is that a `get_buffer` call requesting more than a
- * node's current size grows that node permanently (see `_pool_node_t.resize`)
- * — after this file runs, whichever nodes the "resize" case below touched
- * stay larger for the rest of the process. That's harmless by the pool's own
- * contract (`get_buffer` promises "at least" the requested size, so a larger
- * buffer still satisfies any future caller), unlike the `Math.random` leak
- * fixed in `motion_estimator.bench.ts` — that one changed *what value* every
- * future caller saw, not just how much memory sat behind it.
- *
- * Every `get_buffer` in both cases below is paired with a `put_buffer` before
- * the next timed iteration, so the pool's size (31 nodes) never drifts.
+ * The only side effect is that any node this file's "resize" case touches
+ * ends up permanently larger (see `_pool_node_t.resize`) — harmless by the
+ * pool's own contract (`get_buffer` promises "at least" the requested size,
+ * so a larger buffer still satisfies any future caller), unlike the
+ * `Math.random` leak fixed in `motion_estimator.bench.ts`, which changed
+ * *what value* every future caller saw rather than just how much memory sat
+ * behind it. The steady-state case never touches a node's size at all — it
+ * requests less than the pool's pre-allocated 2560B — and every `get_buffer`
+ * it makes is paired with a `put_buffer` before the next timed iteration, so
+ * the pool's size (31 nodes) never drifts there either.
  *
  * ## Two cases: the common path and the rare one
  *
@@ -80,8 +79,13 @@ import jsfeat from "../tests/vendor/oracle.cjs";
  * pure pointer bookkeeping (pop the head, push the tail). The resize path
  * (`_pool_node_t.resize`: a fresh `ArrayBuffer` plus four new typed-array
  * views) is rare in practice but real, and costs something different enough
- * to deserve its own measurement rather than being averaged into the common
- * case.
+ * to deserve its own measurement — see that case's own comment for why it
+ * borrows a single node directly rather than cycling through `get_buffer`.
+ *
+ * Unlike every other case in this suite, the "resize" case's cost is
+ * unavoidably paid *inside* the timed region — that's the entire point of
+ * the measurement — which is an exception to bench/README.md's general
+ * claim that these benches allocate their buffers outside the timed region.
  */
 
 const STEADY_SIZE = 2048; // <= the pool's pre-allocated 2560B, so resize never fires
@@ -98,26 +102,40 @@ describe("cache.get_buffer + put_buffer — steady state (no resize)", () => {
     });
 });
 
-describe("cache.get_buffer — forced resize every call", () => {
-    // A monotonically growing request size guarantees the node handed back by
-    // get_buffer is always smaller than what's asked for, so resize fires on
-    // every single call rather than only the first lap around the pool.
-    let sizeN = 4096;
-    let sizeO = 4096;
+describe("_pool_node_t.resize — forced every call", () => {
+    // `get_buffer(size)` only resizes when `size > node.size`, and a node
+    // that has already grown to a given size satisfies every later request
+    // at or below it -- so once every node in the (finite, non-shrinking)
+    // pool has grown to a target size, get_buffer stops triggering resize
+    // for that target. An earlier version of this case tried to force
+    // resize on every call by growing the requested size every iteration,
+    // but that makes the workload depend on how many iterations each side
+    // completes: the faster side reaches larger sizes than the slower one
+    // in the same time budget, so the two sides no longer do equal work
+    // (caught in review).
+    //
+    // `resize()` itself has no such guard -- it unconditionally reallocates
+    // regardless of the node's current size -- so calling it directly, with
+    // a FIXED target every time, on a single node borrowed once outside the
+    // timed region, isolates exactly the cost this case is named for: one
+    // node, one fixed size, every call, both sides doing identical work
+    // regardless of how many iterations either completes.
+    const RESIZE_TARGET = 65536;
+    const nodeN = jsfeatNext.cache.get_buffer(1);
+    const nodeO = jsfeat.cache.get_buffer(1);
 
     bench(
         "jsfeatNext",
         () => {
-            const node = jsfeatNext.cache.get_buffer(sizeN);
-            jsfeatNext.cache.put_buffer(node);
-            sizeN += 8;
+            nodeN.resize(RESIZE_TARGET);
         },
         {
-            // Reset between modes (warmup, then run) so the "run" mode's
-            // measurement isn't starting from whatever huge size the warmup
-            // phase grew to.
-            setup: () => {
-                sizeN = 4096;
+            // teardown fires after both the warmup and the run mode; only
+            // return the node once, after the run mode is the last one, so
+            // it isn't back in the pool (and available to some other caller)
+            // while this case's own "run" iterations are still mutating it.
+            teardown: (_task, mode) => {
+                if (mode === "run") jsfeatNext.cache.put_buffer(nodeN);
             },
         }
     );
@@ -125,13 +143,11 @@ describe("cache.get_buffer — forced resize every call", () => {
     bench(
         "jsfeat (reference)",
         () => {
-            const node = jsfeat.cache.get_buffer(sizeO);
-            jsfeat.cache.put_buffer(node);
-            sizeO += 8;
+            nodeO.resize(RESIZE_TARGET);
         },
         {
-            setup: () => {
-                sizeO = 4096;
+            teardown: (_task, mode) => {
+                if (mode === "run") jsfeat.cache.put_buffer(nodeO);
             },
         }
     );
