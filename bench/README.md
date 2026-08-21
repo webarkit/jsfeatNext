@@ -193,8 +193,7 @@ A second comparison comes free here: all four run over the same image in the
 same process, so their `hz` are comparable **to each other** within a run.
 "yape06 costs N× fast_corners" is as portable as the jsfeat ratio.
 
-Later phases fill in the remaining modules (`motion_estimator`, the cache
-pool) one PR at a time.
+Later phases fill in the remaining modules (the cache pool) one PR at a time.
 
 ## Phase 2, continued: optical_flow_lk
 
@@ -264,6 +263,60 @@ a throughput cost jsfeat's closure-per-module style does not, on hot paths
 called thousands of times per frame. Recorded here as an open finding for a
 future issue, same as YAPE — confirming it needs a profile, and any fix would
 touch `src/`, which #86 explicitly rules out doing here.
+
+**Update:** profiled (not just theorized) — see
+[#159](https://github.com/webarkit/jsfeatNext/issues/159). The `this.cache`
+dispatch hypothesis above turned out to be wrong (0.1% of self-time in
+`svd_invert`); the real cost is `matrix_t` re-allocating a `data_type` lookup
+table on every construction. `lu_solve`/`cholesky_solve`'s slowdown is *not*
+explained by that fix, since neither constructs any internal `matrix_t`.
+
+## Phase 2, continued: motion_estimator
+
+| Case | Why it is here |
+| --- | --- |
+| `motion_estimator.ransac` (homography2d, 40 points, 6 outliers) | The real per-frame call — `examples/sample_orb.html` fits a homography from ORB matches this way every frame |
+| `motion_estimator.lmeds` (homography2d, 40 points, 6 outliers) | Same kernel, different iteration-acceptance rule (median residual instead of a threshold) |
+
+Scoped to `ransac`/`lmeds` only — `get_subset`/`find_inliers` are internal
+helpers the two call every iteration, and benching them standalone would time
+a workload nobody calls directly. `homography2d` rather than `affine2d`: it's
+the same 8-DOF kernel the `linalg` finding above traces back to, keeping the
+two findings comparable. Input is `tests/parity/motion_estimator.test.ts`'s
+own fixture (40 correspondences, 6 gross outliers, fixed ground-truth
+homography), already proven to converge identically on both sides — not a
+shape invented for this bench.
+
+RANSAC/LMEDS draw a random subset every iteration via `Math.random`, so both
+sides need to draw the *same* subsets or the ratio compares different amounts
+of work. `bench()`'s `setup` option reseeds a deterministic generator once
+per mode (not per call, unlike the parity test) — enough by induction, since
+identical inputs and identical RNG state make a faithful port consume an
+identical number of random draws, keeping both streams in lockstep for the
+whole run. See the file's docstring for the full argument.
+
+Four runs on an idle machine, discarding a warm-up:
+
+| case | r1 | r2 | r3 | r4 | verdict |
+| --- | --- | --- | --- | --- | --- |
+| **`ransac`** | **1.42** | **1.44** | **1.41** | **1.43** | **real, very tight** |
+| `lmeds` | 3.09 | 1.32 | 1.02 | 1.30 | real, noisy, one large outlier |
+
+`ransac` is as tight as `svd_invert` from the `linalg` finding — jsfeat
+consistently ~1.4x faster, four runs spanning barely 0.03x. `lmeds` favours
+jsfeat in every sample too, but with real spread even ignoring the 3.09x
+outlier (1.02–1.32, wider than anything else measured so far in this suite).
+Reported rather than investigated further here — like the `svd_decompose`
+outlier in the `linalg` section above, discarding it without a stated cause
+(unlike the CPU-contention runs discarded elsewhere in this file, which had
+one) would be cherry-picking.
+
+Not yet profiled. Given `ransac`'s magnitude and tightness closely match
+`svd_invert`'s, and `motion_estimator.ransac`/`lmeds` call `homography2d.run`
+(`motion_model.ts`), which in turn calls `linalg.eigenVV` — the #159 fix,
+once it lands, is a plausible candidate to shrink this finding too, but that
+is a hypothesis to check by re-running this bench after #159, not a claim
+made now.
 
 ## Notes on the inputs
 
