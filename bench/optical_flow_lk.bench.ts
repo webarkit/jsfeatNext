@@ -83,6 +83,10 @@ const MAX_ITER = 30;
 const EPSILON = 0.01;
 const MIN_EIGEN = 0.001;
 const FAST_THRESHOLD = 116; // ~572 corners on this noise image at border 20
+// Headroom over the ~572 corners the threshold above yields; not image-sized
+// (307,200) -- an oversized pool just retains dead objects through the timed
+// region (see bench/detectors.bench.ts's POOL constant for the same reasoning).
+const POOL = 1200;
 
 function pyramidPair() {
     const next = noiseImage(W, H, 4242);
@@ -100,13 +104,15 @@ function pyramidPair() {
     return { next, orig, pyrN, pyrO };
 }
 
+type KeypointPool = ReturnType<typeof keypointPool>;
+
 /** FAST corners on an image, converted to the flat xy arrays `track` expects. */
-function seedPoints(img: matrix_t, detect: (img: matrix_t, corners: unknown[], border: number) => number) {
-    const pool = keypointPool(W * H);
+function seedPoints(img: matrix_t, detect: (img: matrix_t, corners: KeypointPool, border: number) => number) {
+    const pool = keypointPool(POOL);
     const n = detect(img, pool, 20);
     const xy = new Float32Array(n * 2);
     for (let i = 0; i < n; i++) {
-        const kp = pool[i] as { x: number; y: number };
+        const kp = pool[i];
         xy[i * 2] = kp.x;
         xy[i * 2 + 1] = kp.y;
     }
