@@ -41,13 +41,19 @@
  */
 
 import { third_check, is_local_maxima, perform_one_point, lev_table_t } from "./yape_utils";
+import { matrix_t } from "../matrix_t/matrix_t";
+import { keypoint_t } from "../keypoint_t/keypoint_t";
 
-/** Module-scope aliases for the per-pixel helpers -- see the note in `yape06.ts`. */
+/**
+ * Module-scope aliases for the three helpers `detect` calls in its per-pixel
+ * loop. Calling an ESM imported binding is slower than calling a plain
+ * `const` holding the same function -- imported bindings are live, so each
+ * access carries an indirection. Measured under #86; see `bench/README.md`
+ * for the numbers, which are deliberately not repeated here.
+ */
 const thirdCheck = third_check;
 const isLocalMaxima = is_local_maxima;
 const performOnePoint = perform_one_point;
-import { matrix_t } from "../matrix_t/matrix_t";
-import { keypoint_t } from "../keypoint_t/keypoint_t";
 
 /**
  * YAPE ("Yet Another Point Extractor") interest-point detector: scores each
