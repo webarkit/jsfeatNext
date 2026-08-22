@@ -46,13 +46,17 @@ import { keypoint_t } from "../keypoint_t/keypoint_t";
 import { compute_laplacian, hessian_min_eigen_value } from "./yape06_utils";
 
 /**
- * Module-scope aliases for the two per-pixel helpers.
+ * Module-scope aliases for the two helpers, mirroring `yape.ts`.
  *
- * Calling an ESM *imported binding* directly from a hot loop measured
- * consistently slower than calling a plain module-scope `const` holding the
- * same function -- imported bindings are live, so each access carries an
- * indirection a `const` does not. Measured under #86 across three runs: the
- * alias form gained 12-28% every time. See `bench/README.md`.
+ * Calling an ESM imported binding is slower than calling a plain `const`
+ * holding the same function -- imported bindings are live, so each access
+ * carries an indirection. That effect is real and measurable where a helper
+ * runs per pixel (it resolved the `yape` finding), but it did **not** measure
+ * any benefit here: `compute_laplacian` runs once per frame and
+ * `hessian_min_eigen_value` only for candidate pixels, so neither is called
+ * often enough for the indirection to matter. Kept for consistency with
+ * `yape.ts`, not because it speeds this module up. `yape06`'s own gap against
+ * original jsfeat is still unexplained -- see `bench/README.md`.
  */
 const computeLaplacian = compute_laplacian;
 const hessianMinEigenValue = hessian_min_eigen_value;
