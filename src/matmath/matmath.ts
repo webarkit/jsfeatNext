@@ -364,9 +364,10 @@ export default class matmath {
 
         // Two-sided compare rather than Math.abs(det) < EPSILON: identical for
         // every input including NaN (both yield 1) and -0 (both yield 0), and
-        // it avoids a call. Together with the hoisted EPSILON above this makes
-        // invert_3x3 faster than original jsfeat, which performs no singular
-        // check at all -- the check itself was this port's addition (#120).
+        // it avoids a call. With the hoisted EPSILON above, this removes the
+        // per-call property load and function call that the singular check
+        // (added by #120 -- original jsfeat has no such check) was costing.
+        // See bench/README.md for the measured effect.
         return det < EPSILON && det > -EPSILON ? 0 : 1;
     }
 

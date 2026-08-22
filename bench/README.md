@@ -418,8 +418,10 @@ the sorted-input case.
 deprecated and logs a console warning on every call.
 
 Two series were needed here, because review found two cases were measuring
-the wrong thing (details below). The authoritative numbers are the post-fix
-series — four runs on an idle machine, discarding a warm-up:
+the wrong thing (details below). The numbers here are from the second series,
+after those harness fixes — four runs on an idle machine, discarding a
+warm-up. **They predate the `invert_3x3` fix**; that row's current status is
+in the box below the table.
 
 | case | r1 | r2 | r3 | r4 | verdict |
 | --- | --- | --- | --- | --- | --- |
@@ -428,7 +430,7 @@ series — four runs on an idle machine, discarding a warm-up:
 | `qsort` | 1.05 | 1.02\* | 1.08 | 1.18\* | flips — noise |
 | `median` | 1.09\* | 1.05\* | 1.00\* | 1.11\* | 4/4 jsfeatNext, below floor |
 | `transpose` 9x9 | 1.04\* | 1.09 | 1.19\* | 1.20 | flips — noise |
-| **`invert_3x3`** | **1.24** | **1.18** | **1.36** | **1.34** | **real** |
+| `invert_3x3` | 1.24 | 1.18 | 1.36 | 1.34 | was real — **now fixed, see below** |
 | `multiply_3x3` | 1.11 | 1.03\* | 1.12 | 1.06 | below floor |
 | `invert_affine_transform` | 1.09\* | 1.23\* | 1.02\* | 1.01 | 3/4 jsfeatNext |
 | `invert_perspective_transform` | 1.12 | 1.05 | 1.00\* | 1.05 | below floor |
@@ -461,12 +463,12 @@ series — four runs on an idle machine, discarding a warm-up:
 > have: the probe measured a plain function, the real path goes through
 > `jsfeatNext.matmath.invert_3x3`.
 
-**`matmath.invert_3x3` (now resolved — see above) was the one real signal here.** jsfeat is faster in all
-four post-fix samples (1.18–1.36) and in all six of the earlier series
-(1.29–1.40) — **ten out of ten**, never once flipping. It is called per model
-fit in `motion_model` (`motion_model.ts:262`), so it is on the per-frame path.
-Same shape as the YAPE and `linalg` findings; recorded as an open finding, not
-acted on here.
+**`matmath.invert_3x3` was the one real signal here, and it has since been
+fixed.** Across the two series above it favoured jsfeat in **ten out of ten**
+samples (1.18–1.40) without once flipping. It is called per model fit in
+`motion_model` (`motion_model.ts:262`), so it sits on the per-frame path. The
+cause and the fix are in the box above; post-fix it no longer clears the noise
+floor and the sign flips.
 
 Everything else is at or below the ~1.15x floor. `get_gaussian_kernel` size 7
 favours jsfeat 4/4 and `median` favours jsfeatNext 4/4, but both sit low
