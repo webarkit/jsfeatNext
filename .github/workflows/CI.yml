@@ -38,6 +38,28 @@ jobs:
             - name: License header check
               run: npm run license-check
 
+            # tsconfig.json covers src/ only, because it drives vite-plugin-dts
+            # and the published types/ output. This checks bench/ too, via
+            # tsconfig.check.json — without it a real type error in a bench file
+            # survived several PRs while `tsc -p tsconfig.json` reported clean
+            # (issue #157).
+            - name: Type check (src + bench)
+              run: npm run typecheck
+
+            # Collection-only: loads every bench file and runs its module-level
+            # and `describe` bodies, then skips the timed callbacks. It answers
+            # "do the benchmarks still work?", NOT "how fast are they" — nothing
+            # here measures anything, so runner noise is irrelevant and this can
+            # safely gate.
+            #
+            # It earns its place because bench/ is otherwise untouched by CI:
+            # `npm test` only includes tests/**, so a src/ refactor could rot a
+            # bench file silently. Most real breakages in this suite were exactly
+            # that — undersized pools, a failed count assertion, a leaked
+            # Math.random stub — and all of them live in collection-time code.
+            - name: Benchmark smoke check
+              run: npm run bench:smoke
+
             # Runs the suite once, with the coverage summary printed in the log
             # (issue #123). Coverage is a gap detector here, not a gate: no
             # threshold fails the build, deliberately — see vitest.config.ts.

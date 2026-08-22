@@ -1,0 +1,21 @@
+{
+    "//": [
+        "Type-check configuration (issue #157).",
+        "",
+        "tsconfig.json includes only src/**/* because it drives vite-plugin-dts,",
+        "which emits the published types/ output -- widening it there would risk",
+        "pulling bench-only types into the public declaration surface.",
+        "",
+        "So the build config stays narrow and this one exists for checking. Without",
+        "it, `tsc --noEmit -p tsconfig.json` reports clean while never looking at",
+        "bench/ at all -- which is exactly how a real type error in",
+        "bench/optical_flow_lk.bench.ts survived several PRs.",
+        "",
+        "tests/** is deliberately NOT included yet: it currently has 32 pre-existing",
+        "type errors (mostly matrix_t vs Float32Array in the parity helpers), which",
+        "are a separate job from wiring up the check. Tracked separately -- widening",
+        "this include is the last step of that work, not the first."
+    ],
+    "extends": "./tsconfig.json",
+    "include": ["src/**/*", "bench/**/*"]
+}

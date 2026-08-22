@@ -2,3 +2,8 @@ node_modules/
 .idea/
 docs/api/
 coverage/
+
+# Benchmark output. Deliberately never committed: bench/README.md explains
+# why a checked-in baseline invites the cross-machine comparison the whole
+# ratio-based design exists to avoid.
+bench-results/

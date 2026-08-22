@@ -5,6 +5,7 @@
 ![Dependabot Badge](https://flat.badgen.net/dependabot/@webarkit/jsfeat-next?icon=dependabot)
 [![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square)](https://github.com/prettier/prettier)
 [![CI](https://github.com/webarkit/jsfeatNext/actions/workflows/CI.yml/badge.svg)](https://github.com/webarkit/jsfeatNext/actions/workflows/CI.yml)
+[![Benchmarks](https://github.com/webarkit/jsfeatNext/actions/workflows/bench.yml/badge.svg)](https://github.com/webarkit/jsfeatNext/actions/workflows/bench.yml)
 [![codecov](https://codecov.io/gh/webarkit/jsfeatNext/graph/badge.svg)](https://codecov.io/gh/webarkit/jsfeatNext)
 [![X (formerly Twitter) Follow](https://img.shields.io/twitter/follow/WebarkitO)](https://x.com/WebarkitO)
 
@@ -61,6 +62,17 @@ These classes are attached to the `jsfeatNext` namespace (`jsfeatNext.<name>`):
 - Watch mode: `npm run dev-ts`
 - Tests: `npm test` (Vitest — characterization tests against the original jsfeat)
 - API docs: `npm run docs` (TypeDoc, output to `docs/api/`, gitignored/local-only for now)
+- Benchmarks: `npm run bench` (Vitest, A/B against the vendored original jsfeat) · `npm run bench:ratios` for the ratio summary alone
+
+## Benchmarks 📊
+
+Every case runs **both** jsfeatNext and the vendored original jsfeat in the same process, and the number that matters is the **ratio** between them — absolute `ops/s` are not comparable across machines or even across runs on one machine.
+
+The suite has already found and fixed several real slowdowns ([#159](https://github.com/webarkit/jsfeatNext/issues/159), [#165](https://github.com/webarkit/jsfeatNext/pull/165), [#166](https://github.com/webarkit/jsfeatNext/pull/166)), and it records the ones still open.
+
+**Read [`bench/README.md`](bench/README.md) before interpreting any number** — it documents the measured noise floor, how to take a clean measurement, and the current status of every finding.
+
+CI runs a **collection-only smoke check** (`npm run bench:smoke`) that verifies the benchmarks still execute, without measuring anything. Actual measurement is manual: the `Benchmarks` workflow above is dispatch-only and never gates a build, because a shared runner is too noisy to draw conclusions from.
 
 ## npm package 📦
 
