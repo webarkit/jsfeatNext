@@ -40,7 +40,7 @@
  *
  */
 
-import { IData_Type, data_type } from "../data_type/data_type";
+import { IData_Type, shared_data_type } from "../data_type/data_type";
 import { cache } from "../cache/cache";
 import { JSFEAT_CONSTANTS } from "../constants/constants";
 import pkg from "../../package.json";
@@ -110,7 +110,7 @@ export default class jsfeatNext {
     static orb: orb;
 
     constructor() {
-        this.dt = new data_type();
+        this.dt = shared_data_type;
         this.cache = shared_cache;
     }
 

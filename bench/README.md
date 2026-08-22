@@ -223,7 +223,33 @@ then 1.05x jsfeat — the sign flips and stays close to the noise floor.
 (both sides share the same pyramidal-search structure), so parity here is the
 expected result, not a surprise worth investigating.
 
-## Phase 2, continued: linalg — a second, larger open finding
+## Phase 2, continued: linalg — RESOLVED by #159
+
+> **Resolved.** The fix for
+> [#159](https://github.com/webarkit/jsfeatNext/issues/159) (`matrix_t` no
+> longer re-allocates a `data_type` table per construction) removed this
+> finding. Post-fix, four idle-machine runs:
+>
+> | case | before | after | status |
+> | --- | --- | --- | --- |
+> | `svd_invert` | 1.29–1.40 (4/4 jsfeat, tight) | 1.07 / 1.19 / 1.17 / 1.12 | below floor |
+> | `eigenVV` | 1.23–1.45 (4/4 jsfeat) | 1.15\* / 1.22 / 1.04 / 1.02 | flips — noise |
+> | `svd_decompose` | 1.31–2.75 | 1.12 / 1.04 / 1.01 / 1.15 | below floor |
+> | `svd_solve` | 1.29–1.44 | 1.06 / 1.09 / 1.13 / 1.07 | below floor |
+> | `lu_solve` | 1.34–1.88 | 1.34 / 1.55 / 1.24 / 1.43 | **still a finding** |
+> | `cholesky_solve` | noisy | 1.07\* / 1.36 / 1.22 / 1.04\* | still noisy |
+>
+> \* = jsfeatNext faster in that run.
+>
+> The four cases that construct internal `matrix_t` instances all dropped to
+> or below the noise floor. `lu_solve` did **not** improve — and #159's own
+> "What this does NOT explain" section predicted exactly that, since it
+> constructs no internal `matrix_t`. It remains open and unexplained.
+>
+> The analysis below is kept as the record of how the finding was found and
+> diagnosed.
+
+### Original finding (now resolved)
 
 | Case | Why it is here |
 | --- | --- |
@@ -317,12 +343,12 @@ outlier in the `linalg` section above, discarding it without a stated cause
 (unlike the CPU-contention runs discarded elsewhere in this file, which had
 one) would be cherry-picking.
 
-Not yet profiled. Given `ransac`'s magnitude and tightness closely match
-`svd_invert`'s, and `motion_estimator.ransac`/`lmeds` call `homography2d.run`
-(`motion_model.ts`), which in turn calls `linalg.eigenVV` — the #159 fix,
-once it lands, is a plausible candidate to shrink this finding too, but that
-is a hypothesis to check by re-running this bench after #159, not a claim
-made now.
+**Hypothesis confirmed.** This section originally predicted that #159's fix
+was "a plausible candidate to shrink this finding too", to be checked by
+re-running after it landed. It was: post-fix, `ransac` measured 1.31 and 1.03
+(against a pre-fix 1.41–1.44 that never flipped) and `lmeds` 1.14 / 1.15
+(against 1.23–1.53). Both are now at or below the noise floor. The chain was
+`ransac` → `homography2d.run` → `linalg.eigenVV` → `matrix_t` construction.
 
 ## Phase 2, continued: the cache pool
 
@@ -457,7 +483,34 @@ in jsfeat's favour. The `matrix_t` calling convention has no throughput cost
 this harness can detect; the docstring now states that null result instead of
 the prediction.
 
-## Open finding: motion_model allocates per call, and it dominates small fits
+## motion_model: per-call allocation — largely RESOLVED by #159
+
+> **Largely resolved.** #159's fix cascaded here, as predicted: `new matmath()`
+> is cheap in itself, but `matmath`'s methods construct `matrix_t`, which is
+> where #159 bit. Post-fix, four idle-machine runs:
+>
+> | case | before | after | status |
+> | --- | --- | --- | --- |
+> | **`affine2d.run` 3 pts** | **3.15–3.87** | 1.40 / 1.09 / 1.41 / 1.18 | **collapsed** |
+> | `affine2d.run` 40 pts | 1.44–1.69 | 1.22 / 1.04 / 1.11\* / 1.12 | below floor |
+> | `homography2d.run` 4 pts | 1.22–1.73 | 1.25 / 1.01\* / 1.11 / 1.19 | below floor |
+> | `homography2d.run` 40 pts | 1.15–1.38 | 1.08 / 1.05 / 1.08 / 1.09 | below floor |
+> | `homography2d.check_subset` | 1.11–2.11 | 1.24 / 1.34 / 1.01\* / 1.30 | improved, still directional |
+> | `error` (both) | noise | noise | unchanged, as expected |
+>
+> \* = jsfeatNext faster in that run.
+>
+> `affine2d.run` at 3 points — the largest ratio this suite ever measured —
+> went from ~3.5x to ~1.27x. The `error` cases, which never allocated, are
+> unchanged: the control behaved as a control should.
+>
+> `check_subset` still leans jsfeat's way. The three `new matmath()` sites in
+> `motion_model.ts` (lines 212, 352, 541) are still there — #159 made each one
+> much cheaper, it did not remove them.
+>
+> The analysis below is kept as the record of how the finding was diagnosed.
+
+### Original finding (now largely resolved)
 
 `bench/motion_estimator.bench.ts` measures `ransac`/`lmeds` end to end, so the
 kernel's own cost is mixed with the estimator's loop. This file calls the
