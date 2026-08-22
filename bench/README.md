@@ -6,6 +6,39 @@ Throughput measurement for the hot paths, per [#86](https://github.com/webarkit/
 npm run bench
 ```
 
+## Current status
+
+Measured on `dev` after #159, #165 and #166 landed — four full-suite runs on an
+idle machine, warm-up discarded. **This table is the current picture; the
+sections below are the historical record of how each finding was found and
+diagnosed, and their numbers are deliberately not updated.**
+
+| case | 4 runs | status |
+| --- | --- | --- |
+| **`linalg.lu_solve`** | 1.43 / 1.49 / 1.46 / 1.47 | **open — the tightest signal in the suite** |
+| `homography2d.check_subset` | 1.35 / 1.27 / 1.28 / 1.63 | open — one of three `new matmath()` sites |
+| `affine2d.run` 3 pts | 1.34 / 1.31 / 1.30 / 1.41 | open — same cause as above |
+| `math.get_gaussian_kernel` size 7 | 1.23 / 1.21 / 1.16 / 1.15 | open — 4/4, at or just above the floor |
+| `homography2d.run` 40 pts | 1.17 / 1.22 / 1.12 / 1.10 | borderline |
+| `yape06.detect` | 1.02 / 1.04 / 1.06\* / 1.03 | **resolved** (see caveat) |
+| `yape.detect` | 1.11 / 1.02 / 1.05\* / 1.00 | **resolved** (#166) |
+| `matmath.invert_3x3` | 1.03 / 1.09 / 1.12 / 1.10 | **resolved** (#165) |
+| `linalg.svd_*`, `eigenVV` | all ≤ 1.17 | **resolved** (#159) |
+| everything else | within ±1.12 | noise |
+
+\* = jsfeatNext faster in that run.
+
+**One caveat on `yape06`.** #166 measured it at 1.14–1.47 on its own branch and
+concluded the alias had *not* helped there. On merged `dev` it measures ~1.04.
+The improvement is real across four runs but **not explained**: the alias alone
+did not produce it, so something in the combination of the three fixes did.
+Recorded as unexplained rather than credited to any one change.
+
+`lu_solve` is now the clearest open finding — 1.43–1.49 with a ±0.03 spread,
+tighter than YAPE ever was. #159's "What this does NOT explain" section called
+this out in advance: `lu_solve` constructs no internal `matrix_t`, so that fix
+could not have touched it. It has never been profiled.
+
 ## Read the ratio, not the absolute numbers
 
 Every case runs **twice in the same process**: once through jsfeatNext, once through the vendored original jsfeat (`tests/vendor/oracle.cjs`). What matters is the **ratio** Vitest prints in the `BENCH Summary` block, which reads like this (shape only — see the noise floor below before reading any single number as a result):
@@ -88,7 +121,7 @@ Judged **against the noise floor above**, not in isolation:
 
 Since jsfeatNext is a port of jsfeat, ratios near **1.0× are the expected, healthy state** — the two are doing the same arithmetic. A *sustained* move is interesting; a single-run move is not.
 
-## YAPE detectors: `yape` RESOLVED, `yape06` still open
+## YAPE detectors — RESOLVED (`yape` by #166; `yape06` unexplained)
 
 > **Partly resolved, and the original hypothesis was wrong.**
 >
@@ -112,7 +145,7 @@ Since jsfeatNext is a port of jsfeat, ratios near **1.0× are the expected, heal
 > | case | before (8 samples) | after (4 samples) | status |
 > | --- | --- | --- | --- |
 > | **`yape`** | 8/8 jsfeat, 1.23–1.53 | 1.02\* / 1.05\* / 1.14 / 1.06\* | **resolved** — sign now flips |
-> | `yape06` | 8/8 jsfeat, 1.11–1.45 | 1.14 / 1.47 / 1.41 / 1.24 | **unchanged, still open** |
+> | `yape06` | 8/8 jsfeat, 1.11–1.45 | 1.14 / 1.47 / 1.41 / 1.24 | unchanged **on this branch** — but ~1.04 on merged `dev`, unexplained; see Current status |
 >
 > \* = jsfeatNext faster in that run.
 >
@@ -274,7 +307,7 @@ expected result, not a surprise worth investigating.
 > | `eigenVV` | 1.23–1.45 (4/4 jsfeat) | 1.15\* / 1.22 / 1.04 / 1.02 | flips — noise |
 > | `svd_decompose` | 1.31–2.75 | 1.12 / 1.04 / 1.01 / 1.15 | below floor |
 > | `svd_solve` | 1.29–1.44 | 1.06 / 1.09 / 1.13 / 1.07 | below floor |
-> | `lu_solve` | 1.34–1.88 | 1.34 / 1.55 / 1.24 / 1.43 | **still a finding** |
+> | `lu_solve` | 1.34–1.88 | 1.34 / 1.55 / 1.24 / 1.43 | **still a finding** — later 1.43–1.49, now the suite's tightest |
 > | `cholesky_solve` | noisy | 1.07\* / 1.36 / 1.22 / 1.04\* | still noisy |
 >
 > \* = jsfeatNext faster in that run.
@@ -463,7 +496,7 @@ in the box below the table.
 
 | case | r1 | r2 | r3 | r4 | verdict |
 | --- | --- | --- | --- | --- | --- |
-| `get_gaussian_kernel` size 7 | 1.15 | 1.08 | 1.03 | 1.34 | 4/4 jsfeat, mostly below floor |
+| `get_gaussian_kernel` size 7 | 1.15 | 1.08 | 1.03 | 1.34 | 4/4 jsfeat — later series puts it at 1.15–1.23, see Current status |
 | `get_gaussian_kernel` size 9 | 1.08 | 1.12 | 1.12 | 1.03\* | below floor |
 | `qsort` | 1.05 | 1.02\* | 1.08 | 1.18\* | flips — noise |
 | `median` | 1.09\* | 1.05\* | 1.00\* | 1.11\* | 4/4 jsfeatNext, below floor |
@@ -508,9 +541,11 @@ samples (1.18–1.40) without once flipping. It is called per model fit in
 cause and the fix are in the box above; post-fix it no longer clears the noise
 floor and the sign flips.
 
-Everything else is at or below the ~1.15x floor. `get_gaussian_kernel` size 7
-favours jsfeat 4/4 and `median` favours jsfeatNext 4/4, but both sit low
-enough to be directional-at-best, the same category as `fast_corners` thr 60.
+Everything else is at or below the ~1.15x floor in this series. `median`
+favours jsfeatNext 4/4 but sits low enough to be directional-at-best.
+`get_gaussian_kernel` size 7 also favours jsfeat 4/4 here; a later four-run
+series on merged `dev` put it at 1.15–1.23, i.e. at or just above the floor
+rather than below it — it is carried as open in Current status.
 
 ### Three corrections this file's own measurements forced
 
