@@ -94,3 +94,17 @@ export class data_type implements IData_Type {
         return this._data_type_size[(type & 0xff00) >> 8];
     }
 }
+
+/**
+ * The library-wide `data_type` instance.
+ *
+ * `data_type` is stateless after construction — its lookup table is
+ * `readonly` and never mutated — so a single shared instance serves every
+ * caller. Constructing one per `matrix_t` allocated a fresh `Int32Array(17)`
+ * on every matrix, which CPU profiling attributed 16.6% of `linalg.svd_invert`
+ * to (see issue #159). Original jsfeat keeps the equivalent table as a single
+ * module-scope constant; this restores that.
+ *
+ * Mirrors the `shared_cache` pattern in `src/core/core.ts`.
+ */
+export const shared_data_type = new data_type();

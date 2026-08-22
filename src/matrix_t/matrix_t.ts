@@ -40,7 +40,7 @@
  *
  */
 
-import { IData_Type, data_type } from "../data_type/data_type";
+import { IData_Type, shared_data_type } from "../data_type/data_type";
 import { data_t } from "../node_utils/data_t";
 import { JSFEAT_CONSTANTS } from "../constants/constants";
 import type { TypedArray } from "../types";
@@ -115,7 +115,7 @@ export class matrix_t implements IMatrix_T {
      *                     allocating a new one (used with cache-pool buffers).
      */
     constructor(c: number, r: number, _data_type: number, _data_buffer?: data_t) {
-        this.dt = new data_type();
+        this.dt = shared_data_type;
         this.type = this.dt._get_data_type(_data_type) | 0;
         this.channel = this.dt._get_channel(_data_type) | 0;
         this.cols = c | 0;
