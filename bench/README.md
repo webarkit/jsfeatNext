@@ -88,7 +88,45 @@ Judged **against the noise floor above**, not in isolation:
 
 Since jsfeatNext is a port of jsfeat, ratios near **1.0× are the expected, healthy state** — the two are doing the same arithmetic. A *sustained* move is interesting; a single-run move is not.
 
-## Open finding: the YAPE detectors are consistently slower
+## YAPE detectors: `yape` RESOLVED, `yape06` still open
+
+> **Partly resolved, and the original hypothesis was wrong.**
+>
+> This section long carried the theory that importing
+> `hessian_min_eigen_value` across modules blocked V8 inlining. Profiling
+> `yape06.detect` refuted it: **96.6% of the time is in `detect` itself and
+> ~0.6% in the helpers**, and the two implementations' inner loops are
+> character-for-character identical.
+>
+> A structural probe then replicated `detect`'s body verbatim under four
+> shapes, verified to find identical corner counts. Across three clean runs,
+> two effects reproduced — a class method is slower than an object-literal
+> property, and calling an ESM **imported binding** from a hot loop is slower
+> than calling a plain module-scope `const` holding the same function
+> (imported bindings are live, so each access carries an indirection). The
+> second gained 12–28% every run, and is a one-line change.
+>
+> Aliasing the helpers to module-scope consts in `yape06.ts` and `yape.ts`
+> gave a **split result**:
+>
+> | case | before (8 samples) | after (4 samples) | status |
+> | --- | --- | --- | --- |
+> | **`yape`** | 8/8 jsfeat, 1.23–1.53 | 1.02\* / 1.05\* / 1.14 / 1.06\* | **resolved** — sign now flips |
+> | `yape06` | 8/8 jsfeat, 1.11–1.45 | 1.14 / 1.47 / 1.41 / 1.24 | **unchanged, still open** |
+>
+> \* = jsfeatNext faster in that run.
+>
+> The split is consistent with the profile rather than at odds with it:
+> `yape06` calls `compute_laplacian` **once per frame** and
+> `hessian_min_eigen_value` only for candidate pixels — which is exactly why
+> the helpers showed 0.6%. `yape`'s helpers sit in the per-pixel loop, so
+> aliasing them matters there. `yape06`'s alias is kept for consistency but
+> measured no benefit; **its cause remains unknown**, and the class-vs-object
+> effect the probe also showed is the remaining untested candidate.
+>
+> The measurements below are the pre-fix record.
+
+### Original finding (pre-fix record)
 
 The first real signal this harness produced. Eight samples, pooled from two
 separate sessions on an idle machine (power connected, browser and editor
