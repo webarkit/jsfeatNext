@@ -44,6 +44,16 @@ import { matrix_t } from "../matrix_t/matrix_t";
 import { JSFEAT_CONSTANTS } from "../constants/constants";
 
 /**
+ * `JSFEAT_CONSTANTS.EPSILON` hoisted to module scope.
+ *
+ * Reading it as a property inside {@link matmath.invert_3x3} cost ~43% of that
+ * function's throughput: the arithmetic around it is only ~30 float ops, so a
+ * single object property load per call is not negligible. Measured under #86;
+ * see `bench/README.md`.
+ */
+const EPSILON = JSFEAT_CONSTANTS.EPSILON;
+
+/**
  * General matrix arithmetic on {@link matrix_t} operands: transpose,
  * several multiplication variants optimized for common shapes, and small
  * fixed-size 3×3 helpers used by the geometric-transform code.
@@ -352,7 +362,12 @@ export default class matmath {
         invA[7] = -(t8 * t5 - t21) * t26;
         invA[8] = (t9 - t15) * t26;
 
-        return Math.abs(det) < JSFEAT_CONSTANTS.EPSILON ? 0 : 1;
+        // Two-sided compare rather than Math.abs(det) < EPSILON: identical for
+        // every input including NaN (both yield 1) and -0 (both yield 0), and
+        // it avoids a call. Together with the hoisted EPSILON above this makes
+        // invert_3x3 faster than original jsfeat, which performs no singular
+        // check at all -- the check itself was this port's addition (#120).
+        return det < EPSILON && det > -EPSILON ? 0 : 1;
     }
 
     /**

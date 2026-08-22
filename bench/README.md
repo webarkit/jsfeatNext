@@ -435,7 +435,33 @@ series — four runs on an idle machine, discarding a warm-up:
 
 \* = jsfeatNext was faster in that run; every other figure favours jsfeat.
 
-**`matmath.invert_3x3` is the one real signal here.** jsfeat is faster in all
+> **Resolved.** Profiling attributed this finding entirely to the singular-matrix
+> check that #120 *added* to `invert_3x3` — a line original jsfeat does not
+> have at all. Isolating the two halves of it:
+>
+> | variant | ops/s |
+> | --- | --- |
+> | jsfeatNext as written (`Math.abs(det) < JSFEAT_CONSTANTS.EPSILON`) | 9.35M |
+> | drop `Math.abs` only | 10.01M (+7%) |
+> | hoist `EPSILON` to module scope only | 13.36M (**+43%**) |
+> | both | 14.57M |
+> | jsfeat (no check at all) | 12.47M |
+>
+> The **object property load dominates**, not `Math.abs` — for a function whose
+> arithmetic is only ~30 float operations, one property read per call is not
+> negligible. With both fixed, the standalone form is faster than jsfeat while
+> keeping #120's semantics exactly (verified identical for `NaN` and `-0`).
+>
+> After the fix, eight idle-machine runs: 1.03 / 2.20 / 1.01 / 1.09 / 1.15\* /
+> 1.14 / 1.09 / 1.04 — seven of eight at or below the noise floor, and the sign
+> now flips, where before it was 10/10 jsfeat and never below 1.18. The 2.20 is
+> a single outlier, reported rather than discarded.
+>
+> The remaining ~1.05x is method-dispatch overhead the standalone probe did not
+> have: the probe measured a plain function, the real path goes through
+> `jsfeatNext.matmath.invert_3x3`.
+
+**`matmath.invert_3x3` (now resolved — see above) was the one real signal here.** jsfeat is faster in all
 four post-fix samples (1.18–1.36) and in all six of the earlier series
 (1.29–1.40) — **ten out of ten**, never once flipping. It is called per model
 fit in `motion_model` (`motion_model.ts:262`), so it is on the per-frame path.
