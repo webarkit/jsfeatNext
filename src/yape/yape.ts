@@ -41,6 +41,11 @@
  */
 
 import { third_check, is_local_maxima, perform_one_point, lev_table_t } from "./yape_utils";
+
+/** Module-scope aliases for the per-pixel helpers -- see the note in `yape06.ts`. */
+const thirdCheck = third_check;
+const isLocalMaxima = is_local_maxima;
+const performOnePoint = perform_one_point;
 import { matrix_t } from "../matrix_t/matrix_t";
 import { keypoint_t } from "../keypoint_t/keypoint_t";
 
@@ -129,7 +134,7 @@ export class yape {
                 if (im < img[rowx + R] && img[rowx + R] < ip && im < img[rowx - R] && img[rowx - R] < ip) {
                     scores[rowx] = 0;
                 } else {
-                    perform_one_point(img, rowx, scores, im, ip, dirs, opposite, dirs_count);
+                    performOnePoint(img, rowx, scores, im, ip, dirs, opposite, dirs_count);
                 }
             }
         }
@@ -144,7 +149,7 @@ export class yape {
                     // if this pixel is 0, the next one will not be good enough. Skip it.
                     (++x, ++rowx);
                 } else {
-                    if (third_check(scores, rowx, w) >= 3 && is_local_maxima(scores, rowx, score, hw, R)) {
+                    if (thirdCheck(scores, rowx, w) >= 3 && isLocalMaxima(scores, rowx, score, hw, R)) {
                         pt = points[number_of_points];
                         ((pt.x = x), (pt.y = y), (pt.score = abs_score));
                         ++number_of_points;
