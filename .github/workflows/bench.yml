@@ -1,0 +1,109 @@
+# Throughput benchmarks (issue #86, phase 3).
+#
+# DELIBERATELY NOT PART OF CI. This workflow is manual-only and never gates a
+# build. Benchmarks on a shared runner are far too noisy to fail on: the runner
+# is a VM whose neighbours you cannot see, so its absolute numbers wander for
+# reasons that have nothing to do with the code. The usual response to that --
+# widening the threshold until it stops shouting -- leaves a measurement that
+# can no longer detect anything.
+#
+# What IS portable is the A/B ratio: every case runs both jsfeatNext and the
+# vendored original jsfeat in the same process, in the same seconds, so a slow
+# runner halves both sides and the ratio survives. That is what this workflow
+# records. See bench/README.md.
+name: Benchmarks
+
+on:
+    workflow_dispatch:
+        inputs:
+            runs:
+                description: "Measured runs (a warm-up is always discarded first)"
+                required: false
+                default: "2"
+
+# Never run more than one at a time: two benchmark jobs sharing a runner would
+# contend for exactly the resource being measured.
+concurrency:
+    group: bench-${{ github.ref }}
+    cancel-in-progress: false
+
+jobs:
+    bench:
+        runs-on: ubuntu-24.04
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v7
+
+            - name: Use Node.js from .nvmrc
+              uses: actions/setup-node@v7
+              with:
+                  node-version-file: ".nvmrc"
+
+            - name: Get npm cache directory
+              id: npm-cache-dir
+              shell: bash
+              run: echo "dir=$(npm config get cache)" >> ${GITHUB_OUTPUT}
+
+            - uses: actions/cache@v6
+              with:
+                  path: ${{ steps.npm-cache-dir.outputs.dir }}
+                  key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+                  restore-keys: |
+                      ${{ runner.os }}-node-
+
+            - name: Install
+              run: npm ci
+
+            # The first run pays the JIT warm-up and is thrown away, matching
+            # the local procedure documented in bench/README.md.
+            - name: Warm-up run (discarded)
+              run: npx vitest bench --run
+
+            - name: Measured runs
+              run: |
+                  mkdir -p bench-results
+                  for i in $(seq 1 "${{ inputs.runs || 2 }}"); do
+                    echo "::group::run $i"
+                    npx vitest bench --run --outputJson "bench-results/raw-$i.json"
+                    node scripts/bench-ratios.mjs "bench-results/raw-$i.json" \
+                      --json "bench-results/ratios-$i.json"
+                    echo "::endgroup::"
+                  done
+
+            - name: Summary
+              run: |
+                  {
+                    echo "## Benchmark ratios"
+                    echo
+                    echo "Commit \`${GITHUB_SHA::7}\` on \`${GITHUB_REF_NAME}\`."
+                    echo
+                    echo "> **Read the ratio, not the \`hz\`.** These numbers say which side"
+                    echo "> was faster and by how much, measured back-to-back in one process."
+                    echo "> The \`hz\` values behind them are NOT comparable to a local run or"
+                    echo "> to another CI run, and are not published here for that reason."
+                    echo ">"
+                    echo "> A shared runner is noisier than a quiet developer machine, and the"
+                    echo "> ~1.15x noise floor in \`bench/README.md\` was measured locally, not"
+                    echo "> here. Treat anything close to it as inconclusive, and do not open"
+                    echo "> a finding from a single CI run."
+                    echo
+                    for f in bench-results/raw-*.json; do
+                      n="${f##*raw-}"; n="${n%.json}"
+                      echo "### Run $n"
+                      echo
+                      node scripts/bench-ratios.mjs "$f" --markdown
+                      echo
+                    done
+                  } >> "$GITHUB_STEP_SUMMARY"
+
+            # Ratios and raw hz, so anyone can re-derive something from a given
+            # run. Nothing here is committed: bench/README.md is explicit that a
+            # checked-in baseline invites the cross-machine comparison this whole
+            # design avoids, and the durable history is built from local runs.
+            - name: Upload results
+              uses: actions/upload-artifact@v5
+              with:
+                  name: bench-ratios-${{ github.sha }}
+                  path: bench-results/
+                  retention-days: 90

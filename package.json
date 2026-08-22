@@ -25,9 +25,12 @@
     "format-check": "prettier --check .",
     "format": "prettier --write .",
     "license-check": "node scripts/check-license-headers.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.check.json",
+    "bench:smoke": "vitest bench --run --testNamePattern=\"__collect_only__\"",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "bench": "vitest bench",
+    "bench:ratios": "vitest bench --run --outputJson bench-results/raw.json && node scripts/bench-ratios.mjs bench-results/raw.json --append bench/history.jsonl",
     "test:watch": "vitest",
     "docs": "typedoc"
   },

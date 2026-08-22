@@ -693,9 +693,95 @@ per #86; the fix belongs in its own PR against `src/`.
 - ORB detects its keypoints **once, outside** the timed function, so the measurement is `describe()` alone rather than `detect()` + `describe()`. Keypoints use border 20 so no sampling pattern crosses the image edge ([#110](https://github.com/webarkit/jsfeatNext/issues/110)) and both implementations do identical work.
 - ORB uses noise rather than `cornerScene`: the latter is built for the correctness tests and yields only ~27 keypoints at border 20, which would time call overhead rather than the algorithm. Noise yields tens of thousands, capped at 500 to match a realistic AR frame.
 
-## Not in CI (yet)
+## What CI does, and what it deliberately does not
 
-Running these on a shared runner is planned as a **separate, non-blocking, manually triggered** workflow — never a gate. That is phase 3 of #86, deliberately left until there is real data on how stable the ratios are in that environment.
+Two different things, split on purpose.
+
+### The gate: a smoke check, not a measurement
+
+`CI.yml` runs `npm run bench:smoke` on every push and PR. It loads every bench
+file and executes its module-level and `describe` bodies, then **skips the
+timed callbacks**. It answers *"do the benchmarks still work?"*, never *"how
+fast are they"* — nothing is measured, so runner noise is irrelevant and it can
+safely fail the build.
+
+It earns its place because `bench/` is otherwise untouched by CI: `npm test`
+includes only `tests/**`, so a `src/` refactor can rot a bench file in silence.
+That is not hypothetical — every real breakage this suite has had lived in
+collection-time code: undersized keypoint pools, a failed count assertion, a
+leaked `Math.random` stub, a comparator that made `qsort` not sort.
+
+`CI.yml` also runs `npm run typecheck`, which uses `tsconfig.check.json` to
+cover `bench/` as well as `src/`. The project's own `tsconfig.json` includes
+only `src/**/*` because it drives `vite-plugin-dts` and the published `types/`
+output — so a plain `tsc -p tsconfig.json` reports clean while never looking at
+a bench file. A genuine type error survived several PRs that way (#157).
+
+### The numbers: manual, and never a gate
+
+`.github/workflows/bench.yml` is **`workflow_dispatch` only** and exists for one
+purpose: looking at the ratios without running them locally. It cannot fail a
+build, and it does **not** feed the history.
+
+That is a judgement about trust, not caution. A shared runner is the least
+trustworthy environment this project measures in — the ~1.15x noise floor above
+was established on a quiet local machine, and nobody has measured what it is on
+a runner. Gating on that would mean widening the threshold until it stopped
+shouting, leaving a check that can no longer detect anything.
+
+So: **do not open a finding from a CI run.** Reproduce it locally, idle, first.
+
+Results are uploaded as an artifact, retained 90 days.
+
+### The durable history: `bench/history.jsonl`
+
+Artifacts expire, so they are not a record. `bench/history.jsonl` is: one
+appended line per run, **never rewritten**, holding the ratios and nothing else.
+
+```jsonc
+{
+  "date": "2026-08-22T17:06:00.951Z",
+  "version": "0.13.0",
+  "sha": "3b475f382e1c",
+  "env": { "ci": false, "node": "v22.21.1", "platform": "win32",
+           "cpu": "11th Gen Intel(R) Core(TM) i7-11800H", "cores": 16 },
+  "geomean": 1.0967,
+  "cases": { "matmath.invert_3x3": 1.0891 }
+}
+```
+
+`cases` holds the **signed** speedup — above 1.0 means jsfeatNext is faster,
+below means jsfeat is — so records aggregate without a separate direction field.
+
+**The environment block is not decoration.** The A/B ratio cancels most machine
+differences but demonstrably not all: `yape06` measured ~1.3x on one checkout
+and ~1.04x on another. Two records are only comparable if their `env` matches,
+and a reader cannot tell without it. OpenCV's
+[cvbenchmark](https://github.com/opencv/cvbenchmark) commits its results the
+same way, putting the CPU in the filename rather than pretending numbers
+transfer between machines.
+
+`geomean` is the geometric mean of the signed speedups — the same aggregation
+cvbenchmark uses. Geometric, not arithmetic, because these are ratios: 2x
+faster and 2x slower must cancel to 1.0, and only the geometric mean does that.
+**Read it as a coarse indicator, never as a finding**: it averages a 3x outlier
+on a tiny function together with cases that barely move, so a per-case
+regression can hide inside a healthy-looking mean. The table is the data.
+
+Append a local run with:
+
+```bash
+npm run bench:ratios
+```
+
+**Only local runs feed this file.** The CI workflow does not append to it at
+all — deliberately. Its numbers come from a shared runner, which is precisely
+the environment whose measurements are not worth keeping forever; and appending
+from CI would need write permissions on a workflow anyone can dispatch. The
+record is built from idle-machine local runs, because those are the ones worth
+recording.
+
+**Raw `hz` are never committed** — see the section below.
 
 ## Further reading
 
