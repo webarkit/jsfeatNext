@@ -376,7 +376,7 @@ the surprise, not its absence.
 | `math.get_gaussian_kernel` — size 7 / size 9 | `imgproc.gaussian_blur`'s kernel build. Split because `size <= 7 && odd && sigma <= 0` takes a hardcoded coefficient table and anything else falls through to a `Math.exp` loop — two different cost profiles, like imgproc's U8/F32 split |
 | `math.qsort` (2048 floats) | Public API with no in-tree caller, but the one genuinely algorithmic routine in `math` (hybrid quicksort/insertion sort) — the kind of code a port drifts on |
 | `math.median` (512 floats) | `motion_estimator.lmeds`'s residual median |
-| `matmath.transpose` — 9x9 | `linalg.svd_decompose` calls it five times per decomposition, at the size `motion_model`'s homography DLT uses |
+| `matmath.transpose` — 9x9 | `linalg.svd_decompose` has five transpose call sites, in mutually exclusive/optional branches — at most 3 run per decomposition, and only 1 with `SVD_U_T\|SVD_V_T` set. Benched at the size `motion_model`'s homography DLT uses |
 | `matmath.invert_3x3` / `multiply_3x3` | `motion_model`, per frame |
 | `transform.invert_affine_transform` / `invert_perspective_transform` | Public API, no in-tree caller — see the calling-convention note below |
 
@@ -389,51 +389,71 @@ the sorted-input case.
 `math.perspective_4point_transform` is deliberately not benched: it is
 deprecated and logs a console warning on every call.
 
-Six runs on an idle machine, discarding a warm-up:
+Two series were needed here, because review found two cases were measuring
+the wrong thing (details below). The authoritative numbers are the post-fix
+series — four runs on an idle machine, discarding a warm-up:
 
-| case | r1 | r2 | r3 | r4 | r5 | r6 | verdict |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| `get_gaussian_kernel` size 7 | 1.18 | 1.08\* | 1.02\* | 1.19 | 1.43 | 1.21 | flips twice — noise |
-| `get_gaussian_kernel` size 9 | 1.03 | 2.24 | 1.10 | 1.13 | 1.19 | 1.04 | 6/6 jsfeat, below floor |
-| `qsort` | 1.07\* | 1.01 | 1.06\* | 1.04 | 1.07\* | 1.05 | 3/3 — noise |
-| `median` | 1.01 | 1.01 | 1.03 | 1.18\* | 1.10 | 1.02 | noise |
-| `transpose` 9x9 | 1.09 | 1.03 | 1.01\* | 1.05\* | 1.07\* | 1.01 | flips — noise |
-| **`invert_3x3`** | **1.31** | **1.29** | **1.36** | **1.39** | **1.31** | **1.40** | **real** |
-| `multiply_3x3` | 1.88 | 1.08 | 1.09 | 1.04 | 1.07 | 1.09 | 6/6 jsfeat, below floor |
-| `invert_affine_transform` | 1.02\* | 1.05\* | 1.03\* | 1.06\* | 1.00 | 1.02 | noise |
-| `invert_perspective_transform` | 1.03 | 1.93 | 1.00\* | 1.05 | 1.45 | 1.12 | noise |
+| case | r1 | r2 | r3 | r4 | verdict |
+| --- | --- | --- | --- | --- | --- |
+| `get_gaussian_kernel` size 7 | 1.15 | 1.08 | 1.03 | 1.34 | 4/4 jsfeat, mostly below floor |
+| `get_gaussian_kernel` size 9 | 1.08 | 1.12 | 1.12 | 1.03\* | below floor |
+| `qsort` | 1.05 | 1.02\* | 1.08 | 1.18\* | flips — noise |
+| `median` | 1.09\* | 1.05\* | 1.00\* | 1.11\* | 4/4 jsfeatNext, below floor |
+| `transpose` 9x9 | 1.04\* | 1.09 | 1.19\* | 1.20 | flips — noise |
+| **`invert_3x3`** | **1.24** | **1.18** | **1.36** | **1.34** | **real** |
+| `multiply_3x3` | 1.11 | 1.03\* | 1.12 | 1.06 | below floor |
+| `invert_affine_transform` | 1.09\* | 1.23\* | 1.02\* | 1.01 | 3/4 jsfeatNext |
+| `invert_perspective_transform` | 1.12 | 1.05 | 1.00\* | 1.05 | below floor |
 
 \* = jsfeatNext was faster in that run; every other figure favours jsfeat.
 
-**`matmath.invert_3x3` is the one real signal here**: jsfeat faster in all six
-samples, 1.29–1.40, never flipping, comfortably above the ~1.15x floor. It is
-called once per model fit in `motion_model` (`motion_model.ts:262`), so it is
-on the per-frame path, not incidental. Same shape as the YAPE and `linalg`
-findings — recorded as an open finding, not acted on here.
+**`matmath.invert_3x3` is the one real signal here.** jsfeat is faster in all
+four post-fix samples (1.18–1.36) and in all six of the earlier series
+(1.29–1.40) — **ten out of ten**, never once flipping. It is called per model
+fit in `motion_model` (`motion_model.ts:262`), so it is on the per-frame path.
+Same shape as the YAPE and `linalg` findings; recorded as an open finding, not
+acted on here.
 
-`get_gaussian_kernel` size 9 and `multiply_3x3` also favour jsfeat 6/6, but at
-1.03–1.19 and 1.04–1.09 respectively (setting aside one outlier each) — below
-the floor, so directional-but-not-a-finding, the same category as
-`fast_corners` thr 60 above.
+Everything else is at or below the ~1.15x floor. `get_gaussian_kernel` size 7
+favours jsfeat 4/4 and `median` favours jsfeatNext 4/4, but both sit low
+enough to be directional-at-best, the same category as `fast_corners` thr 60.
 
-### Two corrections this file's own measurements forced
+### Three corrections this file's own measurements forced
 
-An earlier series for these cases was taken while the machine was busy, and it
-supported **three conclusions that the idle-machine re-run dismantled**:
-`get_gaussian_kernel` size 7 looked like a clean 6/6 directional result and now
-flips twice; `transpose` looked 6/6 and now flips; `qsort` looked like the one
-case where jsfeatNext consistently won (5/6) and is now an even 3/3 split. Only
-`invert_3x3` survived — and it got *tighter* (1.29–1.40 versus 1.01–1.48 on the
-busy machine), the same signature the YAPE finding showed. A reminder that
-contention does not just add scatter: it manufactures apparent direction.
+**The `qsort` case was not sorting.** `math.qsort` takes a *less-than
+predicate* and uses it in boolean contexts (`if (cmp(a, b))`, ternaries). The
+bench originally passed a conventional three-way `-1/0/1` comparator — which
+returns a **truthy** value for both orderings, so the algorithm saw "a < b" as
+true in either direction. Verified with a probe: sorting `[5,3,9,1,7,2,8,4,6,0]`
+returned `8,4,6,0,5,3,9,1,7,2`, completely unordered. The case was timing a
+non-sort. Fixed to the same predicate shape `tests/parity/math.test.ts` uses;
+the verdict happens to be unchanged (noise either way), but it now measures
+sorting.
 
-A prediction also failed. The module docstring originally argued that
-`transform` should measurably favour jsfeat, because jsfeatNext's methods take
-`matrix_t` and unwrap `.data` while jsfeat's take raw arrays — two extra
-property loads on a function that is only a dozen float operations. Across six
-runs neither transform case clears the noise floor and both flip sign. The
-matrix_t calling convention has no throughput cost this harness can detect;
-the docstring now says so instead of the prediction.
+**The `transform` comparison confounded two variables.** It passed jsfeat a
+packed JS array (`Array.from`) while jsfeatNext used a `Float32Array` — V8
+stores and optimises those very differently, so the ratio mixed the
+calling-convention question with an element-storage difference. Both sides now
+use `Float32Array`, leaving `matrix_t`-vs-raw as the only difference. This
+strengthened rather than overturned the conclusion: with the confound removed,
+`invert_affine_transform` favours *jsfeatNext* in 3 of 4 runs.
+
+**An earlier series ran while the machine was busy**, and it supported three
+conclusions the idle re-run dismantled: `get_gaussian_kernel` size 7 looked
+like a clean 6/6 directional result and then flipped twice, `transpose`
+likewise, and `qsort` looked like the one case jsfeatNext consistently won
+(5/6) before becoming an even split. Only `invert_3x3` survived — and it got
+*tighter*, the same signature the YAPE finding showed. Contention does not
+just add scatter; it manufactures apparent direction.
+
+A prediction also failed, and is worth recording as such. The module docstring
+originally argued `transform` *should* measurably favour jsfeat, since
+jsfeatNext's methods take `matrix_t` and unwrap `.data` while jsfeat's take
+raw arrays — two extra property loads on a function that is a dozen float
+operations. Across both series neither transform case clears the noise floor
+in jsfeat's favour. The `matrix_t` calling convention has no throughput cost
+this harness can detect; the docstring now states that null result instead of
+the prediction.
 
 ## Notes on the inputs
 

@@ -56,7 +56,8 @@ import { rng } from "../tests/properties/helpers";
  *
  *   - `math.get_gaussian_kernel` — `imgproc.gaussian_blur` (imgproc.ts:277)
  *   - `math.median`              — `motion_estimator.lmeds` (motion_estimator.ts:378)
- *   - `matmath.transpose`        — `linalg.svd_decompose`, five call sites
+ *   - `matmath.transpose`        — `linalg.svd_decompose` (5 call sites, at
+ *                                  most 3 taken per call, usually 1)
  *   - `matmath.invert_3x3` / `multiply_3x3` — `motion_model`, per frame
  *
  * `math.qsort` is included despite having no in-tree caller: it is public
@@ -172,7 +173,14 @@ describe("math.qsort — 2048 floats", () => {
     const pristine = Array.from({ length: N }, rng(9001));
     const arrN: number[] = new Array(N);
     const arrO: number[] = new Array(N);
-    const cmp = (a: number, b: number) => (a < b ? -1 : a > b ? 1 : 0);
+    // qsort uses `cmp` in BOOLEAN contexts (`if (cmp(a,b))`, ternaries), so it
+    // needs a "less-than" predicate, not a three-way -1/0/1 comparator: the
+    // latter returns a truthy value for BOTH orderings, making the algorithm
+    // see "a < b" as true in either direction. An earlier version of this
+    // bench used the three-way shape and produced a completely unsorted array
+    // -- i.e. it was not measuring sorting at all (caught in review). Same
+    // predicate shape as tests/parity/math.test.ts.
+    const cmp = (a: number, b: number) => (a < b ? 1 : 0);
 
     bench(
         "jsfeatNext",
@@ -235,8 +243,11 @@ describe("math.median — 512 floats (lmeds inlier residuals)", () => {
 // ------------------------------------------------------------- matmath
 
 describe("matmath.transpose — 9x9 (linalg SVD's own size)", () => {
-    // linalg.svd_decompose calls transpose five times per decomposition, at
-    // the 9x9 size motion_model's homography DLT uses (#158).
+    // linalg.svd_decompose has five transpose call sites, but they sit in
+    // mutually exclusive / optional branches (linalg.ts:676-742): at most 3
+    // run per decomposition, and with SVD_U_T|SVD_V_T set -- what
+    // motion_model and bench/linalg.bench.ts both use -- only 1 does.
+    // Benched at the 9x9 size motion_model's homography DLT uses (#158).
     const { next: A, orig: Ao } = matPair(9, 9, 9003);
     const At = new jsfeatNext.matrix_t(9, 9, F32C1);
     const Ato = new jsfeat.matrix_t(9, 9, OF32C1);
@@ -288,8 +299,13 @@ describe("transform.invert_affine_transform (matrix_t vs raw array)", () => {
     // docstring -- a small ratio in jsfeat's favour is expected here.
     const { next: src } = matPair(3, 2, 9007);
     const dst = new jsfeatNext.matrix_t(3, 2, F32C1);
-    const srcRaw = Array.from(src.data);
-    const dstRaw = new Array(6).fill(0);
+    // Float32Array on BOTH sides: an earlier version passed jsfeat a packed
+    // JS array (Array.from), which V8 stores and optimises very differently
+    // from a Float32Array -- that confounded the calling-convention question
+    // with an element-storage difference (caught in review). Now the ONLY
+    // difference is matrix_t-vs-raw, which is what this case is about.
+    const srcRaw = Float32Array.from(src.data);
+    const dstRaw = new Float32Array(6);
 
     bench("jsfeatNext (matrix_t)", () => {
         jsfeatNext.transform.invert_affine_transform(src, dst);
@@ -303,8 +319,8 @@ describe("transform.invert_affine_transform (matrix_t vs raw array)", () => {
 describe("transform.invert_perspective_transform (matrix_t vs raw array)", () => {
     const { next: src } = mat3x3Pair(9008);
     const dst = new jsfeatNext.matrix_t(3, 3, F32C1);
-    const srcRaw = Array.from(src.data);
-    const dstRaw = new Array(9).fill(0);
+    const srcRaw = Float32Array.from(src.data);
+    const dstRaw = new Float32Array(9);
 
     bench("jsfeatNext (matrix_t)", () => {
         jsfeatNext.transform.invert_perspective_transform(src, dst);
