@@ -223,7 +223,7 @@ then 1.05x jsfeat — the sign flips and stays close to the noise floor.
 (both sides share the same pyramidal-search structure), so parity here is the
 expected result, not a surprise worth investigating.
 
-## Phase 2, continued: linalg — RESOLVED by #159
+## Phase 2, continued: linalg — RESOLVED (issue #159)
 
 > **Resolved.** The fix for
 > [#159](https://github.com/webarkit/jsfeatNext/issues/159) (`matrix_t` no
