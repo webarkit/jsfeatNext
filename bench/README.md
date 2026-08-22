@@ -123,7 +123,7 @@ Since jsfeatNext is a port of jsfeat, ratios near **1.0× are the expected, heal
 
 ## YAPE detectors — RESOLVED (`yape` by #166; `yape06` unexplained)
 
-> **Partly resolved, and the original hypothesis was wrong.**
+> **Resolved (with a caveat), and the original hypothesis was wrong.**
 >
 > This section long carried the theory that importing
 > `hessian_min_eigen_value` across modules blocked V8 inlining. Profiling
