@@ -196,8 +196,10 @@ same process, so their `hz` are comparable **to each other** within a run.
 Phase 2 covers each module this way, one PR at a time. As of this PR every
 module has a bench file: `imgproc`, `orb`, `fast_corners`, `yape06`, `yape`,
 `optical_flow_lk`, `linalg`, `motion_estimator`, the `cache` pool, and
-`math`/`matmath`/`transform`. There is still no standalone `motion_model`
-case — it is exercised indirectly through the `motion_estimator` benches.
+`math`/`matmath`/`transform` and `motion_model`. Within `imgproc` only
+`gaussian_blur` and `resample` are benched — the other ~12 public methods
+(`grayscale`, `pyrdown`, the derivative filters, the warps, `canny`, …) are
+not yet covered.
 
 ## Phase 2, continued: optical_flow_lk
 
@@ -454,6 +456,81 @@ operations. Across both series neither transform case clears the noise floor
 in jsfeat's favour. The `matrix_t` calling convention has no throughput cost
 this harness can detect; the docstring now states that null result instead of
 the prediction.
+
+## Open finding: motion_model allocates per call, and it dominates small fits
+
+`bench/motion_estimator.bench.ts` measures `ransac`/`lmeds` end to end, so the
+kernel's own cost is mixed with the estimator's loop. This file calls the
+kernel methods directly, which is what makes the following attributable.
+
+| Case | Why it is here |
+| --- | --- |
+| `homography2d.run` / `affine2d.run` — 4 / 3 points | The per-iteration hypothesis fit: RANSAC calls `run` on a minimal sample every iteration |
+| `homography2d.run` / `affine2d.run` — 40 points | The final refit on the full inlier set |
+| `homography2d.error` / `affine2d.error` — 40 points | The per-iteration scoring pass over all correspondences |
+| `homography2d.check_subset` — 4 points | Called once per RANSAC iteration. `affine2d.check_subset` is a bare `return true` on both sides, so there is nothing to compare |
+
+Correspondences are clean (no outliers), unlike `motion_estimator.bench.ts`'s
+fixture: these kernels are called directly, with no outlier rejection in play,
+so gross outliers would only make `run` fit a meaningless model without
+changing what it costs.
+
+Eight samples, pooled from two idle-machine sessions, each discarding a
+warm-up:
+
+| case | session A | session B | allocates? | verdict |
+| --- | --- | --- | --- | --- |
+| **`affine2d.run` 3 pts** | 3.28 / 3.47 / 3.70 / 3.15 | 3.34 / 3.45 / 3.47 / 3.87 | yes | **real — largest in suite** |
+| **`affine2d.run` 40 pts** | 1.69 / 1.54 / 1.46 / 1.51 | 1.44 / 1.63 / 1.60 / 1.53 | yes | **real** |
+| **`homography2d.run` 4 pts** | 1.22 / 1.31 / 1.33 / 1.51 | 1.26 / 1.73 / 1.32 / 1.34 | yes | **real** |
+| **`homography2d.run` 40 pts** | 1.15 / 1.31 / 1.33 / 1.24 | 1.30 / 1.26 / 1.18 / 1.38 | yes | **real** |
+| **`homography2d.check_subset`** | 1.35 / 1.45 / 1.32 / 1.36 | 1.15 / 2.11 / 1.36 / 1.11 | yes | **real, but wide** |
+| `homography2d.error` 40 pts | 1.03 / 1.11 / 1.06 / 1.05 | 1.02 / 1.16\* / 2.91\* / 1.18 | no | noise |
+| `affine2d.error` 40 pts | 1.09 / 1.10 / 1.05 / 1.05 | 1.07 / 1.06 / 1.01\* / 1.09\* | no | noise |
+
+\* = jsfeatNext was faster in that run.
+
+**Direction is the evidence, and it is unanimous**: the five allocating cases
+favour jsfeat in **all eight** samples without a single flip. Magnitudes vary
+much more — quote `affine2d.run` at 3 points as "roughly 3.5x", not to two
+decimals, and see the caveat below on `check_subset`.
+
+**The cause is visible in the code, and the shape of the result fits it.**
+jsfeatNext constructs a `matmath` instance *inside* three per-call methods —
+`affine2d.run` (`motion_model.ts:212`), `homography2d.run` (line 352) and
+`homography2d.check_subset` (line 541). Original jsfeat does not: its
+equivalents call module-scope functions.
+
+- `affine2d.run` at **3 points** — where the real arithmetic is nearly
+  nothing — runs **~3.5x** slower. A fixed per-call cost dominates entirely.
+- The same method at **40 points** drops to **~1.5x**: identical overhead,
+  amortised over ~13x more real work.
+- `error`, the only pair of methods that **allocates nothing**, is the only
+  pair that flips sign and sits in the noise floor — an unplanned but
+  decisive control.
+
+"Huge ratio on tiny inputs, shrinking as the input grows, absent where there
+is no allocation" is the signature of a fixed per-call allocation, and it is
+what these numbers show.
+
+### A caveat, and a repeated mistake worth recording
+
+An earlier four-sample series put `check_subset` at 1.32–1.45 and this file
+called it "tight". Four more samples widened it to **1.11–2.11**. The
+direction survived; the precision claim did not.
+
+That is the *same* error this file already documents for the YAPE finding —
+"four samples are not enough to characterise a spread, only a direction" —
+made again, one section later, on a different case. Treat every
+tightness claim in this document as provisional until it has eight or more
+samples behind it.
+
+This is the same class of defect as
+[#159](https://github.com/webarkit/jsfeatNext/issues/159) (`matrix_t`
+re-allocating a `data_type` table on every construction) — and note the two
+compound: each `new matmath()` here is itself cheap, but `matmath`'s methods
+build `matrix_t` instances, which is where #159 bites. Measurement only here,
+per #86; the fix belongs in its own PR against `src/`.
 
 ## Notes on the inputs
 
