@@ -57,6 +57,8 @@ import { ransac_params_t } from "./motion_estimator/ransac_params_t";
 import { motion_estimator } from "./motion_estimator/motion_estimator";
 import { affine2d, homography2d } from "./motion_model/motion_model";
 import { optical_flow_lk } from "./optical_flow_lk/optical_flow_lk";
+import { bfmatcher } from "./bfmatcher/bfmatcher";
+import { match_t } from "./bfmatcher/match_t";
 
 // Thin aggregator (issue #47): every algorithm lives in its own module under
 // src/<module>/, extending the base class from src/core/core.ts.
@@ -85,6 +87,8 @@ jsfeatNext.keypoint_t = keypoint_t;
 
 jsfeatNext.ransac_params_t = ransac_params_t;
 
+jsfeatNext.match_t = match_t;
+
 // algorithm singletons (no `new` — call methods directly)
 jsfeatNext.transform = new transform();
 
@@ -111,3 +115,5 @@ jsfeatNext.affine2d = new affine2d();
 jsfeatNext.homography2d = new homography2d();
 
 jsfeatNext.optical_flow_lk = new optical_flow_lk();
+
+jsfeatNext.bfmatcher = new bfmatcher();
