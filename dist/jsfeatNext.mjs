@@ -1,5 +1,5 @@
 /*!
- * jsfeatNext v0.13.0 — https://github.com/webarkit/jsfeatNext
+ * jsfeatNext v0.14.0 — https://github.com/webarkit/jsfeatNext
  *
  * SPDX-License-Identifier: LGPL-3.0-or-later
  * Copyright 2026 WebARKit. Author(s): Walter Perdan @kalwalt
@@ -11,8 +11,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Lesser General Public License for details: http://www.gnu.org/licenses/
  */
-//#region src/data_type/data_type.ts
-var e = class {
+var e = new class {
 	constructor() {
 		this._data_type_size = new Int32Array([
 			-1,
@@ -43,7 +42,7 @@ var e = class {
 	_get_data_type_size(e) {
 		return this._data_type_size[(e & 65280) >> 8];
 	}
-}, t = class {
+}(), t = class {
 	constructor(e, t) {
 		this.size = (e + 7 | 0) & -8, t === void 0 ? this.buffer = new ArrayBuffer(this.size) : (this.buffer = t, this.size = t.byteLength), this.u8 = new Uint8Array(this.buffer), this.i32 = new Int32Array(this.buffer), this.f32 = new Float32Array(this.buffer), this.f64 = new Float64Array(this.buffer);
 	}
@@ -100,7 +99,7 @@ var e = class {
 	S32C2_t: 514
 }, a = {
 	name: "@webarkit/jsfeat-next",
-	version: "0.13.0",
+	version: "0.14.0",
 	description: "Typescript version of jsfeat for WebARKit",
 	main: "dist/jsfeatNext.js",
 	module: "dist/jsfeatNext.mjs",
@@ -122,9 +121,12 @@ var e = class {
 		"format-check": "prettier --check .",
 		format: "prettier --write .",
 		"license-check": "node scripts/check-license-headers.mjs",
+		typecheck: "tsc --noEmit -p tsconfig.check.json",
+		"bench:smoke": "vitest bench --run --testNamePattern=\"__collect_only__\"",
 		test: "vitest run",
 		"test:coverage": "vitest run --coverage",
 		bench: "vitest bench",
+		"bench:ratios": "vitest bench --run --outputJson bench-results/raw.json && node scripts/bench-ratios.mjs bench-results/raw.json --append bench/history.jsonl",
 		"test:watch": "vitest",
 		docs: "typedoc"
 	},
@@ -158,7 +160,7 @@ var e = class {
 s.allocate(30, 2560);
 var c = class {
 	constructor() {
-		this.dt = new e(), this.cache = s;
+		this.dt = e, this.cache = s;
 	}
 	get_data_type(e) {
 		return this.dt._get_data_type(e);
@@ -175,7 +177,7 @@ o = c, o.VERSION = a.version, o.EPSILON = i.EPSILON, o.FLT_MIN = i.FLT_MIN, o.U8
 //#region src/matrix_t/matrix_t.ts
 var l = class {
 	constructor(t, n, r, a) {
-		this.dt = new e(), this.type = this.dt._get_data_type(r) | 0, this.channel = this.dt._get_channel(r) | 0, this.cols = t | 0, this.rows = n | 0, a === void 0 ? this.allocate() : (this.buffer = a, this.data = this.type & i.U8_t ? this.buffer.u8 : this.type & i.S32_t ? this.buffer.i32 : this.type & i.F32_t ? this.buffer.f32 : this.buffer.f64);
+		this.dt = e, this.type = this.dt._get_data_type(r) | 0, this.channel = this.dt._get_channel(r) | 0, this.cols = t | 0, this.rows = n | 0, a === void 0 ? this.allocate() : (this.buffer = a, this.data = this.type & i.U8_t ? this.buffer.u8 : this.type & i.S32_t ? this.buffer.i32 : this.type & i.F32_t ? this.buffer.f32 : this.buffer.f64);
 	}
 	allocate() {
 		delete this.data, delete this.buffer, this.buffer = new t(this.cols * this.dt._get_data_type_size(this.type) * this.channel * this.rows), this.data = this.type & i.U8_t ? this.buffer.u8 : this.type & i.S32_t ? this.buffer.i32 : this.type & i.F32_t ? this.buffer.f32 : this.buffer.f64;
@@ -578,7 +580,7 @@ function _(e, t) {
 }
 //#endregion
 //#region src/matmath/matmath.ts
-var v = class {
+var v = i.EPSILON, y = class {
 	constructor() {}
 	identity(e, t) {
 		t === void 0 && (t = 1);
@@ -631,8 +633,8 @@ var v = class {
 		n[0] = n[4] = n[8] = t, n[1] = n[2] = n[3] = 0, n[5] = n[6] = n[7] = 0;
 	}
 	invert_3x3(e, t) {
-		let n = e.data, r = t.data, a = n[4], o = n[8], s = n[5], c = n[7], l = n[0], u = l * a, d = l * s, f = n[3], p = n[1], m = f * p, h = n[2], g = f * h, _ = n[6], v = _ * p, y = _ * h, b = u * o - d * c - m * o + g * c + v * s - y * a, x = 1 / b;
-		return r[0] = (a * o - s * c) * x, r[1] = -(p * o - h * c) * x, r[2] = -(-p * s + h * a) * x, r[3] = -(f * o - s * _) * x, r[4] = (l * o - y) * x, r[5] = -(d - g) * x, r[6] = -(-f * c + a * _) * x, r[7] = -(l * c - v) * x, r[8] = (u - m) * x, Math.abs(b) < i.EPSILON ? 0 : 1;
+		let n = e.data, r = t.data, i = n[4], a = n[8], o = n[5], s = n[7], c = n[0], l = c * i, u = c * o, d = n[3], f = n[1], p = d * f, m = n[2], h = d * m, g = n[6], _ = g * f, y = g * m, b = l * a - u * s - p * a + h * s + _ * o - y * i, x = 1 / b;
+		return r[0] = (i * a - o * s) * x, r[1] = -(f * a - m * s) * x, r[2] = -(-f * o + m * i) * x, r[3] = -(d * a - o * g) * x, r[4] = (c * a - y) * x, r[5] = -(u - h) * x, r[6] = -(-d * s + i * g) * x, r[7] = -(c * s - _) * x, r[8] = (l - p) * x, b < v && b > -v ? 0 : 1;
 	}
 	multiply_3x3(e, t, n) {
 		let r = e.data, i = t.data, a = n.data, o = i[0], s = i[1], c = i[2], l = i[3], u = i[4], d = i[5], f = i[6], p = i[7], m = i[8], h = a[0], g = a[1], _ = a[2], v = a[3], y = a[4], b = a[5], x = a[6], S = a[7], C = a[8];
@@ -645,9 +647,9 @@ var v = class {
 	determinant_3x3(e, t, n, r, i, a, o, s, c) {
 		return e * i * c - e * a * s - r * t * c + r * n * s + o * t * a - o * n * i;
 	}
-}, y = class extends c {
+}, b = class extends c {
 	constructor() {
-		super(), this.matmath = new v();
+		super(), this.matmath = new y();
 	}
 	JacobiImpl(e, t, n, r, a, o) {
 		let s = i.EPSILON, c = 0, l = 0, u = 0, d = 0, f = 0, p = 0, m = 0, h = 0, v = 0, y = o * o * 30, b = 0, x = 0, S = 0, C = 0, w = 0, T = 0, E = 0, D = 0, O = 0, k = this.cache.get_buffer(o << 2), A = this.cache.get_buffer(o << 2), j = k.i32, M = A.i32;
@@ -838,7 +840,7 @@ var v = class {
 };
 //#endregion
 //#region src/fast_corners/fast_private.ts
-function b(e, t, n, r, i) {
+function x(e, t, n, r, i) {
 	let a = 0, o = e[t], s = i, c = 0, l = 0, u = 0;
 	for (; a < 25; ++a) r[a] = o - e[t + n[a]];
 	for (a = 0; a < 16; a += 2) c = Math.min(r[a + 1], r[a + 2]), c = Math.min(c, r[a + 3]), !(c <= s) && (c = Math.min(c, r[a + 4]), c = Math.min(c, r[a + 5]), c = Math.min(c, r[a + 6]), c = Math.min(c, r[a + 7]), c = Math.min(c, r[a + 8]), s = Math.max(s, Math.min(c, r[a])), s = Math.max(s, Math.min(c, r[a + 9])));
@@ -847,7 +849,7 @@ function b(e, t, n, r, i) {
 }
 //#endregion
 //#region src/fast_corners/fast_corners.ts
-var x = class extends c {
+var S = class extends c {
 	constructor() {
 		super(), this.offsets16 = new Int32Array([
 			0,
@@ -891,14 +893,14 @@ var x = class extends c {
 	}
 	detect(e, t, n) {
 		n === void 0 && (n = 3);
-		let r = e.data, i = e.cols, a = e.rows, o = 0, s = 0, c = 0, l = 0, u = 0, d = 0, f = this.cache.get_buffer(3 * i), p = this.cache.get_buffer((i + 1) * 3 << 2), m = f.u8, h = p.i32, g = this.pixel_off, _ = this.score_diff, v = Math.max(3, n), y = Math.min(a - 2, a - n), x = Math.max(3, n), S = Math.min(i - 3, i - n), C = 0, w = 0, T, E = b, D = this.threshold_tab, O = this._threshold, k = 0, A = 0, j = 0, M = 0, N = 0, P = 0, F = 0, I = 0, L = 0, R = 0, z = 0, B = 0;
+		let r = e.data, i = e.cols, a = e.rows, o = 0, s = 0, c = 0, l = 0, u = 0, d = 0, f = this.cache.get_buffer(3 * i), p = this.cache.get_buffer((i + 1) * 3 << 2), m = f.u8, h = p.i32, g = this.pixel_off, _ = this.score_diff, v = Math.max(3, n), y = Math.min(a - 2, a - n), b = Math.max(3, n), S = Math.min(i - 3, i - n), C = 0, w = 0, T, E = x, D = this.threshold_tab, O = this._threshold, k = 0, A = 0, j = 0, M = 0, N = 0, P = 0, F = 0, I = 0, L = 0, R = 0, z = 0, B = 0;
 		this._cmp_offsets(g, i, 16);
 		let V = g[0], ee = g[1], H = g[2], U = g[3], W = g[4], G = g[5], K = g[6], te = g[7], q = g[8], ne = g[9], J = g[10], Y = g[11], X = g[12], Z = g[13], Q = g[14], re = g[15];
 		for (o = 0; o < i * 3; ++o) m[o] = 0;
 		for (o = v; o < y; ++o) {
-			for (F = o * i + x | 0, d = (o - 3) % 3, P = d * i | 0, N = d * (i + 1) | 0, s = 0; s < i; ++s) m[P + s] = 0;
+			for (F = o * i + b | 0, d = (o - 3) % 3, P = d * i | 0, N = d * (i + 1) | 0, s = 0; s < i; ++s) m[P + s] = 0;
 			if (M = 0, o < y - 1) {
-				for (s = x; s < S; ++s, ++F) if (k = r[F], A = -k + 255, j = D[A + r[F + V]] | D[A + r[F + q]], j != 0 && (j &= D[A + r[F + H]] | D[A + r[F + J]], j &= D[A + r[F + W]] | D[A + r[F + X]], j &= D[A + r[F + K]] | D[A + r[F + Q]], j != 0)) {
+				for (s = b; s < S; ++s, ++F) if (k = r[F], A = -k + 255, j = D[A + r[F + V]] | D[A + r[F + q]], j != 0 && (j &= D[A + r[F + H]] | D[A + r[F + J]], j &= D[A + r[F + W]] | D[A + r[F + X]], j &= D[A + r[F + K]] | D[A + r[F + Q]], j != 0)) {
 					if (j &= D[A + r[F + ee]] | D[A + r[F + ne]], j &= D[A + r[F + U]] | D[A + r[F + Y]], j &= D[A + r[F + G]] | D[A + r[F + Z]], j &= D[A + r[F + te]] | D[A + r[F + re]], j & 1) for (l = k - O, C = 0, c = 0; c < 25; ++c) if (u = r[F + g[c]], u < l) {
 						if (++C, C > 8) {
 							++M, h[N + M] = s, m[P + s] = E(r, F, g, _, O);
@@ -922,7 +924,7 @@ var x = class extends c {
 		for (; r < n; ++r) e[r] = i[r << 1] + i[(r << 1) + 1] * t;
 		for (; r < 25; ++r) e[r] = e[r - n];
 	}
-}, S = class extends c {
+}, C = class extends c {
 	constructor(e) {
 		super(), this.levels = e | 0, this.data = Array(e);
 		let t = new h();
@@ -941,7 +943,7 @@ var x = class extends c {
 		}
 		for (i = this.data[1], this.pyrdown(r, i); n < this.levels; ++n) r = i, i = this.data[n], this.pyrdown(r, i);
 	}
-}, C = class {
+}, w = class {
 	constructor() {}
 	perspective_4point_transform(e, t, n, r, i, a, o, s, c, l, u, d, f, p, m, h, g) {
 		let _ = t, v = l, y = o, b = _ * v * y, x = m, S = _ * x, C = v * S, w = u, T = _ * w, E = a, D = n, O = p, k = D * O, A = k * E, j = O * E * w, M = O * y, N = O * w, P = v * y, F = x * v, I = x * E, L = w * E, R = 1 / (M - N - P + F - I + L), z = _ * O, B = D * E, V = y * _, ee = x * V, H = D * v, U = k * w, W = D * w * E, G = y * x * v, K = x * D, te = -(C - b + T * E - E * S - k * v + A - j + M * v) * R, q = (b - C - z * y + z * w + A - v * B + I * v - j) * R, ne = _, J = (-w * S + ee + H * y - k * y + U - W + I * w - G) * R, Y = (-ee + V * w - K * v + U - W + K * E + G - M * w) * R, X = D, Z = (-T + V + H - B + N - M - F + I) * R, Q = (-S + T + k - H + I - L - M + P) * R;
@@ -967,11 +969,11 @@ var x = class extends c {
 		let n = e.data, r = t.data, i = n[0], a = n[1], o = n[2], s = n[3], c = n[4], l = n[5], u = n[6], d = n[7], f = n[8], p = 1 / (i * (c * f - l * d) - a * (s * f - l * u) + o * (s * d - c * u));
 		r[0] = p * (c * f - l * d), r[1] = p * (o * d - a * f), r[2] = p * (a * l - o * c), r[3] = p * (l * u - s * f), r[4] = p * (i * f - o * u), r[5] = p * (o * s - i * l), r[6] = p * (s * d - c * u), r[7] = p * (a * u - i * d), r[8] = p * (i * c - a * s);
 	}
-}, w = class {
+}, T = class {
 	constructor(e = 0, t = 0, n = 0, r = 0, i = -1) {
 		this.x = e, this.y = t, this.score = n, this.level = r, this.angle = i;
 	}
-}, T = [
+}, E = [
 	8,
 	-3,
 	9,
@@ -1999,29 +2001,29 @@ var x = class extends c {
 ];
 //#endregion
 //#region src/orb/rectify_patch.ts
-function E(e, t, n, r, i, a, o, s) {
+function D(e, t, n, r, i, a, o, s) {
 	let c = Math.cos(n), l = Math.sin(n);
 	o.data[0] = c, o.data[1] = -l, o.data[2] = (-c + l) * a * .5 + r, o.data[3] = l, o.data[4] = c, o.data[5] = (-l - c) * a * .5 + i, s.warp_affine(e, t, o, 128);
 }
 //#endregion
 //#region src/orb/orb.ts
-var D = class extends c {
+var O = class extends c {
 	constructor() {
-		super(), this.bit_pattern_31_ = new Int32Array(T), this.H = new l(3, 3, i.F32_t | i.C1_t), this.patch_img = new l(32, 32, i.U8_t | i.C1_t), this.imgproc = new h();
+		super(), this.bit_pattern_31_ = new Int32Array(E), this.H = new l(3, 3, i.F32_t | i.C1_t), this.patch_img = new l(32, 32, i.U8_t | i.C1_t), this.imgproc = new h();
 	}
 	describe(e, t, n, r) {
 		let a = 0, o = 0, s = 0, c = 0, l = 0, u = 0, d = 0, f = 0, p = this.patch_img.data, m = 0;
 		r.type & i.U8_t ? r.resize(32, n, 1) : (r.type = i.U8_t, r.cols = 32, r.rows = n, r.channel = 1, r.allocate());
 		let h = r.data, g = 0;
 		for (a = 0; a < n; ++a) {
-			for (s = t[a].x, c = t[a].y, l = t[a].angle, E(e, this.patch_img, l, s, c, 32, this.H, this.imgproc), m = 0, o = 0; o < 32; ++o) u = p[528 + this.bit_pattern_31_[m + 1] * 32 + this.bit_pattern_31_[m]], m += 2, d = p[528 + this.bit_pattern_31_[m + 1] * 32 + this.bit_pattern_31_[m]], m += 2, f = u < d | 0, u = p[528 + this.bit_pattern_31_[m + 1] * 32 + this.bit_pattern_31_[m]], m += 2, d = p[528 + this.bit_pattern_31_[m + 1] * 32 + this.bit_pattern_31_[m]], m += 2, f |= (u < d) << 1, u = p[528 + this.bit_pattern_31_[m + 1] * 32 + this.bit_pattern_31_[m]], m += 2, d = p[528 + this.bit_pattern_31_[m + 1] * 32 + this.bit_pattern_31_[m]], m += 2, f |= (u < d) << 2, u = p[528 + this.bit_pattern_31_[m + 1] * 32 + this.bit_pattern_31_[m]], m += 2, d = p[528 + this.bit_pattern_31_[m + 1] * 32 + this.bit_pattern_31_[m]], m += 2, f |= (u < d) << 3, u = p[528 + this.bit_pattern_31_[m + 1] * 32 + this.bit_pattern_31_[m]], m += 2, d = p[528 + this.bit_pattern_31_[m + 1] * 32 + this.bit_pattern_31_[m]], m += 2, f |= (u < d) << 4, u = p[528 + this.bit_pattern_31_[m + 1] * 32 + this.bit_pattern_31_[m]], m += 2, d = p[528 + this.bit_pattern_31_[m + 1] * 32 + this.bit_pattern_31_[m]], m += 2, f |= (u < d) << 5, u = p[528 + this.bit_pattern_31_[m + 1] * 32 + this.bit_pattern_31_[m]], m += 2, d = p[528 + this.bit_pattern_31_[m + 1] * 32 + this.bit_pattern_31_[m]], m += 2, f |= (u < d) << 6, u = p[528 + this.bit_pattern_31_[m + 1] * 32 + this.bit_pattern_31_[m]], m += 2, d = p[528 + this.bit_pattern_31_[m + 1] * 32 + this.bit_pattern_31_[m]], m += 2, f |= (u < d) << 7, h[g + o] = f;
+			for (s = t[a].x, c = t[a].y, l = t[a].angle, D(e, this.patch_img, l, s, c, 32, this.H, this.imgproc), m = 0, o = 0; o < 32; ++o) u = p[528 + this.bit_pattern_31_[m + 1] * 32 + this.bit_pattern_31_[m]], m += 2, d = p[528 + this.bit_pattern_31_[m + 1] * 32 + this.bit_pattern_31_[m]], m += 2, f = u < d | 0, u = p[528 + this.bit_pattern_31_[m + 1] * 32 + this.bit_pattern_31_[m]], m += 2, d = p[528 + this.bit_pattern_31_[m + 1] * 32 + this.bit_pattern_31_[m]], m += 2, f |= (u < d) << 1, u = p[528 + this.bit_pattern_31_[m + 1] * 32 + this.bit_pattern_31_[m]], m += 2, d = p[528 + this.bit_pattern_31_[m + 1] * 32 + this.bit_pattern_31_[m]], m += 2, f |= (u < d) << 2, u = p[528 + this.bit_pattern_31_[m + 1] * 32 + this.bit_pattern_31_[m]], m += 2, d = p[528 + this.bit_pattern_31_[m + 1] * 32 + this.bit_pattern_31_[m]], m += 2, f |= (u < d) << 3, u = p[528 + this.bit_pattern_31_[m + 1] * 32 + this.bit_pattern_31_[m]], m += 2, d = p[528 + this.bit_pattern_31_[m + 1] * 32 + this.bit_pattern_31_[m]], m += 2, f |= (u < d) << 4, u = p[528 + this.bit_pattern_31_[m + 1] * 32 + this.bit_pattern_31_[m]], m += 2, d = p[528 + this.bit_pattern_31_[m + 1] * 32 + this.bit_pattern_31_[m]], m += 2, f |= (u < d) << 5, u = p[528 + this.bit_pattern_31_[m + 1] * 32 + this.bit_pattern_31_[m]], m += 2, d = p[528 + this.bit_pattern_31_[m + 1] * 32 + this.bit_pattern_31_[m]], m += 2, f |= (u < d) << 6, u = p[528 + this.bit_pattern_31_[m + 1] * 32 + this.bit_pattern_31_[m]], m += 2, d = p[528 + this.bit_pattern_31_[m + 1] * 32 + this.bit_pattern_31_[m]], m += 2, f |= (u < d) << 7, h[g + o] = f;
 			g += 32;
 		}
 	}
 };
 //#endregion
 //#region src/yape/yape_utils.ts
-function O(e, t, n) {
+function k(e, t, n) {
 	let r = 0, i, a;
 	for (i = n, a = 0; a < i; a++, r++) i = Math.sqrt(n * n - a * a) + .5 | 0, t[r] = i + e * a;
 	for (i--; i < a && i >= 0; i--, r++) a = Math.sqrt(n * n - i * i) + .5 | 0, t[r] = i + e * a;
@@ -2033,11 +2035,11 @@ function O(e, t, n) {
 	for (a++; a < 0; a++, r++) i = Math.sqrt(n * n - a * a) + .5 | 0, t[r] = i + e * a;
 	return t[r] = t[0], t[r + 1] = t[1], r;
 }
-function k(e, t, n) {
+function A(e, t, n) {
 	let r = 0;
 	return e[t + 1] != 0 && r++, e[t - 1] != 0 && r++, e[t + n] != 0 && r++, e[t + n + 1] != 0 && r++, e[t + n - 1] != 0 && r++, e[t - n] != 0 && r++, e[t - n + 1] != 0 && r++, e[t - n - 1] != 0 && r++, r;
 }
-function A(e, t, n, r, i) {
+function j(e, t, n, r, i) {
 	let a, o;
 	if (n > 0) for (t -= r * i, o = -i; o <= i; ++o) {
 		for (a = -i; a <= i; ++a) if (e[t + a] > n) return !1;
@@ -2049,7 +2051,7 @@ function A(e, t, n, r, i) {
 	}
 	return !0;
 }
-function j(e, t, n, r, i, a, o, s) {
+function M(e, t, n, r, i, a, o, s) {
 	let c = 0, l = 0, u = o - 1 | 0, d = 0, f = 0, p = 0, m = 0, h = 0;
 	if (d = e[t + a[l]], d <= i) {
 		if (d >= r) {
@@ -2393,38 +2395,38 @@ function j(e, t, n, r, i, a, o, s) {
 	}
 	n[t] = c + s * e[t];
 }
-var M = class {
+var N = class {
 	constructor(e, t, n) {
-		this.dirs = /* @__PURE__ */ new Int32Array(1024), this.dirs_count = O(e, this.dirs, n) | 0, this.scores = new Int32Array(e * t), this.radius = n | 0;
+		this.dirs = /* @__PURE__ */ new Int32Array(1024), this.dirs_count = k(e, this.dirs, n) | 0, this.scores = new Int32Array(e * t), this.radius = n | 0;
 	}
-}, N = class {
+}, P = A, F = j, I = M, L = class {
 	constructor() {
 		this.level_tables = [], this.tau = 7;
 	}
 	init(e, t, n, r = 1) {
 		n = Math.min(n, 7), n = Math.max(n, 3);
-		for (let i = 0; i < r; ++i) this.level_tables[i] = new M(e >> i, t >> i, n);
+		for (let i = 0; i < r; ++i) this.level_tables[i] = new N(e >> i, t >> i, n);
 	}
 	detect(e, t, n = 4) {
 		let r = this.level_tables[0], i = r.radius | 0, a = i - 1 | 0, o = r.dirs, s = r.dirs_count | 0, c = s >> 1, l = e.data, u = e.cols | 0, d = e.rows | 0, f = u >> 1, p = r.scores, m = 0, h = 0, g = 0, _ = 0, v = 0, y = 0, b = 0, x = 0, S = this.tau | 0, C = 0, w, T = Math.max(i + 1, n) | 0, E = Math.max(i + 1, n) | 0, D = Math.min(u - i - 2, u - n) | 0, O = Math.min(d - i - 2, d - n) | 0;
-		for (g = E * u + T | 0, h = E; h < O; ++h, g += u) for (m = T, _ = g; m < D; ++m, ++_) v = l[_] + S, y = l[_] - S, y < l[_ + i] && l[_ + i] < v && y < l[_ - i] && l[_ - i] < v ? p[_] = 0 : j(l, _, p, y, v, o, c, s);
-		for (g = E * u + T | 0, h = E; h < O; ++h, g += u) for (m = T, _ = g; m < D; ++m, ++_) x = p[_], b = Math.abs(x), b < 5 ? (++m, ++_) : k(p, _, u) >= 3 && A(p, _, x, f, i) && (w = t[C], w.x = m, w.y = h, w.score = b, ++C, m += a, _ += a);
+		for (g = E * u + T | 0, h = E; h < O; ++h, g += u) for (m = T, _ = g; m < D; ++m, ++_) v = l[_] + S, y = l[_] - S, y < l[_ + i] && l[_ + i] < v && y < l[_ - i] && l[_ - i] < v ? p[_] = 0 : I(l, _, p, y, v, o, c, s);
+		for (g = E * u + T | 0, h = E; h < O; ++h, g += u) for (m = T, _ = g; m < D; ++m, ++_) x = p[_], b = Math.abs(x), b < 5 ? (++m, ++_) : P(p, _, u) >= 3 && F(p, _, x, f, i) && (w = t[C], w.x = m, w.y = h, w.score = b, ++C, m += a, _ += a);
 		return C;
 	}
 };
 //#endregion
 //#region src/yape06/yape06_utils.ts
-function P(e, t, n, r, i, a, o, s, c) {
+function R(e, t, n, r, i, a, o, s, c) {
 	let l = 0, u = 0, d = o * n + a | 0, f = d;
 	for (l = o; l < c; ++l, d += n, f = d) for (u = a; u < s; ++u, ++f) f + r < e.length && f - r >= 0 && f + i < e.length && f - i >= 0 ? t[f] = -4 * e[f] + e[f + r] + e[f - r] + e[f + i] + e[f - i] : t[f] = 0;
 }
-function F(e, t, n, r, i, a, o) {
+function z(e, t, n, r, i, a, o) {
 	let s = -2 * e[t] + e[t + r] + e[t - r], c = -2 * e[t] + e[t + i] + e[t - i], l = e[t + a] + e[t - a] - e[t + o] - e[t - o], u = Math.sqrt((s - c) * (s - c) + 4 * l * l) | 0;
 	return Math.min(Math.abs(n - u), Math.abs(-(n + u)));
 }
 //#endregion
 //#region src/yape06/yape06.ts
-var I = class extends c {
+var B = R, V = z, ee = class extends c {
 	constructor() {
 		super(), this.laplacian_threshold = 30, this.min_eigen_value_threshold = 25;
 	}
@@ -2432,10 +2434,10 @@ var I = class extends c {
 		n === void 0 && (n = 5);
 		let r = 0, i = 0, a = e.cols, o = e.rows, s = e.data, c = 5 * a | 0, l = 3 + 3 * a | 0, u = 3 - 3 * a | 0, d = this.cache.get_buffer(a * o << 2), f = d.i32, p = 0, m = 0, h = 0, g = 0, _, v = 0, y = this.laplacian_threshold, b = this.min_eigen_value_threshold, x = Math.max(5, n) | 0, S = Math.max(3, n) | 0, C = Math.min(a - 5, a - n) | 0, w = Math.min(o - 3, o - n) | 0;
 		for (r = a * o; --r >= 0;) f[r] = 0;
-		for (P(s, f, a, 5, c, x, S, C, w), m = S * a + x | 0, i = S; i < w; ++i, m += a) for (r = x, h = m; r < C; ++r, ++h) p = f[h], (p < -y && p < f[h - 1] && p < f[h + 1] && p < f[h - a] && p < f[h + a] && p < f[h - a - 1] && p < f[h + a - 1] && p < f[h - a + 1] && p < f[h + a + 1] || p > y && p > f[h - 1] && p > f[h + 1] && p > f[h - a] && p > f[h + a] && p > f[h - a - 1] && p > f[h + a - 1] && p > f[h - a + 1] && p > f[h + a + 1]) && (g = F(s, h, p, 5, c, l, u), g > b && (_ = t[v], _.x = r, _.y = i, _.score = g, ++v, ++r, ++h));
+		for (B(s, f, a, 5, c, x, S, C, w), m = S * a + x | 0, i = S; i < w; ++i, m += a) for (r = x, h = m; r < C; ++r, ++h) p = f[h], (p < -y && p < f[h - 1] && p < f[h + 1] && p < f[h - a] && p < f[h + a] && p < f[h - a - 1] && p < f[h + a - 1] && p < f[h - a + 1] && p < f[h + a + 1] || p > y && p > f[h - 1] && p > f[h + 1] && p > f[h - a] && p > f[h + a] && p > f[h - a - 1] && p > f[h + a - 1] && p > f[h - a + 1] && p > f[h + a + 1]) && (g = V(s, h, p, 5, c, l, u), g > b && (_ = t[v], _.x = r, _.y = i, _.score = g, ++v, ++r, ++h));
 		return this.cache.put_buffer(d), v;
 	}
-}, L = class {
+}, H = class {
 	constructor(e = 0, t = .5, n = .5, r = .99) {
 		this.size = e, this.thresh = t, this.eps = n, this.prob = r;
 	}
@@ -2443,7 +2445,7 @@ var I = class extends c {
 		let n = Math.log(1 - this.prob), r = Math.log(1 - Math.pow(1 - e, this.size));
 		return (r >= 0 || -n >= t * -r ? t : Math.round(n / r)) | 0;
 	}
-}, R = class extends c {
+}, U = class extends c {
 	constructor() {
 		super();
 	}
@@ -2504,7 +2506,7 @@ var I = class extends c {
 		}
 		return p && (j = 2.5 * 1.4826 * (1 + 5 / (a - u)) * Math.sqrt(A), j = Math.max(j, .001), D = this.find_inliers(t, o, n, r, a, j, k, E.data), s && E.copy_to(s), p = D >= u), this.cache.put_buffer(S), this.cache.put_buffer(C), this.cache.put_buffer(w), p;
 	}
-}, z = class extends c {
+}, W = class extends c {
 	constructor() {
 		super(), this.T0 = new l(3, 3, i.F32_t | i.C1_t), this.T1 = new l(3, 3, i.F32_t | i.C1_t), this.AtA = new l(6, 6, i.F32_t | i.C1_t), this.AtB = new l(6, 1, i.F32_t | i.C1_t);
 	}
@@ -2522,16 +2524,16 @@ var I = class extends c {
 		for (; n < a; ++n) for (o = e[n].x - e[a].x, s = e[n].y - e[a].y, r = 0; r < n; ++r) if (c = e[r].x - e[a].x, l = e[r].y - e[a].y, Math.abs(c * s - l * o) <= i.EPSILON * (Math.abs(o) + Math.abs(s) + Math.abs(c) + Math.abs(l))) return !0;
 		return !1;
 	}
-}, B = class extends z {
+}, G = class extends W {
 	constructor() {
 		super();
 	}
 	run(e, t, n, r) {
-		let a = 0, o = 0, s = n.type | i.C1_t, c = n.data, u = this.T0.data, d = this.T1.data, f, p, m = 0, h = 0, g = new v(), _ = new y();
+		let a = 0, o = 0, s = n.type | i.C1_t, c = n.data, u = this.T0.data, d = this.T1.data, f, p, m = 0, h = 0, g = new y(), _ = new b();
 		this.iso_normalize_points(e, t, u, d, r);
-		let b = this.cache.get_buffer(2 * r * 6 << 3), x = this.cache.get_buffer(2 * r << 3), S = new l(6, 2 * r, s, b.data), C = new l(1, 2 * r, s, x.data), w = S.data, T = C.data;
+		let v = this.cache.get_buffer(2 * r * 6 << 3), x = this.cache.get_buffer(2 * r << 3), S = new l(6, 2 * r, s, v.data), C = new l(1, 2 * r, s, x.data), w = S.data, T = C.data;
 		for (; a < r; ++a) f = e[a], p = t[a], m = u[0] * f.x + u[1] * f.y + u[2], h = u[3] * f.x + u[4] * f.y + u[5], o = a * 2 * 6, w[o] = m, w[o + 1] = h, w[o + 2] = 1, w[o + 3] = 0, w[o + 4] = 0, w[o + 5] = 0, o += 6, w[o] = 0, w[o + 1] = 0, w[o + 2] = 0, w[o + 3] = m, w[o + 4] = h, w[o + 5] = 1, T[a << 1] = d[0] * p.x + d[1] * p.y + d[2], T[(a << 1) + 1] = d[3] * p.x + d[4] * p.y + d[5];
-		return g.multiply_AtA(this.AtA, S), g.multiply_AtB(this.AtB, S, C), _.lu_solve(this.AtA, this.AtB), c[0] = this.AtB.data[0], c[1] = this.AtB.data[1], c[2] = this.AtB.data[2], c[3] = this.AtB.data[3], c[4] = this.AtB.data[4], c[5] = this.AtB.data[5], c[6] = 0, c[7] = 0, c[8] = 1, g.invert_3x3(this.T1, this.T1), g.multiply_3x3(n, this.T1, n), g.multiply_3x3(n, n, this.T0), this.cache.put_buffer(b), this.cache.put_buffer(x), 1;
+		return g.multiply_AtA(this.AtA, S), g.multiply_AtB(this.AtB, S, C), _.lu_solve(this.AtA, this.AtB), c[0] = this.AtB.data[0], c[1] = this.AtB.data[1], c[2] = this.AtB.data[2], c[3] = this.AtB.data[3], c[4] = this.AtB.data[4], c[5] = this.AtB.data[5], c[6] = 0, c[7] = 0, c[8] = 1, g.invert_3x3(this.T1, this.T1), g.multiply_3x3(n, this.T1, n), g.multiply_3x3(n, n, this.T0), this.cache.put_buffer(v), this.cache.put_buffer(x), 1;
 	}
 	error(e, t, n, r, i) {
 		let a = 0, o, s, c = n.data;
@@ -2540,17 +2542,17 @@ var I = class extends c {
 	check_subset(e, t, n) {
 		return !0;
 	}
-}, V = class extends z {
+}, K = class extends W {
 	constructor() {
 		super(), this.mLtL = new l(9, 9, i.F32_t | i.C1_t), this.Evec = new l(9, 9, i.F32_t | i.C1_t);
 	}
 	run(e, t, n, r) {
-		let a = 0, o = 0, s = n.data, c = this.T0.data, l = this.T1.data, u = this.mLtL.data, d = this.Evec.data, f = 0, p = 0, m = 0, h = 0, g = new y(), _ = new v(), b = 0, x = 0, S = 0, C = 0, w = 0, T = 0, E = 0, D = 0;
+		let a = 0, o = 0, s = n.data, c = this.T0.data, l = this.T1.data, u = this.mLtL.data, d = this.Evec.data, f = 0, p = 0, m = 0, h = 0, g = new b(), _ = new y(), v = 0, x = 0, S = 0, C = 0, w = 0, T = 0, E = 0, D = 0;
 		for (; a < r; ++a) S += t[a].x, C += t[a].y, E += e[a].x, D += e[a].y;
-		for (S /= r, C /= r, E /= r, D /= r, a = 0; a < r; ++a) b += Math.abs(t[a].x - S), x += Math.abs(t[a].y - C), w += Math.abs(e[a].x - E), T += Math.abs(e[a].y - D);
-		if (Math.abs(b) < i.EPSILON || Math.abs(x) < i.EPSILON || Math.abs(w) < i.EPSILON || Math.abs(T) < i.EPSILON) return 0;
-		for (b = r / b, x = r / x, w = r / w, T = r / T, c[0] = w, c[1] = 0, c[2] = -E * w, c[3] = 0, c[4] = T, c[5] = -D * T, c[6] = 0, c[7] = 0, c[8] = 1, l[0] = 1 / b, l[1] = 0, l[2] = S, l[3] = 0, l[4] = 1 / x, l[5] = C, l[6] = 0, l[7] = 0, l[8] = 1, a = 81; --a >= 0;) u[a] = 0;
-		for (a = 0; a < r; ++a) f = (t[a].x - S) * b, p = (t[a].y - C) * x, m = (e[a].x - E) * w, h = (e[a].y - D) * T, u[0] += m * m, u[1] += m * h, u[2] += m, u[6] += m * -f * m, u[7] += m * -f * h, u[8] += m * -f, u[10] += h * h, u[11] += h, u[15] += h * -f * m, u[16] += h * -f * h, u[17] += h * -f, u[20] += 1, u[24] += -f * m, u[25] += -f * h, u[26] += -f, u[30] += m * m, u[31] += m * h, u[32] += m, u[33] += m * -p * m, u[34] += m * -p * h, u[35] += m * -p, u[40] += h * h, u[41] += h, u[42] += h * -p * m, u[43] += h * -p * h, u[44] += h * -p, u[50] += 1, u[51] += -p * m, u[52] += -p * h, u[53] += -p, u[60] += -f * m * -f * m + -p * m * -p * m, u[61] += -f * m * -f * h + -p * m * -p * h, u[62] += -f * m * -f + -p * m * -p, u[70] += -f * h * -f * h + -p * h * -p * h, u[71] += -f * h * -f + -p * h * -p, u[80] += -f * -f + -p * -p;
+		for (S /= r, C /= r, E /= r, D /= r, a = 0; a < r; ++a) v += Math.abs(t[a].x - S), x += Math.abs(t[a].y - C), w += Math.abs(e[a].x - E), T += Math.abs(e[a].y - D);
+		if (Math.abs(v) < i.EPSILON || Math.abs(x) < i.EPSILON || Math.abs(w) < i.EPSILON || Math.abs(T) < i.EPSILON) return 0;
+		for (v = r / v, x = r / x, w = r / w, T = r / T, c[0] = w, c[1] = 0, c[2] = -E * w, c[3] = 0, c[4] = T, c[5] = -D * T, c[6] = 0, c[7] = 0, c[8] = 1, l[0] = 1 / v, l[1] = 0, l[2] = S, l[3] = 0, l[4] = 1 / x, l[5] = C, l[6] = 0, l[7] = 0, l[8] = 1, a = 81; --a >= 0;) u[a] = 0;
+		for (a = 0; a < r; ++a) f = (t[a].x - S) * v, p = (t[a].y - C) * x, m = (e[a].x - E) * w, h = (e[a].y - D) * T, u[0] += m * m, u[1] += m * h, u[2] += m, u[6] += m * -f * m, u[7] += m * -f * h, u[8] += m * -f, u[10] += h * h, u[11] += h, u[15] += h * -f * m, u[16] += h * -f * h, u[17] += h * -f, u[20] += 1, u[24] += -f * m, u[25] += -f * h, u[26] += -f, u[30] += m * m, u[31] += m * h, u[32] += m, u[33] += m * -p * m, u[34] += m * -p * h, u[35] += m * -p, u[40] += h * h, u[41] += h, u[42] += h * -p * m, u[43] += h * -p * h, u[44] += h * -p, u[50] += 1, u[51] += -p * m, u[52] += -p * h, u[53] += -p, u[60] += -f * m * -f * m + -p * m * -p * m, u[61] += -f * m * -f * h + -p * m * -p * h, u[62] += -f * m * -f + -p * m * -p, u[70] += -f * h * -f * h + -p * h * -p * h, u[71] += -f * h * -f + -p * h * -p, u[80] += -f * -f + -p * -p;
 		for (a = 0; a < 9; ++a) for (o = 0; o < a; ++o) u[a * 9 + o] = u[o * 9 + a];
 		return g.eigenVV(this.mLtL, this.Evec), s[0] = d[72], s[1] = d[73], s[2] = d[74], s[3] = d[75], s[4] = d[76], s[5] = d[77], s[6] = d[78], s[7] = d[79], s[8] = d[80], _.multiply_3x3(n, this.T1, n), _.multiply_3x3(n, n, this.T0), f = 1 / s[8], s[0] *= f, s[1] *= f, s[2] *= f, s[3] *= f, s[4] *= f, s[5] *= f, s[6] *= f, s[7] *= f, s[8] = 1, 1;
 	}
@@ -2559,14 +2561,14 @@ var I = class extends c {
 		for (; a < i; ++a) o = e[a], s = t[a], c = 1 / (d[6] * o.x + d[7] * o.y + 1), l = (d[0] * o.x + d[1] * o.y + d[2]) * c - s.x, u = (d[3] * o.x + d[4] * o.y + d[5]) * c - s.y, r[a] = l * l + u * u;
 	}
 	check_subset(e, t, n) {
-		let r = new v();
+		let r = new y();
 		if (n == 4) {
 			let n = 0, i = e[0], a = e[1], o = e[2], s = e[3], c = t[0], l = t[1], u = t[2], d = t[3], f = i.x, p = i.y, m = a.x, h = a.y, g = o.x, _ = o.y, v = c.x, y = c.y, b = l.x, x = l.y, S = u.x, C = u.y, w = r.determinant_3x3(f, p, 1, m, h, 1, g, _, 1), T = r.determinant_3x3(v, y, 1, b, x, 1, S, C, 1);
 			if (w * T < 0 && n++, f = a.x, p = a.y, m = o.x, h = o.y, g = s.x, _ = s.y, v = l.x, y = l.y, b = u.x, x = u.y, S = d.x, C = d.y, w = r.determinant_3x3(f, p, 1, m, h, 1, g, _, 1), T = r.determinant_3x3(v, y, 1, b, x, 1, S, C, 1), w * T < 0 && n++, f = i.x, p = i.y, m = o.x, h = o.y, g = s.x, _ = s.y, v = c.x, y = c.y, b = u.x, x = u.y, S = d.x, C = d.y, w = r.determinant_3x3(f, p, 1, m, h, 1, g, _, 1), T = r.determinant_3x3(v, y, 1, b, x, 1, S, C, 1), w * T < 0 && n++, f = i.x, p = i.y, m = a.x, h = a.y, g = s.x, _ = s.y, v = c.x, y = c.y, b = l.x, x = l.y, S = d.x, C = d.y, w = r.determinant_3x3(f, p, 1, m, h, 1, g, _, 1), T = r.determinant_3x3(v, y, 1, b, x, 1, S, C, 1), w * T < 0 && n++, n != 0 && n != 4) return !1;
 		}
 		return !0;
 	}
-}, ee = class extends c {
+}, te = class extends c {
 	constructor() {
 		super();
 		let e = new h();
@@ -2603,10 +2605,10 @@ var I = class extends c {
 		}
 		this.cache.put_buffer(C), this.cache.put_buffer(w), this.cache.put_buffer(T);
 	}
-}, H = c;
-c.cache = s, c.pyramid_t = S, c.matrix_t = l, c.keypoint_t = w, c.ransac_params_t = L, c.transform = new C(), c.fast_corners = new x(), c.imgproc = new h(), c.math = new m(), c.matmath = new v(), c.linalg = new y(), c.orb = new D(), c.yape = new N(), c.yape06 = new I(), c.motion_estimator = new R(), c.affine2d = new B(), c.homography2d = new V(), c.optical_flow_lk = new ee();
+}, q = c;
+c.cache = s, c.pyramid_t = C, c.matrix_t = l, c.keypoint_t = T, c.ransac_params_t = H, c.transform = new w(), c.fast_corners = new S(), c.imgproc = new h(), c.math = new m(), c.matmath = new y(), c.linalg = new b(), c.orb = new O(), c.yape = new L(), c.yape06 = new ee(), c.motion_estimator = new U(), c.affine2d = new G(), c.homography2d = new K(), c.optical_flow_lk = new te();
 //#endregion
 //#region src/index.ts
-var U = H;
+var ne = q;
 //#endregion
-export { U as default };
+export { ne as default };
