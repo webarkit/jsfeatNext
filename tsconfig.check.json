@@ -13,7 +13,7 @@
         "",
         "tests/** is deliberately NOT included yet: it currently has 32 pre-existing",
         "type errors (mostly matrix_t vs Float32Array in the parity helpers), which",
-        "are a separate job from wiring up the check. Tracked separately -- widening",
+        "are a separate job from wiring up the check. Tracked in #171 -- widening",
         "this include is the last step of that work, not the first."
     ],
     "extends": "./tsconfig.json",
