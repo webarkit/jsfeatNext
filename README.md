@@ -2,7 +2,6 @@
 ![github stars](https://flat.badgen.net/github/stars/webarkit/jsfeatNext)
 ![github forks](https://flat.badgen.net/github/forks/webarkit/jsfeatNext)
 ![npm package version](https://flat.badgen.net/npm/v/@webarkit/jsfeat-next)
-![Dependabot Badge](https://flat.badgen.net/dependabot/@webarkit/jsfeat-next?icon=dependabot)
 [![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square)](https://github.com/prettier/prettier)
 [![CI](https://github.com/webarkit/jsfeatNext/actions/workflows/CI.yml/badge.svg)](https://github.com/webarkit/jsfeatNext/actions/workflows/CI.yml)
 [![Benchmarks](https://github.com/webarkit/jsfeatNext/actions/workflows/bench.yml/badge.svg)](https://github.com/webarkit/jsfeatNext/actions/workflows/bench.yml)
@@ -151,6 +150,8 @@ Every public class, interface, method and property has TSDoc comments. Run `npm 
 ## Contributing 🤝
 
 See [`AGENTS.md`](AGENTS.md) for the canonical contribution conventions (Conventional Commits, PRs target `dev` not `main`, numeric-parity expectations) and [`MAINTAINERS.md`](MAINTAINERS.md) for the release process.
+
+Dependencies and GitHub Actions are kept current by [Dependabot](https://docs.github.com/en/code-security/dependabot), which opens its own PRs against `dev` — they go through the same CI and review as any other change.
 
 ## Releases & changelog 📦
 
