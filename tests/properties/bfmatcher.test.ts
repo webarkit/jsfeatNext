@@ -91,6 +91,17 @@ describe("bfmatcher.match", () => {
         }
     });
 
+    it("cross_check with an empty train set yields no matches", () => {
+        // Degenerate but reachable: with no train descriptors every query's
+        // forward best is -1, so the backward pass skips them all.
+        const q = randomDescriptors(4, 32, 9120);
+        const t = new jsfeatNext.matrix_t(32, 0, OU8C1);
+        jsfeatNext.bfmatcher.cross_check = true;
+        const matches = jsfeatNext.bfmatcher.match(q, t, 256);
+        jsfeatNext.bfmatcher.cross_check = false;
+        expect(matches.length).toBe(0);
+    });
+
     it("works at 64 bytes per descriptor (TEBLID p512 width)", () => {
         const q = randomDescriptors(9, 64, 9106);
         const t = randomDescriptors(9, 64, 9106); // same seed -> identical data
@@ -150,5 +161,39 @@ describe("bfmatcher.knnMatch / ratio_test", () => {
         const knn = jsfeatNext.bfmatcher.knnMatch(q, t, 2);
         const good = jsfeatNext.bfmatcher.ratio_test(knn, 0.9);
         expect(good.length).toBe(0);
+    });
+
+    it("ratio_test keeps a distinctive match (best clearly closer than second-best)", () => {
+        // Query equals train row 0 exactly (distance 0); row 1 is far. The
+        // best/second-best ratio is 0, well under any threshold, so it passes.
+        const t = new jsfeatNext.matrix_t(32, 2, OU8C1);
+        const r = rng(9114);
+        for (let i = 0; i < 32; i++) t.data[i] = (r() * 256) | 0; // row 0
+        for (let i = 32; i < 64; i++) t.data[i] = ~t.data[i - 32] & 0xff; // row 1: bitwise-opposite, max distance
+        const q = randomDescriptors(1, 32, 9114); // same seed as row 0 -> distance 0
+        const knn = jsfeatNext.bfmatcher.knnMatch(q, t, 2);
+        expect(knn[0].length).toBe(2);
+        const good = jsfeatNext.bfmatcher.ratio_test(knn, 0.75);
+        expect(good.length).toBe(1);
+        expect(good[0].distance).toBe(0);
+    });
+
+    it("ratio_test yields nothing when knnMatch found no neighbours (empty train)", () => {
+        const q = randomDescriptors(3, 32, 9130);
+        const t = new jsfeatNext.matrix_t(32, 0, OU8C1);
+        const knn = jsfeatNext.bfmatcher.knnMatch(q, t, 2);
+        for (const row of knn) expect(row.length).toBe(0);
+        expect(jsfeatNext.bfmatcher.ratio_test(knn).length).toBe(0);
+    });
+
+    it("ratio_test keeps a match with only one neighbour (nothing to compare against)", () => {
+        // A single-descriptor train set means knnMatch returns rows of length 1:
+        // there is no second-best to fail the ratio against, so the match is kept.
+        const q = randomDescriptors(3, 32, 9112);
+        const t = randomDescriptors(1, 32, 9113);
+        const knn = jsfeatNext.bfmatcher.knnMatch(q, t, 2);
+        for (const row of knn) expect(row.length).toBe(1);
+        const good = jsfeatNext.bfmatcher.ratio_test(knn, 0.5);
+        expect(good.length).toBe(3);
     });
 });
