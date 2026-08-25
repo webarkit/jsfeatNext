@@ -1,4 +1,71 @@
 
+## 0.14.0 - 2026-08-25
+
+### ⚡ Performance
+
+- Share one data_type instance instead of one per matrix_t (017ce32)
+
+- Hoist EPSILON out of invert_3x3's per-call path (c5323ef)
+
+- Alias imported helpers to module-scope consts (6d33e78)
+
+
+### 🐛 Bug Fixes
+
+- Scope detector thresholds per suite and bound the keypoint pools (cfb9fc6)
+
+- Assert detector count parity and reconcile the thr60 verdict (e781f82)
+
+- Fix type error hidden by tsconfig scope and bound the LK pool (03e40e1)
+
+- Fix Math.random leak using tinybench's own teardown option (1044dd5)
+
+- Redesign the resize case around a fixed target, fix scope claims (2b212ab)
+
+- Fix collection-time node leak, wording nits from third review pass (66fc38a)
+
+- Fix qsort comparator and transform storage confound (46d98db)
+
+- Avoid ambiguity: the title said PR but it's an issue (74fdd6c)
+
+- Resolve the README contradiction, scope the perf claim (8bcd20d)
+
+- Restore contiguous imports, correct the yape06 rationale (3f5b956)
+
+- Correct callout in the section header because misleading (3b475f3)
+
+
+### 📚 Documentation
+
+- Add a Current status table, realign three stale verdicts (6944511)
+
+- Add benchmark history data as .jsonl (66a5b67)
+
+- Link the tests/** typecheck gap to issue #171 (377c656)
+
+- Drop the broken Dependabot badge, note Dependabot in Contributing (d8c3a00)
+
+
+### 🚀 Features
+
+- Add detector benchmarks, surfacing a real YAPE slowdown (655e382)
+
+- Add optical_flow_lk throughput benchmark (519c492)
+
+- Add linalg throughput benchmarks, surfacing a broader slowdown (2df9146)
+
+- Add motion_estimator throughput benchmarks (d78e660)
+
+- Add cache pool throughput benchmarks, closing out phase 2 (8751ef0)
+
+- Add math, matmath and transform benchmarks, completing phase 2 (65e8ea2)
+
+- Add motion_model kernel benchmarks, surfacing a per-call allocation (eb10ddb)
+
+- Gate on a bench smoke check, add local ratio history (#86 phase 3) (e63d6f1)
+
+
+
 ## 0.13.0 - 2026-08-20
 
 ### ⚡ Performance
