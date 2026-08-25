@@ -70,6 +70,9 @@ describe("0.9.0 API shape (issue #41)", () => {
         expect(typeof jsfeatNext.affine2d.run).toBe("function");
         expect(typeof jsfeatNext.homography2d.run).toBe("function");
         expect(typeof jsfeatNext.cache.get_buffer).toBe("function");
+        expect(typeof jsfeatNext.bfmatcher.match).toBe("function");
+        expect(typeof jsfeatNext.bfmatcher.knnMatch).toBe("function");
+        expect(typeof jsfeatNext.bfmatcher.ratio_test).toBe("function");
     });
 
     it("singletons are stable identities (state persists across accesses)", () => {
@@ -104,11 +107,16 @@ describe("0.9.0 API shape (issue #41)", () => {
         expect(p.levels).toBe(3);
         const r = new jsfeatNext.ransac_params_t(4, 3.0, 0.5, 0.99);
         expect(r.size).toBe(4);
+        const mt = new jsfeatNext.match_t(1, 2, 30);
+        expect(mt.queryIdx).toBe(1);
+        expect(mt.trainIdx).toBe(2);
+        expect(mt.distance).toBe(30);
     });
 
     it("constants remain on the namespace", () => {
         expect(jsfeatNext.U8_t).toBe(0x0100);
         expect(jsfeatNext.F32C1_t).toBe(0x0400 | 0x01);
         expect(jsfeatNext.COLOR_RGBA2GRAY).toBe(0);
+        expect(jsfeatNext.NORM_HAMMING).toBe(6);
     });
 });

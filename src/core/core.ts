@@ -60,6 +60,8 @@ import type { motion_estimator } from "../motion_estimator/motion_estimator";
 import type { optical_flow_lk } from "../optical_flow_lk/optical_flow_lk";
 import type { orb } from "../orb/orb";
 import type { affine2d, homography2d } from "../motion_model/motion_model";
+import type { bfmatcher } from "../bfmatcher/bfmatcher";
+import type { match_t } from "../bfmatcher/match_t";
 
 /**
  * The ONE shared scratch-buffer pool of the library (30 buffers of 2560
@@ -108,6 +110,8 @@ export default class jsfeatNext {
     static motion_estimator: motion_estimator;
     static optical_flow_lk: optical_flow_lk;
     static orb: orb;
+    static bfmatcher: bfmatcher;
+    static match_t: typeof match_t;
 
     constructor() {
         this.dt = shared_data_type;
@@ -141,6 +145,7 @@ export default class jsfeatNext {
     // svd options
     static SVD_U_T = JSFEAT_CONSTANTS.SVD_U_T;
     static SVD_V_T = JSFEAT_CONSTANTS.SVD_V_T;
+    static NORM_HAMMING = JSFEAT_CONSTANTS.NORM_HAMMING;
 
     // popular formats
     static U8C1_t = this.U8_t | this.C1_t;

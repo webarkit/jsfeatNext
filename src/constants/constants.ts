@@ -98,6 +98,10 @@ export const JSFEAT_CONSTANTS = {
     /** `linalg.svd_decompose` option: return V transposed. */
     SVD_V_T: 0x02,
 
+    // matcher norm
+    /** `bfmatcher`'s distance norm. Mirrors OpenCV's `cv::NORM_HAMMING` value; the only norm implemented. */
+    NORM_HAMMING: 6,
+
     // popular formats
     /** 8-bit unsigned, 1 channel (`U8_t | C1_t`) — grayscale images. */
     U8C1_t: 0x0100 | 0x01,
