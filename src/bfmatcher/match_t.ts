@@ -34,10 +34,6 @@
  *
  *  Author(s): Walter Perdan @kalwalt https://github.com/kalwalt
  *
- *  Portions of this file are derived from jsfeat
- *  (https://github.com/inspirit/jsfeat), Copyright (c) Eugene Zatepyakin,
- *  released under the MIT License.
- *
  */
 
 /** Public shape of {@link match_t}. */
