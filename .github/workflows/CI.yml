@@ -62,7 +62,7 @@ jobs:
 
             # Runs the suite once, with the coverage summary printed in the log
             # (issue #123). Coverage is a gap detector here, not a gate: no
-            # threshold fails the build, deliberately — see vitest.config.ts.
+            # threshold fails the build, deliberately — see vitest.config.mts.
             - name: Test (with coverage summary)
               run: npm run test:coverage
 
