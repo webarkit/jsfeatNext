@@ -42,7 +42,15 @@ const EXTENDED = new Map([
  * upstream attribution block, so the credit stays truthful.
  * Everything else under src/ is a port of the corresponding jsfeat code.
  */
-const ORIGINAL_SRC = new Set(["src/types.ts", "src/index.ts"]);
+const ORIGINAL_SRC = new Set([
+    "src/types.ts",
+    "src/index.ts",
+    // match_t is an OpenCV-shaped value type (cv::DMatch equivalent); jsfeat
+    // never shipped a matcher or any such type, so nothing here is derived.
+    // (bfmatcher.ts itself IS derived — it ports the sample's popcnt32/
+    // match_pattern — and correctly keeps the attribution.)
+    "src/bfmatcher/match_t.ts",
+]);
 
 /**
  * Third-party or foreign-provenance files. Never stamp these — they either
