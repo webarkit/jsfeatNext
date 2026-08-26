@@ -50,6 +50,9 @@ const ORIGINAL_SRC = new Set([
     // (bfmatcher.ts itself IS derived — it ports the sample's popcnt32/
     // match_pattern — and correctly keeps the attribution.)
     "src/bfmatcher/match_t.ts",
+    // pose_estimator is a new module: jsfeat has no pose/homography-
+    // decomposition code, so nothing here is derived from it.
+    "src/pose_estimator/pose_estimator.ts",
 ]);
 
 /**

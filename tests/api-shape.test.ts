@@ -111,6 +111,15 @@ describe("0.9.0 API shape (issue #41)", () => {
         expect(mt.queryIdx).toBe(1);
         expect(mt.trainIdx).toBe(2);
         expect(mt.distance).toBe(30);
+        // pose_estimator is a stateful CONSTRUCTOR (holds intrinsics), not a
+        // singleton -- its intrinsics() factory is static, reachable on the
+        // namespace class; pose_t is its output data-struct.
+        expect(typeof jsfeatNext.pose_estimator.intrinsics).toBe("function");
+        const K = jsfeatNext.pose_estimator.intrinsics(640, 480);
+        const est = new jsfeatNext.pose_estimator(K);
+        expect(typeof est.estimate).toBe("function");
+        const pose = new jsfeatNext.pose_t();
+        expect(pose.good).toBe(false);
     });
 
     it("constants remain on the namespace", () => {
