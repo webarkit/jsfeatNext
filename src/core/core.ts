@@ -62,6 +62,7 @@ import type { orb } from "../orb/orb";
 import type { affine2d, homography2d } from "../motion_model/motion_model";
 import type { bfmatcher } from "../bfmatcher/bfmatcher";
 import type { match_t } from "../bfmatcher/match_t";
+import type { pose_estimator, pose_t } from "../pose_estimator/pose_estimator";
 
 /**
  * The ONE shared scratch-buffer pool of the library (30 buffers of 2560
@@ -112,6 +113,8 @@ export default class jsfeatNext {
     static orb: orb;
     static bfmatcher: bfmatcher;
     static match_t: typeof match_t;
+    static pose_estimator: typeof pose_estimator;
+    static pose_t: typeof pose_t;
 
     constructor() {
         this.dt = shared_data_type;
