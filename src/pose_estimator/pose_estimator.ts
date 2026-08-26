@@ -56,7 +56,12 @@ export interface IPose_T {
  * allocation.
  */
 export class pose_t implements IPose_T {
+    /** Rotation as a 3×3 `matrix_t`: the type the rest of jsfeatNext's matrix
+     *  math and any downstream consumer expects. */
     public R: matrix_t;
+    /** Translation as a bare `Float64Array(3)` rather than a 3×1 `matrix_t`:
+     *  jsfeatNext has no 1-column matrix consumer for it, and a plain vector is
+     *  what the renderer adapters up in #97 will read. */
     public t: Float64Array;
     public good: boolean;
 

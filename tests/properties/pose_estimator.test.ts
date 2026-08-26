@@ -189,6 +189,37 @@ describe("pose_estimator front-of-camera and degeneracy", () => {
         expect(p.t[2]).toBeGreaterThan(0);
     });
 
+    it("re-orthonormalizes: a noisy H still yields a proper rotation", () => {
+        // The clean round-trip above feeds already-orthonormal columns, so the
+        // re-orthonormalization step has nothing to correct. Perturb H so the
+        // mapped columns are NOT orthonormal, and assert the recovered R is
+        // still a proper rotation (orthonormal, det +1) -- i.e. that the step
+        // actually does its job rather than passing input through.
+        const R = rodrigues(0.5, 1, -0.3, 0.35);
+        const { H } = synthH(K, R, [0.2, -0.1, 2.5]);
+        // nudge a few entries: breaks the exact H = K[r1 r2 t] structure
+        H.data[0] *= 1.03;
+        H.data[4] *= 0.97;
+        H.data[7] += 0.5;
+
+        const p = new jsfeatNext.pose_t();
+        est.estimate(H, p);
+        expect(p.good).toBe(true);
+
+        const Rr = p.R.data;
+        const c1 = col(Rr, 0),
+            c2 = col(Rr, 1),
+            c3 = col(Rr, 2);
+        // Recovered R is orthonormal despite the non-orthonormal input columns.
+        expect(dot(c1, c1)).toBeCloseTo(1, 6);
+        expect(dot(c2, c2)).toBeCloseTo(1, 6);
+        expect(dot(c3, c3)).toBeCloseTo(1, 6);
+        expect(dot(c1, c2)).toBeCloseTo(0, 6);
+        expect(dot(c1, c3)).toBeCloseTo(0, 6);
+        expect(dot(c2, c3)).toBeCloseTo(0, 6);
+        expect(det3(Rr)).toBeCloseTo(1, 5);
+    });
+
     it("invalid case: a degenerate homography yields good=false", () => {
         const H = new jsfeatNext.matrix_t(3, 3, F64C1); // all zeros -> zero columns
         const p = new jsfeatNext.pose_t();
