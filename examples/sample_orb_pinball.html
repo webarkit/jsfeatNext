@@ -421,78 +421,48 @@
                     return good_cnt;
                 }
 
-                // non zero bits count
-                function popcnt32(n) {
-                    n -= ((n >> 1) & 0x55555555);
-                    n = (n & 0x33333333) + ((n >> 2) & 0x33333333);
-                    return (((n + (n >> 4)) & 0xF0F0F0F) * 0x1010101) >> 24;
-                }
-
-                // naive brute-force matching.
-                // each on screen point is compared to all pattern points
-                // to find the closest match
+                // Brute-force matching via jsfeat.bfmatcher (was an inline
+                // popcnt32/match_pattern loop before it became a module -- see #133).
+                //
+                // bfmatcher.match takes ONE train set, but the pattern is stored
+                // across num_train_levels pyramid levels and each match must know
+                // which level it came from (find_transform looks up
+                // pattern_corners[pattern_lev][pattern_idx]). So we run the matcher
+                // once per level and keep the global best per query -- the level
+                // loop is application plumbing on top of the single-set matcher,
+                // exactly as noted in the parity test for #133.
                 function match_pattern() {
                     var q_cnt = screen_descriptors.rows;
-                    var query_du8 = screen_descriptors.data;
-                    var query_u32 = screen_descriptors.buffer.i32; // cast to integer buffer
-                    var qd_off = 0;
-                    var qidx = 0, lev = 0, pidx = 0, k = 0;
-                    var num_matches = 0;
-
-                    for (qidx = 0; qidx < q_cnt; ++qidx) {
-                        var best_dist = 256;
-                        var best_dist2 = 256;
-                        var best_idx = -1;
-                        var best_lev = -1;
-
-                        for (lev = 0; lev < num_train_levels; ++lev) {
-                            var lev_descr = pattern_descriptors[lev];
-                            var ld_cnt = lev_descr.rows;
-                            var ld_i32 = lev_descr.buffer.i32; // cast to integer buffer
-                            var ld_off = 0;
-
-                            for (pidx = 0; pidx < ld_cnt; ++pidx) {
-
-                                var curr_d = 0;
-                                // our descriptor is 32 bytes so we have 8 Integers
-                                for (k = 0; k < 8; ++k) {
-                                    curr_d += popcnt32(query_u32[qd_off + k] ^ ld_i32[ld_off + k]);
-                                }
-
-                                if (curr_d < best_dist) {
-                                    best_dist2 = best_dist;
-                                    best_dist = curr_d;
-                                    best_lev = lev;
-                                    best_idx = pidx;
-                                } else if (curr_d < best_dist2) {
-                                    best_dist2 = curr_d;
-                                }
-
-                                ld_off += 8; // next descriptor
-                            }
-                        }
-
-                        // filter out by some threshold
-                        if (best_dist < options.match_threshold) {
-                            matches[num_matches].screen_idx = qidx;
-                            matches[num_matches].pattern_lev = best_lev;
-                            matches[num_matches].pattern_idx = best_idx;
-                            num_matches++;
-                        }
-                        //
-
-                        /* filter using the ratio between 2 closest matches
-                        if(best_dist < 0.8*best_dist2) {
-                            matches[num_matches].screen_idx = qidx;
-                            matches[num_matches].pattern_lev = best_lev;
-                            matches[num_matches].pattern_idx = best_idx;
-                            num_matches++;
-                        }
-                        */
-
-                        qd_off += 8; // next query descriptor
+                    var best_dist = [], best_lev = [], best_idx = [];
+                    for (var qi = 0; qi < q_cnt; ++qi) {
+                        best_dist[qi] = 256; best_lev[qi] = -1; best_idx[qi] = -1;
                     }
 
+                    // 256 = every match passes here; the real filter is the
+                    // per-query threshold below, matching the old behaviour.
+                    for (var lev = 0; lev < num_train_levels; ++lev) {
+                        var lev_matches = jsfeat.bfmatcher.match(screen_descriptors, pattern_descriptors[lev], 256);
+                        for (var i = 0; i < lev_matches.length; ++i) {
+                            var m = lev_matches[i];
+                            // strictly-less keeps the first (lowest level, then
+                            // lowest index) winner on a tie, as the old loop did.
+                            if (m.distance < best_dist[m.queryIdx]) {
+                                best_dist[m.queryIdx] = m.distance;
+                                best_lev[m.queryIdx] = lev;
+                                best_idx[m.queryIdx] = m.trainIdx;
+                            }
+                        }
+                    }
+
+                    var num_matches = 0;
+                    for (var qi = 0; qi < q_cnt; ++qi) {
+                        if (best_dist[qi] < options.match_threshold) {
+                            matches[num_matches].screen_idx = qi;
+                            matches[num_matches].pattern_lev = best_lev[qi];
+                            matches[num_matches].pattern_idx = best_idx[qi];
+                            num_matches++;
+                        }
+                    }
                     return num_matches;
                 }
 
