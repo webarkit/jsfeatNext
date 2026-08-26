@@ -228,6 +228,69 @@ describe("pose_estimator front-of-camera and degeneracy", () => {
         expect(p.good).toBe(false);
     });
 
+    it("invalid case: a near-zero SECOND column also yields good=false", () => {
+        // The all-zero H above trips the guard on the first column (n1 < eps),
+        // short-circuiting the ||. This drives a valid first column but a
+        // near-zero second one, so the guard's n2 branch is what rejects it.
+        const R = rodrigues(0, 1, 0, 0.2);
+        const { H } = synthH(K, R, [0.1, 0.0, 2.0]);
+        // zero out K⁻¹H's second column by zeroing H's second column: since
+        // K is upper-triangular with K⁻¹ preserving column structure, a zero
+        // H column maps to a zero B column.
+        H.data[1] = 0;
+        H.data[4] = 0;
+        H.data[7] = 0;
+        const p = new jsfeatNext.pose_t();
+        p.good = true;
+        est.estimate(H, p);
+        expect(p.good).toBe(false);
+    });
+
+    it("antiparallel mapped columns do not produce NaN (the normalize zero-guard)", () => {
+        // Craft H so that K⁻¹H's first two columns are antiparallel: b1 = [1,0,0],
+        // b2 = [-1,0,0]. Both have length 1, so the n1/n2 degeneracy guard passes,
+        // but r1 + r2 = 0 and cross(r1, r2) = 0 -- which drives normalize()'s
+        // `|| 1` zero-length fallback. Without that guard the result would be NaN.
+        // H = K · B, so K⁻¹H = B exactly.
+        const Bcols = [1, -1, 0, 0, 0, 0, 0, 0, 1]; // row-major; columns [1,0,0],[-1,0,0],[0,0,1]
+        const k = K.data;
+        const H = new jsfeatNext.matrix_t(3, 3, F64C1);
+        for (let r = 0; r < 3; r++) {
+            for (let c = 0; c < 3; c++) {
+                H.data[r * 3 + c] = k[r * 3] * Bcols[c] + k[r * 3 + 1] * Bcols[3 + c] + k[r * 3 + 2] * Bcols[6 + c];
+            }
+        }
+        const p = est.estimate(H);
+        // The guard fired; the pose is meaningless but every entry is finite.
+        for (let i = 0; i < 9; i++) expect(Number.isNaN(p.R.data[i])).toBe(false);
+        for (let i = 0; i < 3; i++) expect(Number.isNaN(p.t[i])).toBe(false);
+    });
+
+    it("setIntrinsics swaps the calibration used by estimate", () => {
+        // Build the SAME world pose, but synthesize its homography under two
+        // different intrinsics. An estimator told the wrong K recovers the
+        // wrong translation; after setIntrinsics(correct K) it recovers the
+        // right one -- proving setIntrinsics actually takes effect.
+        const R = rodrigues(0, 1, 0, 0.2);
+        const t: [number, number, number] = [0.15, -0.1, 2.5];
+
+        const Kwide = jsfeatNext.pose_estimator.intrinsics(640, 480, 90);
+        const Ktele = jsfeatNext.pose_estimator.intrinsics(640, 480, 40);
+        const { H } = synthH(Ktele, R, t); // homography actually taken with Ktele
+
+        const est2 = new jsfeatNext.pose_estimator(Kwide); // wrong K to start
+        const wrong = est2.estimate(H);
+        expect(wrong.good).toBe(true);
+        // With the wrong (wider) K the recovered tz is off from the truth.
+        const wrongErr = Math.abs(wrong.t[2] - t[2]);
+        expect(wrongErr).toBeGreaterThan(0.1);
+
+        est2.setIntrinsics(Ktele); // now the correct calibration
+        const right = est2.estimate(H);
+        expect(right.good).toBe(true);
+        for (let i = 0; i < 3; i++) expect(right.t[i]).toBeCloseTo(t[i], 3);
+    });
+
     it("estimate allocates a fresh pose_t when none is passed", () => {
         const R = rodrigues(1, 0, 0, 0.1);
         const { H } = synthH(K, R, [0, 0, 2.0]);
