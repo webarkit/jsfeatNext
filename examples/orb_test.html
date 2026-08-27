@@ -90,10 +90,14 @@
         jsfeatNext.imgproc.gaussian_blur(img, smooth, 5);
         jsfeatNext.imgproc.gaussian_blur(brighter, smoothBright, 5);
 
-        // keypoint_t(x, y, score, level, angle) — angle in radians, or -1 to let
-        // ORB work out the patch orientation itself.
-        const pointP = [new jsfeatNext.keypoint_t(40, 40, 0, 0, -1)];
-        const pointQ = [new jsfeatNext.keypoint_t(80, 70, 0, 0, -1)];
+        // keypoint_t(x, y, score, level, angle) — angle in radians. describe()
+        // does NOT work the orientation out itself: it rotates the patch by
+        // whatever angle it is given, so the keypoint_t default of -1 would
+        // rotate by -1 radian. Real pipelines call orb.ic_angle() first (see
+        // sample_orb.html); this test fixes the angle at 0 because it only
+        // compares a patch against itself under a brightness change.
+        const pointP = [new jsfeatNext.keypoint_t(40, 40, 0, 0, 0)];
+        const pointQ = [new jsfeatNext.keypoint_t(80, 70, 0, 0, 0)];
 
         // Destination matrices: 32 columns (bytes per descriptor) x rows = count.
         const descP = new jsfeatNext.matrix_t(32, 1, jsfeatNext.U8_t | jsfeatNext.C1_t);
