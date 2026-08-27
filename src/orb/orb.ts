@@ -58,6 +58,16 @@ import { rectify_patch } from "./rectify_patch";
  * Mirrors `jsfeat.orb` from the original library.
  * (Moved out of the src/jsfeatNext.ts monolith in issue #47.)
  */
+/**
+ * Per-row half-widths of the circular patch used by {@link orb.ic_angle},
+ * indexed by `|v|` for `v` in `[-15, 15]`: row `v` spans `u ∈ [-u_max[v], u_max[v]]`.
+ *
+ * Module scope, not an instance field: it is a read-only constant shared by
+ * every call, and hoisting it out of the method keeps the hot loop free of a
+ * per-call allocation (the same reason `bit_pattern_31` lives in its own file).
+ */
+const u_max = new Int32Array([15, 15, 15, 15, 14, 14, 14, 13, 13, 12, 11, 10, 9, 8, 6, 3, 0]);
+
 export class orb extends jsfeatNext {
     /** The learned 256-pair sampling pattern (flat `[x1,y1,x2,y2,…]`). */
     public bit_pattern_31_: Int32Array;
@@ -74,6 +84,77 @@ export class orb extends jsfeatNext {
         this.H = new matrix_t(3, 3, JSFEAT_CONSTANTS.F32_t | JSFEAT_CONSTANTS.C1_t);
         this.patch_img = new matrix_t(32, 32, JSFEAT_CONSTANTS.U8_t | JSFEAT_CONSTANTS.C1_t);
         this.imgproc = new imgproc();
+    }
+
+    /**
+     * Dominant orientation of the patch around `(px, py)`, in radians — the
+     * "intensity centroid" measure ORB uses to make its descriptors
+     * rotation-invariant.
+     *
+     * The angle points from the patch centre toward its intensity centroid,
+     * computed from the first-order image moments `m01`/`m10` over a circular
+     * patch of radius 15 (see {@link u_max}), then `atan2(m01, m10)`.
+     *
+     * @remarks
+     * **This is a required step before {@link describe}, not an optional one.**
+     * `describe` reads each keypoint's `angle` and rotates the sampling patch by
+     * it; it does *not* compute the orientation itself. A `keypoint_t` left at
+     * the default `angle = -1` is therefore described with the patch rotated by
+     * −1 **radian** (≈ −57°), not "unrotated" — so detectors, which never set
+     * `angle`, must be followed by a pass through this method:
+     *
+     * ```ts
+     * const count = jsfeatNext.yape06.detect(img, corners, 17);
+     * for (let i = 0; i < count; ++i) {
+     *     corners[i].angle = jsfeatNext.orb.ic_angle(img, corners[i].x, corners[i].y);
+     * }
+     * jsfeatNext.orb.describe(img, corners, count, descriptors);
+     * ```
+     *
+     * **Keep `(px, py)` at least 15 px from every image edge.** The patch is
+     * read directly from `src` with no bounds check (matching the original
+     * implementation, and mirroring {@link describe}'s own margin requirement —
+     * pass a detector `border` of ≥ 20 and both are satisfied at once).
+     *
+     * @param src Source grayscale image (single-channel `U8`).
+     * @param px  Keypoint X (column) coordinate, in pixels.
+     * @param py  Keypoint Y (row) coordinate, in pixels.
+     * @returns   Orientation in radians, in `(-π, π]`.
+     */
+    ic_angle(src: matrix_t, px: number, py: number): number {
+        const half_k = 15; // half patch size
+        let m_01 = 0,
+            m_10 = 0;
+        const s = src.data,
+            step = src.cols;
+        let u = 0,
+            v = 0;
+        const center_off = (py * step + px) | 0;
+        let v_sum = 0,
+            d = 0,
+            val_plus = 0,
+            val_minus = 0;
+
+        // Treat the centre line differently, v = 0.
+        for (u = -half_k; u <= half_k; ++u) {
+            m_10 += u * s[center_off + u];
+        }
+
+        // Go line by line in the circular patch, processing the symmetric pair
+        // of rows (+v, -v) together.
+        for (v = 1; v <= half_k; ++v) {
+            v_sum = 0;
+            d = u_max[v];
+            for (u = -d; u <= d; ++u) {
+                val_plus = s[center_off + u + v * step];
+                val_minus = s[center_off + u - v * step];
+                v_sum += val_plus - val_minus;
+                m_10 += u * (val_plus + val_minus);
+            }
+            m_01 += v * v_sum;
+        }
+
+        return Math.atan2(m_01, m_10);
     }
 
     /**
