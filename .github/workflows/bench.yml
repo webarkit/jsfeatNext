@@ -102,7 +102,7 @@ jobs:
             # checked-in baseline invites the cross-machine comparison this whole
             # design avoids, and the durable history is built from local runs.
             - name: Upload results
-              uses: actions/upload-artifact@v5
+              uses: actions/upload-artifact@v7
               with:
                   name: bench-ratios-${{ github.sha }}
                   path: bench-results/
