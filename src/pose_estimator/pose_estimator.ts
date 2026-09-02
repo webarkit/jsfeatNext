@@ -112,9 +112,23 @@ export class pose_t implements IPose_T {
 export class pose_estimator {
     /** Inverse intrinsics `K⁻¹`, row-major, assuming zero skew. */
     private Kinv: Float64Array;
+    /**
+     * Scratch for `B = K⁻¹·H` in {@link estimate}.
+     *
+     * An instance field rather than a per-call allocation: an estimator is
+     * built once and reused across frames, so at 30-60 fps a local would be a
+     * fresh array every frame for no benefit. It is not borrowed from the
+     * shared cache either — that pool exists for image-sized buffers, and
+     * balancing a get/put across the degenerate early return to save 72 bytes
+     * would cost more in bookkeeping than it saves.
+     *
+     * Overwritten in full on every call, so no state carries between frames.
+     */
+    private readonly B: Float64Array;
 
     constructor(K: matrix_t) {
         this.Kinv = pose_estimator.invertIntrinsics(K);
+        this.B = new Float64Array(9);
     }
 
     /** Replace the intrinsics (e.g. after a resolution change). */
@@ -180,8 +194,9 @@ export class pose_estimator {
         const h = H.data;
         const ki = this.Kinv;
 
-        // B = K⁻¹ · H, row-major.
-        const B = new Float64Array(9);
+        // B = K⁻¹ · H, row-major. Reuses the instance scratch; every entry is
+        // assigned below, so nothing survives from the previous call.
+        const B = this.B;
         for (let r = 0; r < 3; ++r) {
             for (let c = 0; c < 3; ++c) {
                 B[r * 3 + c] = ki[r * 3] * h[c] + ki[r * 3 + 1] * h[3 + c] + ki[r * 3 + 2] * h[6 + c];
