@@ -49,16 +49,6 @@ import { bit_pattern_31 } from "./bit_pattern_31";
 import { rectify_patch } from "./rectify_patch";
 
 /**
- * ORB binary descriptor extractor (Oriented FAST and Rotated BRIEF): for
- * each keypoint a rotation-rectified 32×32 patch is sampled and 256
- * pixel-pair comparisons from the learned {@link bit_pattern_31} pattern are
- * packed into a 32-byte binary descriptor. Descriptors are matched with
- * Hamming distance.
- *
- * Mirrors `jsfeat.orb` from the original library.
- * (Moved out of the src/jsfeatNext.ts monolith in issue #47.)
- */
-/**
  * Per-row half-widths of the circular patch used by {@link orb.ic_angle},
  * indexed by `|v|` for `v` in `[-15, 15]`: row `v` spans `u ∈ [-u_max[v], u_max[v]]`.
  *
@@ -68,6 +58,16 @@ import { rectify_patch } from "./rectify_patch";
  */
 const u_max = new Int32Array([15, 15, 15, 15, 14, 14, 14, 13, 13, 12, 11, 10, 9, 8, 6, 3, 0]);
 
+/**
+ * ORB binary descriptor extractor (Oriented FAST and Rotated BRIEF): for
+ * each keypoint a rotation-rectified 32×32 patch is sampled and 256
+ * pixel-pair comparisons from the learned {@link bit_pattern_31} pattern are
+ * packed into a 32-byte binary descriptor. Descriptors are matched with
+ * Hamming distance.
+ *
+ * Mirrors `jsfeat.orb` from the original library.
+ * (Moved out of the src/jsfeatNext.ts monolith in issue #47.)
+ */
 export class orb extends jsfeatNext {
     /** The learned 256-pair sampling pattern (flat `[x1,y1,x2,y2,…]`). */
     public bit_pattern_31_: Int32Array;
@@ -93,7 +93,7 @@ export class orb extends jsfeatNext {
      *
      * The angle points from the patch centre toward its intensity centroid,
      * computed from the first-order image moments `m01`/`m10` over a circular
-     * patch of radius 15 (see {@link u_max}), then `atan2(m01, m10)`.
+     * patch of radius 15 (see the module-level `u_max` table), then `atan2(m01, m10)`.
      *
      * @remarks
      * **This is a required step before {@link describe}, not an optional one.**
