@@ -1,4 +1,46 @@
 
+## 0.15.0 - 2026-09-02
+
+### 🐛 Bug Fixes
+
+- Rename vitest.config.ts to .mts to silence the CJS/ESM warning (63e802b)
+
+- Match_t is original, not derived from jsfeat (11572e4)
+
+
+### 📚 Documentation
+
+- Record the agreed 1.0.0 milestone plan (dcfb524)
+
+
+### 📦 Build
+
+- Bump actions/upload-artifact from 5 to 7 (7d28d72)
+
+- Bump vite from 8.2.1 to 8.2.2 (4ff82fc)
+
+
+### 🚀 Features
+
+- Brute-force Hamming matcher and match_t (f82d402)
+
+- Use bfmatcher in the ORB samples instead of inline match_pattern (4c48c50)
+
+- Closed-form planar pose from homography and intrinsics (c0ca5d5)
+
+- Expose ic_angle, the keypoint orientation step (#96) (3baaf09)
+
+
+### 🧪 Testing
+
+- Cover ratio_test edge cases and empty-train cross-check (5fb2402)
+
+- Perturbed-H orthonormalization case; document pose_t.t (eb54c61)
+
+- Cover setIntrinsics, the n2 guard, and the normalize zero-fallback (24a9c65)
+
+
+
 ## 0.14.0 - 2026-08-25
 
 ### ⚡ Performance
