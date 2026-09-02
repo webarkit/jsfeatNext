@@ -97,6 +97,32 @@ export class bfmatcher extends jsfeatNext {
         return descriptors.buffer.i32;
     }
 
+    /**
+     * Int32 views over a query/train PAIR, plus the row stride in words.
+     *
+     * Both matrices are addressed with a single stride, so a width mismatch is
+     * not a mild inconsistency: `train` rows would be read at `ti * word_len`,
+     * an offset computed from the QUERY width. The reads walk across train row
+     * boundaries and, past the end, an out-of-range `Int32Array` index yields
+     * `undefined`, which XOR coerces to 0. The result is a full set of
+     * confident, silently wrong Hamming distances rather than any error — the
+     * matcher would report its best guess over garbage.
+     *
+     * The row width being a multiple of 4 is checked per matrix by
+     * {@link words}; that check alone never compares the two.
+     *
+     * @throws {Error} if the widths differ, or either is not a multiple of 4.
+     */
+    private static pairWords(query: matrix_t, train: matrix_t): { qw: Int32Array; tw: Int32Array; word_len: number } {
+        if (query.cols !== train.cols) {
+            throw new Error(
+                `jsfeatNext.bfmatcher: query and train descriptors must have the same row width, ` +
+                    `got ${query.cols} and ${train.cols}`
+            );
+        }
+        return { qw: bfmatcher.words(query), tw: bfmatcher.words(train), word_len: query.cols >> 2 };
+    }
+
     private static hamming(qw: Int32Array, qoff: number, tw: Int32Array, toff: number, word_len: number): number {
         let d = 0;
         for (let k = 0; k < word_len; ++k) {
@@ -119,9 +145,7 @@ export class bfmatcher extends jsfeatNext {
     match(query: matrix_t, train: matrix_t, max_distance = 256): match_t[] {
         const q_cnt = query.rows;
         const t_cnt = train.rows;
-        const word_len = query.cols >> 2;
-        const qw = bfmatcher.words(query);
-        const tw = bfmatcher.words(train);
+        const { qw, tw, word_len } = bfmatcher.pairWords(query, train);
         const out: match_t[] = [];
 
         if (!this.cross_check) {
@@ -192,9 +216,7 @@ export class bfmatcher extends jsfeatNext {
     knnMatch(query: matrix_t, train: matrix_t, k = 2): match_t[][] {
         const q_cnt = query.rows;
         const t_cnt = train.rows;
-        const word_len = query.cols >> 2;
-        const qw = bfmatcher.words(query);
-        const tw = bfmatcher.words(train);
+        const { qw, tw, word_len } = bfmatcher.pairWords(query, train);
 
         const result: match_t[][] = [];
         for (let qi = 0; qi < q_cnt; ++qi) {

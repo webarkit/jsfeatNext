@@ -114,6 +114,50 @@ describe("bfmatcher.match", () => {
         const bad = new jsfeatNext.matrix_t(30, 4, OU8C1);
         expect(() => jsfeatNext.bfmatcher.match(bad, bad)).toThrow(/multiple of 4/);
     });
+
+    it("throws when query and train row widths differ", () => {
+        // Both matrices are addressed with ONE stride, taken from the query.
+        // A mismatch therefore reads train rows at the wrong offsets rather
+        // than failing, so this has to be rejected up front.
+        const q = randomDescriptors(4, 32, 9101);
+        const t = randomDescriptors(6, 16, 9102);
+        expect(() => jsfeatNext.bfmatcher.match(q, t)).toThrow(/same row width/);
+        expect(() => jsfeatNext.bfmatcher.knnMatch(q, t)).toThrow(/same row width/);
+    });
+
+    it("the width-mismatch message names both widths", () => {
+        const q = randomDescriptors(2, 32, 9103);
+        const t = randomDescriptors(2, 64, 9104);
+        expect(() => jsfeatNext.bfmatcher.match(q, t)).toThrow(/32 and 64/);
+    });
+
+    it("without the guard, a narrower train silently yields wrong distances", () => {
+        // Pins WHY the guard earns its place. Reading a 16-byte-wide train set
+        // with the query's 32-byte stride walks two train rows per step and,
+        // past the end, indexes out of range -- undefined, which XOR coerces to
+        // 0. Nothing throws; the distances are simply wrong. Reproduced here
+        // against the honest per-row computation.
+        const q = randomDescriptors(3, 32, 9105);
+        const narrow = randomDescriptors(8, 16, 9106);
+
+        const popcnt = (n: number) => {
+            n -= (n >> 1) & 0x55555555;
+            n = (n & 0x33333333) + ((n >> 2) & 0x33333333);
+            return (((n + (n >> 4)) & 0x0f0f0f0f) * 0x01010101) >> 24;
+        };
+        // what the old code did: stride 8 words for both
+        const qw = q.buffer.i32;
+        const tw = narrow.buffer.i32;
+        let bogus = 0;
+        for (let k = 0; k < 8; k++) bogus += popcnt(qw[k] ^ (tw[k] | 0));
+        // what an honest 16-byte comparison would be: 4 words
+        let honest = 0;
+        for (let k = 0; k < 4; k++) honest += popcnt(qw[k] ^ tw[k]);
+
+        expect(bogus).not.toBe(honest);
+        // and the guard means neither number is ever produced
+        expect(() => jsfeatNext.bfmatcher.match(q, narrow)).toThrow();
+    });
 });
 
 describe("bfmatcher.knnMatch / ratio_test", () => {
