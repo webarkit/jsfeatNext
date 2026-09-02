@@ -12,6 +12,8 @@
 
 - Record the agreed 1.0.0 milestone plan (dcfb524)
 
+- Restore the class description displaced by the ic_angle change (9c3d8b0)
+
 
 ### 📦 Build
 
