@@ -15,6 +15,9 @@ import { motion_estimator } from '../motion_estimator/motion_estimator';
 import { optical_flow_lk } from '../optical_flow_lk/optical_flow_lk';
 import { orb } from '../orb/orb';
 import { affine2d, homography2d } from '../motion_model/motion_model';
+import { bfmatcher } from '../bfmatcher/bfmatcher';
+import { match_t } from '../bfmatcher/match_t';
+import { pose_estimator, pose_t } from '../pose_estimator/pose_estimator';
 /**
  * The ONE shared scratch-buffer pool of the library (30 buffers of 2560
  * bytes, growable), matching original jsfeat's design where every module
@@ -60,6 +63,10 @@ export default class jsfeatNext {
     static motion_estimator: motion_estimator;
     static optical_flow_lk: optical_flow_lk;
     static orb: orb;
+    static bfmatcher: bfmatcher;
+    static match_t: typeof match_t;
+    static pose_estimator: typeof pose_estimator;
+    static pose_t: typeof pose_t;
     constructor();
     /** Library version, read from package.json at build time. */
     static VERSION: string;
@@ -81,6 +88,7 @@ export default class jsfeatNext {
     static BOX_BLUR_NOSCALE: number;
     static SVD_U_T: number;
     static SVD_V_T: number;
+    static NORM_HAMMING: number;
     static U8C1_t: number;
     static U8C3_t: number;
     static U8C4_t: number;

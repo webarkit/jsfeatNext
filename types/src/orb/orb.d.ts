@@ -2,16 +2,6 @@ import { default as jsfeatNext } from '../core/core';
 import { matrix_t } from '../matrix_t/matrix_t';
 import { keypoint_t } from '../keypoint_t/keypoint_t';
 import { imgproc } from '../imgproc/imgproc';
-/**
- * ORB binary descriptor extractor (Oriented FAST and Rotated BRIEF): for
- * each keypoint a rotation-rectified 32×32 patch is sampled and 256
- * pixel-pair comparisons from the learned {@link bit_pattern_31} pattern are
- * packed into a 32-byte binary descriptor. Descriptors are matched with
- * Hamming distance.
- *
- * Mirrors `jsfeat.orb` from the original library.
- * (Moved out of the src/jsfeatNext.ts monolith in issue #47.)
- */
 export declare class orb extends jsfeatNext {
     /** The learned 256-pair sampling pattern (flat `[x1,y1,x2,y2,…]`). */
     bit_pattern_31_: Int32Array;
@@ -22,6 +12,42 @@ export declare class orb extends jsfeatNext {
     /** Image-processing helper used for the affine patch warp. */
     imgproc: imgproc;
     constructor();
+    /**
+     * Dominant orientation of the patch around `(px, py)`, in radians — the
+     * "intensity centroid" measure ORB uses to make its descriptors
+     * rotation-invariant.
+     *
+     * The angle points from the patch centre toward its intensity centroid,
+     * computed from the first-order image moments `m01`/`m10` over a circular
+     * patch of radius 15 (see {@link u_max}), then `atan2(m01, m10)`.
+     *
+     * @remarks
+     * **This is a required step before {@link describe}, not an optional one.**
+     * `describe` reads each keypoint's `angle` and rotates the sampling patch by
+     * it; it does *not* compute the orientation itself. A `keypoint_t` left at
+     * the default `angle = -1` is therefore described with the patch rotated by
+     * −1 **radian** (≈ −57°), not "unrotated" — so detectors, which never set
+     * `angle`, must be followed by a pass through this method:
+     *
+     * ```ts
+     * const count = jsfeatNext.yape06.detect(img, corners, 17);
+     * for (let i = 0; i < count; ++i) {
+     *     corners[i].angle = jsfeatNext.orb.ic_angle(img, corners[i].x, corners[i].y);
+     * }
+     * jsfeatNext.orb.describe(img, corners, count, descriptors);
+     * ```
+     *
+     * **Keep `(px, py)` at least 15 px from every image edge.** The patch is
+     * read directly from `src` with no bounds check (matching the original
+     * implementation, and mirroring {@link describe}'s own margin requirement —
+     * pass a detector `border` of ≥ 20 and both are satisfied at once).
+     *
+     * @param src Source grayscale image (single-channel `U8`).
+     * @param px  Keypoint X (column) coordinate, in pixels.
+     * @param py  Keypoint Y (row) coordinate, in pixels.
+     * @returns   Orientation in radians, in `(-π, π]`.
+     */
+    ic_angle(src: matrix_t, px: number, py: number): number;
     /**
      * Computes 256-bit (32-byte) binary descriptors for `count` keypoints.
      * Each keypoint's `angle` is used to rotation-rectify its patch, making
