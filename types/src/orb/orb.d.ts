@@ -2,6 +2,16 @@ import { default as jsfeatNext } from '../core/core';
 import { matrix_t } from '../matrix_t/matrix_t';
 import { keypoint_t } from '../keypoint_t/keypoint_t';
 import { imgproc } from '../imgproc/imgproc';
+/**
+ * ORB binary descriptor extractor (Oriented FAST and Rotated BRIEF): for
+ * each keypoint a rotation-rectified 32×32 patch is sampled and 256
+ * pixel-pair comparisons from the learned {@link bit_pattern_31} pattern are
+ * packed into a 32-byte binary descriptor. Descriptors are matched with
+ * Hamming distance.
+ *
+ * Mirrors `jsfeat.orb` from the original library.
+ * (Moved out of the src/jsfeatNext.ts monolith in issue #47.)
+ */
 export declare class orb extends jsfeatNext {
     /** The learned 256-pair sampling pattern (flat `[x1,y1,x2,y2,…]`). */
     bit_pattern_31_: Int32Array;
@@ -19,7 +29,7 @@ export declare class orb extends jsfeatNext {
      *
      * The angle points from the patch centre toward its intensity centroid,
      * computed from the first-order image moments `m01`/`m10` over a circular
-     * patch of radius 15 (see {@link u_max}), then `atan2(m01, m10)`.
+     * patch of radius 15 (see the module-level `u_max` table), then `atan2(m01, m10)`.
      *
      * @remarks
      * **This is a required step before {@link describe}, not an optional one.**
