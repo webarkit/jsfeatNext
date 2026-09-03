@@ -44,6 +44,7 @@ import jsfeatNext from "../core/core";
 import { matrix_t } from "../matrix_t/matrix_t";
 import { match_t } from "./match_t";
 import { JSFEAT_CONSTANTS } from "../constants/constants";
+import { shared_data_type } from "../data_type/data_type";
 
 /**
  * Brute-force Hamming matcher for binary descriptors (ORB today; TEBLID/FREAK
@@ -83,16 +84,35 @@ export class bfmatcher extends jsfeatNext {
     }
 
     /**
+     * Physical width of one descriptor row, in bytes.
+     *
+     * NOT `cols`. `matrix_t.allocate` sizes its buffer as
+     * `cols * sizeof(type) * channel * rows`, so a row's storage depends on all
+     * three. Two matrices can share a `cols` and still have different row
+     * widths — a U8/C1 and a U8/C2 with `cols = 32` occupy 32 and 64 bytes —
+     * which is why the stride check below compares this rather than `cols`.
+     */
+    private static rowBytes(m: matrix_t): number {
+        return m.cols * m.channel * shared_data_type._get_data_type_size(m.type);
+    }
+
+    /**
      * Int32-word view over a descriptor matrix's full backing buffer, matching
      * `matrix_t.buffer.i32` — the same access the original sample uses.
      *
-     * @throws {Error} if `descriptors.cols` is not a multiple of 4 bytes.
+     * @throws {Error} if the descriptors are not `U8`, or if a row is not a
+     *         whole number of 4-byte words.
      */
     private static words(descriptors: matrix_t): Int32Array {
-        if ((descriptors.cols & 3) !== 0) {
-            throw new Error(
-                `jsfeatNext.bfmatcher: descriptor width must be a multiple of 4 bytes, got ${descriptors.cols}`
-            );
+        // Hamming over an i32 view only means anything for packed bytes. A F32
+        // matrix would have its float bit patterns XORed and popcounted, which
+        // produces numbers with no relation to descriptor similarity.
+        if (!(descriptors.type & JSFEAT_CONSTANTS.U8_t)) {
+            throw new Error("jsfeatNext.bfmatcher: descriptors must be U8");
+        }
+        const bytes = bfmatcher.rowBytes(descriptors);
+        if ((bytes & 3) !== 0) {
+            throw new Error(`jsfeatNext.bfmatcher: descriptor width must be a multiple of 4 bytes, got ${bytes}`);
         }
         return descriptors.buffer.i32;
     }
@@ -108,19 +128,24 @@ export class bfmatcher extends jsfeatNext {
      * confident, silently wrong Hamming distances rather than any error — the
      * matcher would report its best guess over garbage.
      *
-     * The row width being a multiple of 4 is checked per matrix by
-     * {@link words}; that check alone never compares the two.
+     * Compares {@link rowBytes}, not `cols`, so a channel or element-type
+     * difference cannot slip past a matching column count.
      *
-     * @throws {Error} if the widths differ, or either is not a multiple of 4.
+     * @throws {Error} if the row widths differ, or either matrix is rejected by
+     *         {@link words}.
      */
     private static pairWords(query: matrix_t, train: matrix_t): { qw: Int32Array; tw: Int32Array; word_len: number } {
-        if (query.cols !== train.cols) {
+        const qw = bfmatcher.words(query);
+        const tw = bfmatcher.words(train);
+        const qb = bfmatcher.rowBytes(query);
+        const tb = bfmatcher.rowBytes(train);
+        if (qb !== tb) {
             throw new Error(
                 `jsfeatNext.bfmatcher: query and train descriptors must have the same row width, ` +
-                    `got ${query.cols} and ${train.cols}`
+                    `got ${qb} and ${tb} bytes`
             );
         }
-        return { qw: bfmatcher.words(query), tw: bfmatcher.words(train), word_len: query.cols >> 2 };
+        return { qw, tw, word_len: qb >> 2 };
     }
 
     private static hamming(qw: Int32Array, qoff: number, tw: Int32Array, toff: number, word_len: number): number {
