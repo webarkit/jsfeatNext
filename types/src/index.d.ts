@@ -31,5 +31,7 @@ export type { keypoint_t } from './keypoint_t/keypoint_t';
 export type { pyramid_t } from './pyramid_t/pyramid_t';
 export type { point_t, IPoint_t } from './point_t/point_t';
 export type { ransac_params_t } from './motion_estimator/ransac_params_t';
+export type { match_t, IMatch_T } from './bfmatcher/match_t';
+export type { pose_t, IPose_T } from './pose_estimator/pose_estimator';
 export type { ICache } from './cache/cache';
 export type { TypedArray, NumericArray, MotionKernel } from './types';

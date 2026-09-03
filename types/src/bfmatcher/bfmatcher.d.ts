@@ -28,12 +28,41 @@ export declare class bfmatcher extends jsfeatNext {
     /** SWAR population count — identical to the sample's `popcnt32`. */
     private static popcnt32;
     /**
+     * Physical width of one descriptor row, in bytes.
+     *
+     * NOT `cols`. `matrix_t.allocate` sizes its buffer as
+     * `cols * sizeof(type) * channel * rows`, so a row's storage depends on all
+     * three. Two matrices can share a `cols` and still have different row
+     * widths — a U8/C1 and a U8/C2 with `cols = 32` occupy 32 and 64 bytes —
+     * which is why the stride check below compares this rather than `cols`.
+     */
+    private static rowBytes;
+    /**
      * Int32-word view over a descriptor matrix's full backing buffer, matching
      * `matrix_t.buffer.i32` — the same access the original sample uses.
      *
-     * @throws {Error} if `descriptors.cols` is not a multiple of 4 bytes.
+     * @throws {Error} if the descriptors are not `U8`, or if a row is not a
+     *         whole number of 4-byte words.
      */
     private static words;
+    /**
+     * Int32 views over a query/train PAIR, plus the row stride in words.
+     *
+     * Both matrices are addressed with a single stride, so a width mismatch is
+     * not a mild inconsistency: `train` rows would be read at `ti * word_len`,
+     * an offset computed from the QUERY width. The reads walk across train row
+     * boundaries and, past the end, an out-of-range `Int32Array` index yields
+     * `undefined`, which XOR coerces to 0. The result is a full set of
+     * confident, silently wrong Hamming distances rather than any error — the
+     * matcher would report its best guess over garbage.
+     *
+     * Compares {@link rowBytes}, not `cols`, so a channel or element-type
+     * difference cannot slip past a matching column count.
+     *
+     * @throws {Error} if the row widths differ, or either matrix is rejected by
+     *         {@link words}.
+     */
+    private static pairWords;
     private static hamming;
     /**
      * Nearest-neighbour match between two descriptor sets.

@@ -2637,66 +2637,80 @@ var V = z, ee = B, H = class extends c {
 	constructor(e = 0, t = 0, n = 0) {
 		this.queryIdx = e, this.trainIdx = t, this.distance = n;
 	}
-}, J = class e extends c {
+}, J = class t extends c {
 	constructor(e = i.NORM_HAMMING, t = !1) {
 		super(), this.norm_type = e, this.cross_check = t;
 	}
 	static popcnt32(e) {
 		return e -= e >> 1 & 1431655765, e = (e & 858993459) + (e >> 2 & 858993459), (e + (e >> 4) & 252645135) * 16843009 >> 24;
 	}
+	static rowBytes(t) {
+		return t.cols * t.channel * e._get_data_type_size(t.type);
+	}
 	static words(e) {
-		if (e.cols & 3) throw Error(`jsfeatNext.bfmatcher: descriptor width must be a multiple of 4 bytes, got ${e.cols}`);
+		if (!(e.type & i.U8_t)) throw Error("jsfeatNext.bfmatcher: descriptors must be U8");
+		let n = t.rowBytes(e);
+		if (n & 3) throw Error(`jsfeatNext.bfmatcher: descriptor width must be a multiple of 4 bytes, got ${n}`);
 		return e.buffer.i32;
 	}
-	static hamming(t, n, r, i, a) {
+	static pairWords(e, n) {
+		let r = t.words(e), i = t.words(n), a = t.rowBytes(e), o = t.rowBytes(n);
+		if (a !== o) throw Error(`jsfeatNext.bfmatcher: query and train descriptors must have the same row width, got ${a} and ${o} bytes`);
+		return {
+			qw: r,
+			tw: i,
+			word_len: a >> 2
+		};
+	}
+	static hamming(e, n, r, i, a) {
 		let o = 0;
-		for (let s = 0; s < a; ++s) o += e.popcnt32(t[n + s] ^ r[i + s]);
+		for (let s = 0; s < a; ++s) o += t.popcnt32(e[n + s] ^ r[i + s]);
 		return o;
 	}
-	match(t, n, r = 256) {
-		let i = t.rows, a = n.rows, o = t.cols >> 2, s = e.words(t), c = e.words(n), l = [];
+	match(e, n, r = 256) {
+		let i = e.rows, a = n.rows, { qw: o, tw: s, word_len: c } = t.pairWords(e, n), l = [];
 		if (!this.cross_check) {
-			for (let t = 0; t < i; ++t) {
-				let n = t * o, i = 2147483647, u = -1;
-				for (let t = 0; t < a; ++t) {
-					let r = e.hamming(s, n, c, t * o, o);
-					r < i && (i = r, u = t);
+			for (let e = 0; e < i; ++e) {
+				let n = e * c, i = 2147483647, u = -1;
+				for (let e = 0; e < a; ++e) {
+					let r = t.hamming(o, n, s, e * c, c);
+					r < i && (i = r, u = e);
 				}
-				u >= 0 && i <= r && l.push(new q(t, u, i));
+				u >= 0 && i <= r && l.push(new q(e, u, i));
 			}
 			return l;
 		}
 		let u = this.cache.get_buffer(i << 2), d = u.i32;
-		for (let t = 0; t < i; ++t) {
-			let n = t * o, r = 2147483647, i = -1;
-			for (let t = 0; t < a; ++t) {
-				let a = e.hamming(s, n, c, t * o, o);
-				a < r && (r = a, i = t);
+		for (let e = 0; e < i; ++e) {
+			let n = e * c, r = 2147483647, i = -1;
+			for (let e = 0; e < a; ++e) {
+				let a = t.hamming(o, n, s, e * c, c);
+				a < r && (r = a, i = e);
 			}
-			d[t] = i;
+			d[e] = i;
 		}
-		for (let t = 0; t < i; ++t) {
-			let n = d[t];
+		for (let e = 0; e < i; ++e) {
+			let n = d[e];
 			if (n < 0) continue;
-			let a = n * o, u = 2147483647, f = -1;
-			for (let t = 0; t < i; ++t) {
-				let n = e.hamming(s, t * o, c, a, o);
-				n < u && (u = n, f = t);
+			let a = n * c, u = 2147483647, f = -1;
+			for (let e = 0; e < i; ++e) {
+				let n = t.hamming(o, e * c, s, a, c);
+				n < u && (u = n, f = e);
 			}
-			f === t && u <= r && l.push(new q(t, n, u));
+			f === e && u <= r && l.push(new q(e, n, u));
 		}
 		return this.cache.put_buffer(u), l;
 	}
-	knnMatch(t, n, r = 2) {
-		let i = t.rows, a = n.rows, o = t.cols >> 2, s = e.words(t), c = e.words(n), l = [];
-		for (let t = 0; t < i; ++t) {
-			let n = t * o, i = [];
+	knnMatch(e, n, r = 2) {
+		let i = e.rows, a = n.rows, { qw: o, tw: s, word_len: c } = t.pairWords(e, n), l = [];
+		for (let e = 0; e < i; ++e) {
+			let n = e * c, i = [];
 			for (let l = 0; l < a; ++l) {
-				let a = e.hamming(s, n, c, l * o, o);
-				if (i.length < r) i.push(new q(t, l, a)), i.sort((e, t) => e.distance - t.distance);
+				let a = t.hamming(o, n, s, l * c, c);
+				if (i.length < r) i.push(new q(e, l, a)), i.sort((e, t) => e.distance - t.distance);
 				else if (a < i[i.length - 1].distance) {
-					let e = i[i.length - 1];
-					e.queryIdx = t, e.trainIdx = l, e.distance = a, i.sort((e, t) => e.distance - t.distance);
+					let t = i[i.length - 1];
+					t.queryIdx = e, t.trainIdx = l, t.distance = a, i.sort((e, t) => e.distance - t.distance);
 				}
 			}
 			l.push(i);
@@ -2717,7 +2731,7 @@ var V = z, ee = B, H = class extends c {
 	}
 }, X = class e {
 	constructor(t) {
-		this.Kinv = e.invertIntrinsics(t);
+		this.Kinv = e.invertIntrinsics(t), this.B = /* @__PURE__ */ new Float64Array(9);
 	}
 	setIntrinsics(t) {
 		this.Kinv = e.invertIntrinsics(t);
@@ -2741,7 +2755,7 @@ var V = z, ee = B, H = class extends c {
 		]);
 	}
 	estimate(t, n) {
-		let r = n || new Y(), i = t.data, a = this.Kinv, o = /* @__PURE__ */ new Float64Array(9);
+		let r = n || new Y(), i = t.data, a = this.Kinv, o = this.B;
 		for (let e = 0; e < 3; ++e) for (let t = 0; t < 3; ++t) o[e * 3 + t] = a[e * 3] * i[t] + a[e * 3 + 1] * i[3 + t] + a[e * 3 + 2] * i[6 + t];
 		let s = [
 			o[0],
