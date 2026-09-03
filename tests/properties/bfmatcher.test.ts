@@ -125,6 +125,28 @@ describe("bfmatcher.match", () => {
         expect(() => jsfeatNext.bfmatcher.knnMatch(q, t)).toThrow(/same row width/);
     });
 
+    it("rejects equal cols with different channel counts", () => {
+        // The subtle case: cols alone does not determine a row's storage.
+        // matrix_t sizes its buffer as cols * sizeof(type) * channel * rows, so
+        // a U8/C1 and a U8/C2 both at cols=32 occupy 32 and 64 bytes per row.
+        // Comparing cols would wave this through into the same stride
+        // corruption the guard exists to stop.
+        const c1 = new jsfeatNext.matrix_t(32, 4, jsfeatNext.U8_t | jsfeatNext.C1_t);
+        const c2 = new jsfeatNext.matrix_t(32, 4, jsfeatNext.U8_t | jsfeatNext.C2_t);
+        expect(c1.cols).toBe(c2.cols); // indistinguishable by the old check
+        expect(() => jsfeatNext.bfmatcher.match(c1, c2)).toThrow(/same row width/);
+        expect(() => jsfeatNext.bfmatcher.knnMatch(c1, c2)).toThrow(/same row width/);
+    });
+
+    it("rejects non-U8 descriptors", () => {
+        // Hamming over an i32 view is only meaningful for packed bytes; F32
+        // bit patterns would be XORed and popcounted into nonsense.
+        const f32 = new jsfeatNext.matrix_t(32, 4, jsfeatNext.F32_t | jsfeatNext.C1_t);
+        const u8 = randomDescriptors(4, 32, 9107);
+        expect(() => jsfeatNext.bfmatcher.match(f32, f32)).toThrow(/must be U8/);
+        expect(() => jsfeatNext.bfmatcher.match(u8, f32)).toThrow(/must be U8/);
+    });
+
     it("the width-mismatch message names both widths", () => {
         const q = randomDescriptors(2, 32, 9103);
         const t = randomDescriptors(2, 64, 9104);
