@@ -1,11 +1,15 @@
 
-## 0.15.0 - 2026-09-02
+## 0.15.0 - 2026-09-03
 
 ### 🐛 Bug Fixes
 
 - Rename vitest.config.ts to .mts to silence the CJS/ESM warning (63e802b)
 
 - Match_t is original, not derived from jsfeat (11572e4)
+
+- Reject mismatched descriptor widths and export the new types (1f0e55d)
+
+- Compare effective row bytes, not cols, and require U8 (6d87c69)
 
 
 ### 📚 Documentation
