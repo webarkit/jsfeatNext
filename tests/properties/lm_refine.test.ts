@@ -481,7 +481,11 @@ describe("motion_estimator.find_homography with refine_iters", () => {
 
         const me = jsfeatNext.motion_estimator;
         const kernel = jsfeatNext.homography2d;
-        const params = new jsfeatNext.ransac_params_t(4, 3.0, 0.5, 0.99);
+        // Seeded (issue #189's injectable rng): an unseeded Math.random can
+        // occasionally fail to land a clean 4-point subset within max_iters
+        // by bad luck alone, independent of anything this test is actually
+        // checking (found via a CI failure, unreproducible locally).
+        const params = new jsfeatNext.ransac_params_t(4, 3.0, 0.5, 0.99, jsfeatNext.math.mulberry32(2468));
 
         const model = new jsfeatNext.matrix_t(3, 3, F32C1);
         const mask = new jsfeatNext.matrix_t(N, 1, U8C1);
@@ -490,5 +494,140 @@ describe("motion_estimator.find_homography with refine_iters", () => {
         expect(ok).toBe(true);
         expect(model.data[8]).toBe(1);
         for (let i = 0; i < OUT; i++) expect(mask.data[i]).toBe(0);
+    });
+
+    it("recomputes the mask against the refined model, so model and mask still describe the same transform", () => {
+        // Qodo review finding on PR #193: the linear refit already recomputes
+        // its mask against its own model (see find_homography's own doc
+        // comment), but the LM refine step didn't -- the returned mask could
+        // describe a different transform than the one actually returned.
+        // Force a large, easily-observable shift between the pre-refine and
+        // post-refine model by seeding LM far from the RANSAC minimal-sample
+        // solution (only 4 exact points, so the initial fit is razor-thin
+        // and noisy points off it get inconsistently classified before vs.
+        // after LM pulls the model toward all of them).
+        const GT = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]; // identity
+        const from = [
+            { x: 10, y: 10 },
+            { x: 100, y: 10 },
+            { x: 10, y: 100 },
+            { x: 100, y: 100 },
+            // extra points, each nudged just past the 3.0px ransac threshold
+            // under the exact 4-point identity fit, but that a refit/refine
+            // pulling the model toward the whole set could bring back inside it
+            { x: 55, y: 10 },
+            { x: 10, y: 55 },
+            { x: 100, y: 55 },
+            { x: 55, y: 100 },
+        ];
+        const to = from.map((p, i) => (i < 4 ? { ...p } : { x: p.x + 3.4, y: p.y + 3.4 }));
+
+        const me = jsfeatNext.motion_estimator;
+        const kernel = jsfeatNext.homography2d;
+        const params = new jsfeatNext.ransac_params_t(4, 3.0, 0.5, 0.99, jsfeatNext.math.mulberry32(13));
+
+        const model = new jsfeatNext.matrix_t(3, 3, F32C1);
+        const mask = new jsfeatNext.matrix_t(from.length, 1, U8C1);
+        const ok = me.find_homography(params, kernel, from, to, from.length, model, mask, "ransac", 1000, 15);
+        expect(ok).toBe(true);
+
+        // Whatever the mask says, it must agree with the model actually
+        // returned: every point it marks an inlier must reproject within
+        // params.thresh under THIS model, and every point outside that
+        // threshold must not be marked an inlier.
+        for (let i = 0; i < from.length; i++) {
+            const ww = 1.0 / (model.data[6] * from[i].x + model.data[7] * from[i].y + model.data[8]);
+            const px = (model.data[0] * from[i].x + model.data[1] * from[i].y + model.data[2]) * ww;
+            const py = (model.data[3] * from[i].x + model.data[4] * from[i].y + model.data[5]) * ww;
+            const err = Math.hypot(px - to[i].x, py - to[i].y);
+            if (mask.data[i]) {
+                expect(err).toBeLessThanOrEqual(params.thresh + 1e-3);
+            } else {
+                expect(err).toBeGreaterThan(params.thresh - 1e-3);
+            }
+        }
+    });
+
+    it("method: 'lmeds' with refine_iters > 0 derives its own reclassification threshold, same as the linear refit does", () => {
+        const N = 30;
+        const OUT = 4;
+        const rand = mulberry32(21);
+        const GT = [1.05, 0.02, 8.0, -0.03, 0.98, -5.0, 0.0002, -0.0001, 1.0];
+        const from: { x: number; y: number }[] = [],
+            to: { x: number; y: number }[] = [];
+        for (let i = 0; i < N; i++) {
+            const x = 10 + rand() * 300,
+                y = 10 + rand() * 220;
+            const p = project(GT, x, y);
+            let X = p.x,
+                Y = p.y;
+            if (i < OUT) {
+                X += 40 + rand() * 60;
+                Y -= 40 + rand() * 60;
+            }
+            from.push({ x, y });
+            to.push({ x: X, y: Y });
+        }
+
+        const me = jsfeatNext.motion_estimator;
+        const kernel = jsfeatNext.homography2d;
+        const params = new jsfeatNext.ransac_params_t(4, 0, 0.45, 0.99, jsfeatNext.math.mulberry32(99));
+
+        const model = new jsfeatNext.matrix_t(3, 3, F32C1);
+        const mask = new jsfeatNext.matrix_t(N, 1, U8C1);
+        const ok = me.find_homography(params, kernel, from, to, N, model, mask, "lmeds", 1000, 10);
+
+        expect(ok).toBe(true);
+        expect(model.data[8]).toBe(1);
+        for (let i = 0; i < OUT; i++) expect(mask.data[i]).toBe(0);
+    });
+
+    it("reverts to the pre-refine model/mask when refine's result satisfies too few points", () => {
+        // Dependency-injected fake kernel (real homography2d via prototype
+        // delegation) whose refine() "succeeds" but writes a wildly wrong
+        // model, forcing find_homography's post-refine reclassification to
+        // fall below model_points and take the revert branch.
+        const N = 20;
+        const rand = mulberry32(1234);
+        const GT = [1.05, 0.02, 8.0, -0.03, 0.98, -5.0, 0.0002, -0.0001, 1.0];
+        const from: { x: number; y: number }[] = [],
+            to: { x: number; y: number }[] = [];
+        for (let i = 0; i < N; i++) {
+            const x = 10 + rand() * 300,
+                y = 10 + rand() * 220;
+            from.push({ x, y });
+            to.push(project(GT, x, y));
+        }
+
+        const real = jsfeatNext.homography2d;
+        const badRefine = Object.create(real);
+        badRefine.refine = (
+            _f: typeof from,
+            _t: typeof to,
+            m: InstanceType<typeof jsfeatNext.matrix_t>,
+            _count: number
+        ) => {
+            const identity = [1, 0, 0, 0, 1, 0, 0, 0, 1]; // fits essentially nothing here
+            for (let i = 0; i < 9; i++) m.data[i] = identity[i];
+            return 1;
+        };
+
+        const me = jsfeatNext.motion_estimator;
+        const params = new jsfeatNext.ransac_params_t(4, 3.0, 0.5, 0.99, jsfeatNext.math.mulberry32(55));
+
+        const preModel = new jsfeatNext.matrix_t(3, 3, F32C1);
+        const prePreMask = new jsfeatNext.matrix_t(N, 1, U8C1);
+        // refine_iters=0 run to know what the pre-refine (linear-refit) result is
+        const okPre = me.find_homography(params, real, from, to, N, preModel, prePreMask, "ransac", 1000, 0);
+        expect(okPre).toBe(true);
+
+        const model = new jsfeatNext.matrix_t(3, 3, F32C1);
+        const mask = new jsfeatNext.matrix_t(N, 1, U8C1);
+        const params2 = new jsfeatNext.ransac_params_t(4, 3.0, 0.5, 0.99, jsfeatNext.math.mulberry32(55));
+        const ok = me.find_homography(params2, badRefine, from, to, N, model, mask, "ransac", 1000, 10);
+
+        expect(ok).toBe(true);
+        for (let i = 0; i < 9; i++) expect(model.data[i]).toBeCloseTo(preModel.data[i], 5);
+        for (let i = 0; i < N; i++) expect(mask.data[i]).toBe(prePreMask.data[i]);
     });
 });
