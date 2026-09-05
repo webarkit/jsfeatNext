@@ -469,7 +469,11 @@ export class motion_estimator extends jsfeatNext {
                 : this.ransac(params, kernel, from, to, count, model, own_mask, max_iters);
 
         if (!result) {
-            if (mask) own_mask.copy_to(mask);
+            // Pool buffers are recycled, not zeroed (see cache.get_buffer):
+            // own_mask can hold stale bytes from a previous borrower here,
+            // since several ransac()/lmeds() failure paths return before
+            // writing to it at all. Leave the caller's `mask` untouched on
+            // failure, matching ransac()/lmeds()'s own established behavior.
             this.cache.put_buffer(mask_buff);
             return false;
         }
