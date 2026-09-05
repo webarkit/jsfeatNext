@@ -121,6 +121,59 @@ describe("intentional divergences from jsfeat", () => {
             }
         });
     });
+
+    describe("matrix_t rejects S64_t instead of silently returning an F64_t view (#139)", () => {
+        /**
+         * S64_t is a declared, publicly exported data type that no
+         * view-selection code path actually supports: jsfeat's own
+         * `matrix_t` (and jsfeatNext's, inherited faithfully) sizes the
+         * buffer correctly for it but has no S64_t branch in the ternary
+         * chain that picks the typed-array view, so it silently falls
+         * through to F64_t — right byte count, wrong interpretation, no
+         * error of any kind.
+         *
+         * Per the issue's own options (implement a real BigInt64Array view,
+         * reject explicitly, or leave as is), implementing was rejected as
+         * disproportionate: nothing in this library needs 64-bit integer
+         * matrices today, and every arithmetic helper that touches `.data`
+         * would need a BigInt-vs-Number decision it currently has no reason
+         * to make. Rejecting loudly is a deliberate divergence from jsfeat,
+         * which returns the wrong view silently, registered here per #102's
+         * convention.
+         */
+        it("throws instead of returning a wrong (F64_t) view", () => {
+            const S64C1 = jsfeatNext.S64_t | jsfeatNext.C1_t;
+            expect(() => new jsfeatNext.matrix_t(4, 4, S64C1)).toThrow(/S64_t/);
+        });
+
+        it("also throws when wrapping a pre-existing buffer (the cache-pool constructor path)", () => {
+            // matrix_t has two view-selection sites -- its own allocate()
+            // and the branch that wraps a caller-supplied data_t (used by
+            // every cache-pool borrower across the codebase). Both must
+            // reject S64_t, not just the more commonly exercised one.
+            const S64C1 = jsfeatNext.S64_t | jsfeatNext.C1_t;
+            const donor = new jsfeatNext.matrix_t(4, 4, jsfeatNext.F64_t | jsfeatNext.C1_t);
+            expect(() => new jsfeatNext.matrix_t(4, 4, S64C1, donor.buffer)).toThrow(/S64_t/);
+        });
+
+        it("original jsfeat silently returns a Float64Array view for the same request", () => {
+            // Documents WHY we diverge: no error, no warning, just the wrong
+            // interpretation of the same bytes.
+            const OS64C1 = jsfeat.S64_t | jsfeat.C1_t;
+            const m = new jsfeat.matrix_t(4, 4, OS64C1);
+            expect(m.data).toBeInstanceOf(Float64Array);
+        });
+
+        it("still matches jsfeat exactly for every supported type (parity preserved)", () => {
+            // The divergence is scoped to S64_t alone -- every type this
+            // class actually supports remains unaffected.
+            const types = [jsfeatNext.U8_t, jsfeatNext.S32_t, jsfeatNext.F32_t, jsfeatNext.F64_t];
+            for (const t of types) {
+                expect(() => new jsfeatNext.matrix_t(4, 4, t | jsfeatNext.C1_t)).not.toThrow();
+            }
+        });
+    });
+
     describe("imgproc.warp_affine fills the (-1, 0) source band instead of extrapolating (#119)", () => {
         /**
          * jsfeat's bounds check is `ixs >= 0` on `xs | 0`, which truncates
