@@ -36,7 +36,7 @@
  *
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import jsfeatNext from "../../src/jsfeatNext";
 
 /**
@@ -68,15 +68,19 @@ function reprojectionError(m: Float32Array, from: { x: number; y: number }[], to
     return maxErr;
 }
 
-function makeCorrespondences(n: number, outliers: number, seed: number) {
+function mulberry32(seed: number): () => number {
     let a = seed >>> 0;
-    const rand = () => {
+    return () => {
         a |= 0;
         a = (a + 0x6d2b79f5) | 0;
         let t = Math.imul(a ^ (a >>> 15), 1 | a);
         t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
         return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
+}
+
+function makeCorrespondences(n: number, outliers: number, seed: number) {
+    const rand = mulberry32(seed);
     const from: { x: number; y: number }[] = [];
     const to: { x: number; y: number }[] = [];
     for (let i = 0; i < n; i++) {
@@ -94,6 +98,46 @@ function makeCorrespondences(n: number, outliers: number, seed: number) {
     }
     return { from, to };
 }
+
+/** Same as {@link makeCorrespondences} but with small per-point jitter added
+ * to every destination point (no outliers) — used where a test needs the
+ * minimal-sample fit and the full-set refit to genuinely diverge. On exact,
+ * noise-free correspondences any 4 points already recover the ground truth,
+ * so a minimal-sample model and a refit-over-all-inliers model coincide up
+ * to float rounding, making a "the refit actually changed something"
+ * assertion meaningless (or, worse, flaky across platforms/toolchains). */
+function makeNoisyCorrespondences(n: number, jitterPx: number, seed: number) {
+    const rand = mulberry32(seed);
+    const from: { x: number; y: number }[] = [];
+    const to: { x: number; y: number }[] = [];
+    for (let i = 0; i < n; i++) {
+        const x = 10 + rand() * 300;
+        const y = 10 + rand() * 220;
+        const p = project(GT, x, y);
+        from.push({ x, y });
+        to.push({ x: p.x + (rand() * 2 - 1) * jitterPx, y: p.y + (rand() * 2 - 1) * jitterPx });
+    }
+    return { from, to };
+}
+
+/** Distance from a model's projection of `pts` to the true, noise-free
+ * ground-truth projection — a measure of how close the *recovered transform*
+ * is to the real one, independent of the noisy observations used to fit it. */
+function groundTruthError(m: Float32Array, pts: { x: number; y: number }[]) {
+    let maxErr = 0;
+    for (const pt of pts) {
+        const got = project(Array.from(m), pt.x, pt.y);
+        const want = project(GT, pt.x, pt.y);
+        const dx = got.x - want.x,
+            dy = got.y - want.y;
+        maxErr = Math.max(maxErr, Math.sqrt(dx * dx + dy * dy));
+    }
+    return maxErr;
+}
+
+afterEach(() => {
+    vi.restoreAllMocks();
+});
 
 describe("motion_estimator.find_homography", () => {
     it("noise-free correspondences: refit converges tighter and more consistently than raw ransac()", () => {
@@ -183,8 +227,16 @@ describe("motion_estimator.find_homography", () => {
     });
 
     it("method: 'lmeds' actually refits — thresh=0 (the documented 'ignored by lmeds' value) must not silently no-op it", () => {
+        // Noisy (not exact) correspondences on purpose: with noise-free data
+        // any 4-point minimal sample already recovers the ground truth, so a
+        // minimal-sample fit and a 12-point refit coincide up to float
+        // rounding and comparing their coefficients directly is flaky across
+        // platforms/toolchains (see PR #190's CI failure — this replaced a
+        // `toBeCloseTo` comparison on raw model coefficients with a
+        // ground-truth-error comparison averaged over many trials instead).
         const N = 12;
-        const { from, to } = makeCorrespondences(N, 0, 123);
+        const JITTER = 0.6;
+        const TRIALS = 40;
         const me = jsfeatNext.motion_estimator;
         const kernel = jsfeatNext.homography2d;
         // thresh=0 mirrors the existing lmeds() call convention (see
@@ -194,26 +246,57 @@ describe("motion_estimator.find_homography", () => {
         // find_inliers to zero inliers and the refit is silently discarded.
         const params = new jsfeatNext.ransac_params_t(4, 0, 0.45, 0.99);
 
-        const rawModel = new jsfeatNext.matrix_t(3, 3, F32C1);
-        const rawMask = new jsfeatNext.matrix_t(N, 1, U8C1);
-        const okRaw = me.lmeds(params, kernel, from, to, N, rawModel, rawMask, 1000);
-        expect(okRaw).toBe(true);
-        const rawErr = reprojectionError(rawModel.data as Float32Array, from, to);
+        let rawErrSum = 0,
+            refitErrSum = 0;
 
-        const model = new jsfeatNext.matrix_t(3, 3, F32C1);
-        const mask = new jsfeatNext.matrix_t(N, 1, U8C1);
-        const ok = me.find_homography(params, kernel, from, to, N, model, mask, "lmeds");
+        for (let t = 0; t < TRIALS; t++) {
+            const { from, to } = makeNoisyCorrespondences(N, JITTER, 1000 + t);
 
-        expect(ok).toBe(true);
-        for (let i = 0; i < N; i++) expect(mask.data[i]).toBe(1);
+            // Seed Math.random identically before each call: get_subset draws
+            // its minimal samples from the global Math.random (issue #189 —
+            // not yet injectable), so an unseeded run can have lmeds() itself
+            // succeed or fail by luck of the draw, independent of anything
+            // find_homography does. Seeding makes both calls deterministic
+            // and reproducible, matching tests/parity/motion_estimator.test.ts's
+            // own seededRandom convention.
+            const seedFor = (label: string) => {
+                const r = mulberry32(2000 + t + (label === "refit" ? 100000 : 0));
+                return vi.spyOn(Math, "random").mockImplementation(r);
+            };
 
-        const refitErr = reprojectionError(model.data as Float32Array, from, to);
-        // the refit model must differ from the raw minimal-sample model
-        // (proves the refit actually ran, not a silent fallback) and reduce
-        // reprojection error on this noise-free set.
-        expect(model.data[0]).not.toBeCloseTo(rawModel.data[0], 6);
-        expect(refitErr).toBeLessThan(rawErr);
-        expect(refitErr).toBeLessThan(0.05);
+            const rawModel = new jsfeatNext.matrix_t(3, 3, F32C1);
+            const rawMask = new jsfeatNext.matrix_t(N, 1, U8C1);
+            seedFor("raw");
+            const okRaw = me.lmeds(params, kernel, from, to, N, rawModel, rawMask, 1000);
+            vi.restoreAllMocks();
+            expect(okRaw).toBe(true);
+            rawErrSum += groundTruthError(rawModel.data as Float32Array, from);
+
+            const model = new jsfeatNext.matrix_t(3, 3, F32C1);
+            const mask = new jsfeatNext.matrix_t(N, 1, U8C1);
+            seedFor("refit");
+            const ok = me.find_homography(params, kernel, from, to, N, model, mask, "lmeds");
+            vi.restoreAllMocks();
+            expect(ok).toBe(true);
+
+            refitErrSum += groundTruthError(model.data as Float32Array, from);
+        }
+
+        const rawErrAvg = rawErrSum / TRIALS;
+        const refitErrAvg = refitErrSum / TRIALS;
+
+        // A minimal 4-point fit only ever sees 4 of the 12 noisy points, so
+        // it inherits their jitter directly; a refit over all (up to) 12
+        // inliers averages the jitter down. If thresh=0 silently collapsed
+        // the refit back to the raw model (the bug this test was written
+        // for), refitErrAvg would equal rawErrAvg, not improve on it.
+        //
+        // No tight absolute bound here on purpose: homography's projective
+        // terms amplify a few px of point-position jitter into a much larger
+        // ground-truth coefficient error (unlike the plain reprojection-error
+        // checks elsewhere in this file), so the meaningful, non-flaky signal
+        // is the *relative* improvement, not an absolute px figure.
+        expect(refitErrAvg).toBeLessThan(rawErrAvg);
     });
 
     it("method: 'lmeds' with outliers: mask and model agree after the refit", () => {
@@ -265,5 +348,31 @@ describe("motion_estimator.find_homography", () => {
         const mask = new jsfeatNext.matrix_t(N, 1, U8C1);
         const ok = me.find_homography(params, kernel, from, to, N, model, mask);
         expect(ok).toBe(false);
+    });
+
+    it("failure leaves the caller's mask untouched, rather than copying stale pool bytes into it", () => {
+        // ransac()/lmeds() never write to a caller-supplied mask on failure
+        // (several of their failure paths return before touching it at all).
+        // find_homography's own internal mask, unlike a fresh caller-owned
+        // matrix_t, is backed by a recycled cache buffer that is never
+        // zeroed (see cache.get_buffer) — so it must not be copied into the
+        // caller's mask on failure, or arbitrary leftover bytes from a
+        // previous, unrelated borrower become externally visible.
+        const N = 3; // below homography's model_points=4 -> ransac/lmeds fail immediately
+        const { from, to } = makeCorrespondences(N, 0, 3);
+        const me = jsfeatNext.motion_estimator;
+        const kernel = jsfeatNext.homography2d;
+        const params = new jsfeatNext.ransac_params_t(4, 3.0, 0.5, 0.99);
+
+        const model = new jsfeatNext.matrix_t(3, 3, F32C1);
+        const mask = new jsfeatNext.matrix_t(N, 1, U8C1);
+        const sentinel = new Uint8Array(mask.data as Uint8Array);
+        sentinel.fill(7); // a value ransac/lmeds would never write as a mask entry (they only write 0/1)
+        (mask.data as Uint8Array).set(sentinel);
+
+        const ok = me.find_homography(params, kernel, from, to, N, model, mask);
+
+        expect(ok).toBe(false);
+        for (let i = 0; i < N; i++) expect(mask.data[i]).toBe(7);
     });
 });
