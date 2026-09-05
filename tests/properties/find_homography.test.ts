@@ -494,4 +494,28 @@ describe("motion_estimator.find_homography", () => {
         expect(second.model).toEqual(first.model);
         expect(second.mask).toEqual(first.mask);
     });
+
+    it("a degenerate RandomFn (always the same value) fails fast instead of hanging get_subset forever", () => {
+        // Qodo review finding on PR #191: get_subset's duplicate-index
+        // rejection loop had no bound of its own, only the outer ssiter/
+        // max_try budget -- which a constant-returning RandomFn never
+        // reaches, since it never even completes one subset draw. Math.random
+        // effectively never triggers this (collision probability is
+        // negligible), so this was latent until #189 made the generator
+        // injectable and a caller could hand in exactly this kind of
+        // contract-compliant-but-degenerate function.
+        const N = 20;
+        const { from, to } = makeCorrespondences(N, 0, 17);
+        const me = jsfeatNext.motion_estimator;
+        const kernel = jsfeatNext.homography2d;
+        const params = new jsfeatNext.ransac_params_t(4, 3.0, 0.5, 0.99, () => 0);
+
+        const model = new jsfeatNext.matrix_t(3, 3, F32C1);
+        const mask = new jsfeatNext.matrix_t(N, 1, U8C1);
+
+        // Every draw resolves to index 0, so no 4-distinct-point sample can
+        // ever be formed -- this must fail, not hang.
+        expect(() => me.find_homography(params, kernel, from, to, N, model, mask)).not.toThrow();
+        expect(me.ransac(params, kernel, from, to, N, model, mask, 1000)).toBe(false);
+    });
 });
