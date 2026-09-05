@@ -132,6 +132,7 @@
                 var gui;
                 var img_u8, img_u8_smooth, screen_corners, num_corners, screen_descriptors;
                 var pattern_corners, pattern_descriptors, pattern_preview;
+                var trained_width = 0, trained_height = 0; // lev0_img's actual size, for drawing the outline (#142)
                 var matches, homo3x3, match_mask;
                 var num_train_levels = 4;
 
@@ -164,6 +165,12 @@
                         imgproc.grayscale(imgData.data, image.width, image.height, imgg);
 
                         imgproc.resample(imgg, lev0_img, new_width, new_height);
+                        // lev0_img.cols/rows is the actual trained size and
+                        // the homography's coordinate frame; pattern_preview
+                        // (below) is a separate, independently-rounded half
+                        // scale that must not be used to reconstruct it (#142).
+                        trained_width = lev0_img.cols;
+                        trained_height = lev0_img.rows;
 
                         // prepare preview
                         pattern_preview = new jsfeat.matrix_t(new_width >> 1, new_height >> 1, jsfeat.U8_t | jsfeat.C1_t);
@@ -195,14 +202,20 @@
 
                         console.log("train " + lev_img.cols + "x" + lev_img.rows + " points: " + corners_num);
 
-                        sc /= sc_inc;
-
                         // lets do multiple scale levels
                         // we can use Canvas context draw method for faster resize
                         // but its nice to demonstrate that you can do everything with jsfeat
                         for (lev = 1; lev < num_train_levels; ++lev) {
                             lev_corners = pattern_corners[lev];
                             lev_descr = pattern_descriptors[lev];
+
+                            // Computed as a power of lev, not by repeatedly
+                            // dividing an accumulator: `sc /= sc_inc` drifts
+                            // off the exact value (e.g. two divisions by
+                            // sqrt(2) yields 0.4999999999999999, not 0.5),
+                            // which can cross an integer boundary in the `| 0`
+                            // truncation below and lose a whole extra pixel (#142).
+                            sc = Math.pow(sc_inc, -lev);
 
                             new_width = (lev0_img.cols * sc) | 0;
                             new_height = (lev0_img.rows * sc) | 0;
@@ -212,15 +225,20 @@
                             corners_num = detect_keypoints(lev_img, lev_corners, max_per_level);
                             orb.describe(lev_img, lev_corners, corners_num, lev_descr);
 
-                            // fix the coordinates due to scale level
+                            // Un-scale by the ACHIEVED per-axis scale
+                            // (new_width/new_height are truncated integers),
+                            // not the requested `sc` -- otherwise every
+                            // dimension whose truncation actually rounded
+                            // down feeds slightly wrong coordinates into the
+                            // homography fit (#142).
+                            var achieved_sc_x = new_width / lev0_img.cols;
+                            var achieved_sc_y = new_height / lev0_img.rows;
                             for (i = 0; i < corners_num; ++i) {
-                                lev_corners[i].x *= 1. / sc;
-                                lev_corners[i].y *= 1. / sc;
+                                lev_corners[i].x *= 1. / achieved_sc_x;
+                                lev_corners[i].y *= 1. / achieved_sc_y;
                             }
 
                             console.log("train " + lev_img.cols + "x" + lev_img.rows + " points: " + corners_num);
-
-                            sc /= sc_inc;
                         }
                     };
                 }
@@ -473,8 +491,12 @@
                 }
 
                 function render_pattern_shape(ctx) {
-                    // get the projected pattern corners
-                    var shape_pts = tCorners(homo3x3.data, pattern_preview.cols * 2, pattern_preview.rows * 2);
+                    // get the projected pattern corners. Use the trained
+                    // (lev0_img) size, not pattern_preview.cols/rows * 2:
+                    // the preview is independently downscaled with `>> 1`
+                    // and only round-trips back to the trained size when
+                    // that size happens to be even (#142).
+                    var shape_pts = tCorners(homo3x3.data, trained_width, trained_height);
 
                     ctx.strokeStyle = "rgb(0,255,0)";
                     ctx.beginPath();
