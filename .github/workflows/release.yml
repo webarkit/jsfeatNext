@@ -121,10 +121,21 @@ jobs:
                     --notes-file release-notes.md \
                     $PRERELEASE_FLAG
 
+            - name: Update npm for trusted-publishing support
+              # Trusted Publishers (OIDC) needs npm >= 11.5.1; Node's bundled
+              # npm can lag behind that (e.g. Node 24.18.0 ships npm 10.9.4).
+              # Only the publish step needs the newer CLI, so this runs right
+              # before it rather than replacing the .nvmrc-pinned Node used
+              # for install/build/test above.
+              run: npm install -g npm@latest
+
             - name: Publish to npm
+              # No NODE_AUTH_TOKEN: this package now uses npm Trusted
+              # Publishers (OIDC) instead of a long-lived token — see #194.
+              # npm exchanges the workflow's OIDC token (id-token: write,
+              # set above) for a short-lived publish token automatically;
+              # supplying a classic token here would shadow that exchange.
               # --tag controls the npm dist-tag: `latest` for a stable release,
               # or the prerelease identifier (beta / rc / alpha) otherwise, so a
               # prerelease is installable via @beta but never becomes the default.
               run: npm publish --provenance --access public --tag "${{ steps.tag.outputs.npm_tag }}"
-              env:
-                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -99,16 +99,15 @@ This means a prerelease can never hijack `latest` for existing users. To promote
   - The **GitHub Release** page for each tag is generated independently by the automated workflow in Phase B (`--latest`). Both derive from the same commit history, so they match; `CHANGELOG.md` is the browseable full history, the Release page is the per-tag view.
 - **Phase A is intentionally still manual.** The release workflow only automates from the tag onward; it does not bump versions or open PRs on its own. If full version-bump automation (a `release-please`-style bot PR) is ever wanted, that is a separate, bigger change — see [webarkit/jsfeatNext#61](https://github.com/webarkit/jsfeatNext/issues/61) for the discussion.
 
-## 3. One-Time Setup: `NPM_TOKEN`
+## 3. One-Time Setup: npm Trusted Publishing
 
-The release workflow needs an `NPM_TOKEN` repository secret to run `npm publish`. To set it up (only needs doing once, or when the token is rotated):
+Publishing uses npm's [Trusted Publishers](https://docs.npmjs.com/trusted-publishers) (OIDC) — no long-lived token to store or rotate (issue #194; a classic `NPM_TOKEN` secret was used previously and expired, which is what prompted the switch).
 
-1. On [npmjs.com](https://www.npmjs.com/), generate a **Granular Access Token** scoped to:
-   - **Packages:** `@webarkit/jsfeat-next` only (read + write / publish)
-   - **Expiration:** set a reasonable rotation window
-2. In the GitHub repo: **Settings → Secrets and variables → Actions → New repository secret**
-   - Name: `NPM_TOKEN`
-   - Value: the token from step 1
-3. Confirm the workflow has `permissions: id-token: write` (already set in `release.yml`) — required for npm provenance attestation.
+1. On [npmjs.com](https://www.npmjs.com/), on the `@webarkit/jsfeat-next` package's **Settings → Publishing access**, add a Trusted Publisher:
+   - **Provider:** GitHub Actions
+   - **Repository:** `webarkit/jsfeatNext`
+   - **Workflow filename:** `release.yml`
+   - **Environment:** leave blank unless the workflow is later scoped to a GitHub Environment
+2. Nothing to configure on the GitHub side beyond what `release.yml` already has: `permissions: id-token: write` (needed for the OIDC token exchange and for npm provenance attestation) and an `npm install -g npm@latest` step before `npm publish` (Trusted Publishers needs npm ≥ 11.5.1; the Node version pinned in `.nvmrc` may bundle an older npm).
 
-Without this secret, everything in Phase B runs successfully **except** the final `npm publish` step, which will fail with an auth error.
+With Trusted Publishing configured, `npm publish --provenance` in the workflow automatically exchanges the job's OIDC token for a short-lived publish credential — no `NODE_AUTH_TOKEN`/secret involved. If the Trusted Publisher config on npmjs.com is ever removed or the repository/workflow filename changes, the `npm publish` step will fail with an auth error until it's reconfigured.
