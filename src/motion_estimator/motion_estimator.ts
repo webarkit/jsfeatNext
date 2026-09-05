@@ -452,8 +452,15 @@ export class motion_estimator extends jsfeatNext {
      * @param model     Output model matrix; refit over all inliers on success.
      * @param mask      Output 0/1 inlier mask (`count`×1 matrix), recomputed
      *                   against the refit model. Optional.
-     * @param method    `"ransac"` (default) or `"lmeds"`.
-     * @param max_iters Iteration cap forwarded to the underlying estimator. Default 1000.
+     * @param method       `"ransac"` (default) or `"lmeds"`.
+     * @param max_iters    Iteration cap forwarded to the underlying estimator. Default 1000.
+     * @param refine_iters Non-linear (Levenberg-Marquardt) polish over the
+     *                      final inlier set after the linear refit, via
+     *                      `kernel.refine()` (issue #187) — minimizes actual
+     *                      reprojection error rather than the linear refit's
+     *                      algebraic residual. Default 0 (skipped, matching
+     *                      this method's pre-#187 behavior); has no effect
+     *                      when `kernel` doesn't implement `refine()`.
      * @returns `true` when the underlying estimator (`ransac`/`lmeds`) found a model.
      */
     find_homography(
@@ -465,7 +472,8 @@ export class motion_estimator extends jsfeatNext {
         model: matrix_t,
         mask?: matrix_t,
         method: "ransac" | "lmeds" = "ransac",
-        max_iters: number = 1000
+        max_iters: number = 1000,
+        refine_iters: number = 0
     ): boolean {
         const model_points = params.size;
         const mc = model.cols,
@@ -538,6 +546,21 @@ export class motion_estimator extends jsfeatNext {
             // else: degenerate refit (e.g. collinear inliers) — keep the pre-refit model/mask
 
             this.cache.put_buffer(m_buff);
+        }
+
+        if (refine_iters > 0 && kernel.refine) {
+            const rin0: point_t[] = [];
+            const rin1: point_t[] = [];
+            for (let i = 0; i < count; ++i) {
+                if (own_mask.data[i]) {
+                    rin0.push(from[i]);
+                    rin1.push(to[i]);
+                }
+            }
+            // kernel.refine() leaves `model` untouched on a degenerate
+            // result (see homography2d.refine()), so no rollback is needed
+            // here on failure — the linear refit's model simply survives.
+            if (rin0.length > model_points) kernel.refine(rin0, rin1, model, rin0.length, refine_iters);
         }
 
         if (mask) own_mask.copy_to(mask);

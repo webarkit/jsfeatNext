@@ -48,6 +48,21 @@ import matmath from "../matmath/matmath";
 import type { NumericArray } from "../types";
 
 /**
+ * The residual/Jacobian contract {@link linalg.lm_solve} refines against.
+ * Original to jsfeatNext (issue #187) — jsfeat has no non-linear solver.
+ */
+export interface LMCallback {
+    /**
+     * Fills `err` (length `m`, the solver's `num_residuals`) with the
+     * residuals at `params` (length `n`). When `J` is not `null`, also fills
+     * it — row-major, `m`×`n` — with the Jacobian at `params`.
+     *
+     * @returns `false` to report the parameters as degenerate and abort the solve.
+     */
+    compute(params: Float64Array, err: Float64Array, J: Float64Array | null): boolean;
+}
+
+/**
  * Dense linear-algebra solvers built on Jacobi rotations: LU and Cholesky
  * linear-system solvers, singular value decomposition (and SVD-based solve /
  * pseudo-inverse) and symmetric eigen-decomposition. Mirrors `jsfeat.linalg`
@@ -632,6 +647,162 @@ export class linalg extends jsfeatNext {
         }
 
         return 1;
+    }
+
+    /**
+     * Levenberg-Marquardt: refines `params` to minimize `Σ err(params)²` by
+     * repeatedly solving the damped normal system `(JᵀJ + λI)·Δ = Jᵀ·err`
+     * for a step `Δ`, accepting it (and shrinking `λ`) when it reduces the
+     * cost, or rejecting it (and growing `λ`) when it doesn't — the standard
+     * trust-region compromise between Gauss-Newton (fast near the optimum)
+     * and gradient descent (robust far from it).
+     *
+     * Original to jsfeatNext (issue #187) — jsfeat has no non-linear solver.
+     * Uses {@link cholesky_solve} on the damped normal system rather than an
+     * SVD-based solve: with `λ > 0` the damped `JᵀJ + λI` is always SPD, so
+     * Cholesky suffices and the solver has no dependency on SVD (relevant to
+     * a future `no_std`/WASM port, where SVD is a materially bigger ask than
+     * Cholesky).
+     *
+     * @param params        `n`×1 F64 matrix, the parameter vector — mutated
+     *                       in place to the refined result (or left as the
+     *                       best point found, on a degenerate step).
+     * @param num_residuals `m`, the number of residuals `callback` fills.
+     * @param callback      Computes residuals (and, when asked, the
+     *                       Jacobian) at a given parameter vector.
+     * @param max_iters     Iteration cap. Default 10 (matches OpenCV's
+     *                       `LMSolver`/`refineIters` default).
+     * @param eps           Stops early once the relative cost improvement
+     *                       between iterations drops below this. Default 1e-10.
+     * @returns `false` if `callback` ever reports degeneracy; `true` otherwise
+     *          (matching `LMSolver`, this does not mean "converged" — only
+     *          that `max_iters` were run, or `eps` was reached, without
+     *          numerical failure).
+     */
+    lm_solve(
+        params: matrix_t,
+        num_residuals: number,
+        callback: LMCallback,
+        max_iters: number = 10,
+        eps: number = 1e-10
+    ): boolean {
+        const n = params.rows,
+            m = num_residuals;
+        const x = params.data as Float64Array;
+
+        const err_buff = this.cache.get_buffer(m << 3);
+        const errNew_buff = this.cache.get_buffer(m << 3);
+        const J_buff = this.cache.get_buffer((m * n) << 3);
+        const JtJ_buff = this.cache.get_buffer((n * n) << 3);
+        const JtJ_damped_buff = this.cache.get_buffer((n * n) << 3);
+        const Jtr_buff = this.cache.get_buffer(n << 3);
+        // Separate from Jtr_buff: cholesky_solve overwrites its RHS in place
+        // with the solution, so the pristine Jᵀ·err must survive across
+        // retries (growing lambda) rather than being destroyed by the first
+        // attempt.
+        const Jtr_work_buff = this.cache.get_buffer(n << 3);
+        const xNew_buff = this.cache.get_buffer(n << 3);
+
+        const err = err_buff.f64,
+            errNew = errNew_buff.f64,
+            J = J_buff.f64,
+            JtJd = JtJ_buff.f64,
+            JtJd_damped = JtJ_damped_buff.f64,
+            Jtr = Jtr_buff.f64,
+            Jtr_work = Jtr_work_buff.f64,
+            xNew = xNew_buff.f64;
+
+        const JtJ_damped = new matrix_t(n, n, JSFEAT_CONSTANTS.F64_t | JSFEAT_CONSTANTS.C1_t, JtJ_damped_buff.data);
+        const Jtr_mt = new matrix_t(1, n, JSFEAT_CONSTANTS.F64_t | JSFEAT_CONSTANTS.C1_t, Jtr_work_buff.data);
+
+        let lambda = 1e-3;
+        let ok = true;
+
+        const cost_of = (e: Float64Array) => {
+            let s = 0.0;
+            for (let i = 0; i < m; ++i) s += e[i] * e[i];
+            return s;
+        };
+
+        if (!callback.compute(x, err, J)) {
+            ok = false;
+        } else {
+            let cost = cost_of(err);
+
+            for (let iter = 0; iter < max_iters; ++iter) {
+                // JtJ = Jᵀ·J, Jtr = Jᵀ·err (J is m x n, row-major)
+                for (let a = 0; a < n; ++a) {
+                    let s = 0.0;
+                    for (let i = 0; i < m; ++i) s += J[i * n + a] * err[i];
+                    Jtr[a] = s;
+                    for (let b = a; b < n; ++b) {
+                        let t = 0.0;
+                        for (let i = 0; i < m; ++i) t += J[i * n + a] * J[i * n + b];
+                        JtJd[a * n + b] = JtJd[b * n + a] = t;
+                    }
+                }
+
+                // Retry the same iteration with growing damping until a step
+                // both solves and reduces cost, or we give up on this step
+                // (keeping the current x) and let the next outer iteration
+                // recompute J from scratch.
+                let improved = false;
+                for (let retry = 0; retry < 10; ++retry) {
+                    JtJd_damped.set(JtJd.subarray(0, n * n));
+                    // Additive (Levenberg's original) rather than
+                    // multiplicative (Marquardt's `*= 1+λ`) damping: a
+                    // parameter whose column of J is exactly zero (no
+                    // residual depends on it) has JtJ[a,a] === 0, and
+                    // multiplicative damping leaves `0 * (1+λ) === 0`
+                    // regardless of λ — never regularizing that direction, so
+                    // cholesky_solve keeps failing no matter how much λ grows.
+                    // `+= λ` always pulls a zero diagonal away from singular.
+                    for (let a = 0; a < n; ++a) JtJd_damped[a * n + a] += lambda;
+                    Jtr_mt.data.set(Jtr.subarray(0, n));
+
+                    if (!this.cholesky_solve(JtJ_damped, Jtr_mt)) {
+                        lambda *= 10;
+                        continue;
+                    }
+                    // Jtr_mt now holds the step Δ; x_new = x - Δ (Gauss-Newton
+                    // step minimizing ‖J·Δ − (−err)‖, i.e. descending err).
+                    for (let a = 0; a < n; ++a) xNew[a] = x[a] - Jtr_mt.data[a];
+
+                    if (!callback.compute(xNew, errNew, null)) {
+                        ok = false;
+                        break;
+                    }
+                    const costNew = cost_of(errNew);
+
+                    if (costNew < cost) {
+                        for (let a = 0; a < n; ++a) x[a] = xNew[a];
+                        lambda = Math.max(lambda / 10, 1e-12);
+                        improved = Math.abs(cost - costNew) > eps * cost;
+                        cost = costNew;
+                        break;
+                    }
+                    lambda *= 10;
+                }
+
+                if (!ok || !improved) break;
+                // Recompute J at the accepted x for the next iteration.
+                if (!callback.compute(x, err, J)) {
+                    ok = false;
+                    break;
+                }
+            }
+        }
+
+        this.cache.put_buffer(err_buff);
+        this.cache.put_buffer(errNew_buff);
+        this.cache.put_buffer(Jtr_work_buff);
+        this.cache.put_buffer(J_buff);
+        this.cache.put_buffer(JtJ_buff);
+        this.cache.put_buffer(JtJ_damped_buff);
+        this.cache.put_buffer(Jtr_buff);
+        this.cache.put_buffer(xNew_buff);
+
+        return ok;
     }
 
     /**
