@@ -46,7 +46,7 @@ import { point_t } from "../point_t/point_t";
 import type { TypedArray } from "../types";
 import { JSFEAT_CONSTANTS } from "../constants/constants";
 import matmath from "../matmath/matmath";
-import { linalg } from "../linalg/linalg";
+import { linalg, LMCallback } from "../linalg/linalg";
 
 /**
  * Shared base of the motion-model kernels ({@link affine2d},
@@ -313,6 +313,63 @@ export class affine2d extends motion_model {
      */
     check_subset(from: point_t[], to: point_t[], count: number): boolean {
         return true; // all good
+    }
+
+    /**
+     * Non-linear (Levenberg-Marquardt) refinement of the affine `model`
+     * (issue #187), mirroring OpenCV's `Affine2DRefineCallback`. The model
+     * is already linear in its 6 parameters, and `run()` already solves the
+     * exact least-squares optimum for them via normal equations — so LM
+     * seeded from that solution has zero gradient at the start and
+     * terminates immediately without changing it (this mirrors OpenCV's own
+     * note that `estimateAffine2D` skips the extra `runKernel` refit
+     * `findHomography` does, since LM alone already converges to the LS
+     * answer for a linear model). Implemented for API symmetry with
+     * {@link homography2d.refine}, not because it moves the answer.
+     *
+     * @param from  Source points. @param to Destination points.
+     * @param model 3×3 affine model to refine in place (bottom row `[0,0,1]`).
+     * @param count Number of correspondences.
+     * @param iters LM iteration cap. Default 10.
+     * @returns 1 (an affine model has no degenerate-normalization case).
+     */
+    refine(from: point_t[], to: point_t[], model: matrix_t, count: number, iters: number = 10): number {
+        const params_buff = this.cache.get_buffer(6 << 3);
+        const params = new matrix_t(1, 6, JSFEAT_CONSTANTS.F64_t | JSFEAT_CONSTANTS.C1_t, params_buff.data);
+        for (let i = 0; i < 6; ++i) params.data[i] = model.data[i];
+
+        const callback: LMCallback = {
+            compute: (h, err, J) => {
+                for (let i = 0; i < count; ++i) {
+                    const pt0 = from[i],
+                        pt1 = to[i];
+                    const xi = h[0] * pt0.x + h[1] * pt0.y + h[2];
+                    const yi = h[3] * pt0.x + h[4] * pt0.y + h[5];
+                    err[2 * i] = xi - pt1.x;
+                    err[2 * i + 1] = yi - pt1.y;
+                    if (J) {
+                        const r0 = 2 * i * 6,
+                            r1 = (2 * i + 1) * 6;
+                        ((J[r0 + 0] = pt0.x), (J[r0 + 1] = pt0.y), (J[r0 + 2] = 1));
+                        ((J[r0 + 3] = 0), (J[r0 + 4] = 0), (J[r0 + 5] = 0));
+                        ((J[r1 + 0] = 0), (J[r1 + 1] = 0), (J[r1 + 2] = 0));
+                        ((J[r1 + 3] = pt0.x), (J[r1 + 4] = pt0.y), (J[r1 + 5] = 1));
+                    }
+                }
+                return true;
+            },
+        };
+
+        const _linalg = new linalg();
+        _linalg.lm_solve(params, count * 2, callback, iters);
+
+        for (let i = 0; i < 6; ++i) model.data[i] = params.data[i];
+        model.data[6] = 0;
+        model.data[7] = 0;
+        model.data[8] = 1;
+
+        this.cache.put_buffer(params_buff);
+        return 1;
     }
 }
 
@@ -666,5 +723,81 @@ export class homography2d extends motion_model {
             }
         }
         return true; // all good
+    }
+
+    /**
+     * Non-linear (Levenberg-Marquardt) refinement of the homography `model`
+     * over all `count` correspondences, minimizing forward-transfer
+     * (reprojection) error rather than the algebraic DLT residual `run()`
+     * minimizes (issue #187) — this is what actually delivers OpenCV's
+     * sub-pixel accuracy; the `run()`/refit precision work in #185/#186 only
+     * gets a linear (algebraic) fit as close as a linear fit can get.
+     * Mirrors OpenCV's `HomographyRefineCallback` (residual and Jacobian
+     * below match its analytic derivation exactly) run through `LMSolver`.
+     *
+     * `model` must already satisfy this class's `h33 === 1` invariant (e.g.
+     * the output of `run()` or `find_homography()` — see `error()`'s own
+     * hardcoded `+ 1.0` term). After refinement, the same invariant is
+     * re-enforced: a refined `h33` too close to zero to safely rescale is
+     * reported as degenerate rather than returning a corrupted model, exactly
+     * as `run()`'s own final-scale guard does.
+     *
+     * @param from  Source points. @param to Destination points.
+     * @param model 3×3 homography to refine in place.
+     * @param count Number of correspondences.
+     * @param iters LM iteration cap. Default 10 (OpenCV's `refineIters` default).
+     * @returns 1 on success, 0 if the refined model can't be rescaled to `h33 = 1`.
+     */
+    refine(from: point_t[], to: point_t[], model: matrix_t, count: number, iters: number = 10): number {
+        const params_buff = this.cache.get_buffer(9 << 3);
+        const params = new matrix_t(1, 9, JSFEAT_CONSTANTS.F64_t | JSFEAT_CONSTANTS.C1_t, params_buff.data);
+        for (let i = 0; i < 9; ++i) params.data[i] = model.data[i];
+
+        // DBL_EPSILON (not the F32 JSFEAT_CONSTANTS.EPSILON `run()` uses for
+        // its own, separate final-scale guard): this mirrors OpenCV's
+        // HomographyRefineCallback exactly, which guards the per-point
+        // perspective denominator with `std::numeric_limits<double>::epsilon()`.
+        const DBL_EPSILON = Number.EPSILON;
+
+        const callback: LMCallback = {
+            compute: (h, err, J) => {
+                for (let i = 0; i < count; ++i) {
+                    const Mx = from[i].x,
+                        My = from[i].y;
+                    const denom = h[6] * Mx + h[7] * My + h[8];
+                    const ww = Math.abs(denom) > DBL_EPSILON ? 1.0 / denom : 0.0;
+                    const xi = (h[0] * Mx + h[1] * My + h[2]) * ww;
+                    const yi = (h[3] * Mx + h[4] * My + h[5]) * ww;
+                    err[2 * i] = xi - to[i].x;
+                    err[2 * i + 1] = yi - to[i].y;
+                    if (J) {
+                        const r0 = 2 * i * 9,
+                            r1 = (2 * i + 1) * 9;
+                        ((J[r0 + 0] = Mx * ww), (J[r0 + 1] = My * ww), (J[r0 + 2] = ww));
+                        ((J[r0 + 3] = 0), (J[r0 + 4] = 0), (J[r0 + 5] = 0));
+                        ((J[r0 + 6] = -xi * ww * Mx), (J[r0 + 7] = -xi * ww * My), (J[r0 + 8] = -xi * ww));
+                        ((J[r1 + 0] = 0), (J[r1 + 1] = 0), (J[r1 + 2] = 0));
+                        ((J[r1 + 3] = Mx * ww), (J[r1 + 4] = My * ww), (J[r1 + 5] = ww));
+                        ((J[r1 + 6] = -yi * ww * Mx), (J[r1 + 7] = -yi * ww * My), (J[r1 + 8] = -yi * ww));
+                    }
+                }
+                return true;
+            },
+        };
+
+        const _linalg = new linalg();
+        _linalg.lm_solve(params, count * 2, callback, iters);
+
+        const h8 = params.data[8];
+        if (Math.abs(h8) <= JSFEAT_CONSTANTS.EPSILON) {
+            this.cache.put_buffer(params_buff);
+            return 0;
+        }
+        const scale = 1.0 / h8;
+        for (let i = 0; i < 8; ++i) model.data[i] = params.data[i] * scale;
+        model.data[8] = 1.0;
+
+        this.cache.put_buffer(params_buff);
+        return 1;
     }
 }

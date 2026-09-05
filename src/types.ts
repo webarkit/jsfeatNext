@@ -67,6 +67,16 @@ export interface MotionKernel {
     error(from: point_t[], to: point_t[], model: matrix_t, err: Int32Array | Float32Array, count: number): void;
     /** Rejects degenerate minimal samples (e.g. collinear points); returns `true` when the subset is usable. */
     check_subset(from: point_t[], to: point_t[], count: number): boolean;
+    /**
+     * Non-linear (Levenberg-Marquardt) refinement of `model` over all
+     * `count` correspondences, minimizing reprojection error rather than the
+     * algebraic DLT/least-squares residual `run()` does (issue #187). Optional:
+     * only {@link homography2d} and {@link affine2d} implement it; callers
+     * (e.g. `motion_estimator.find_homography`) must feature-test for it.
+     *
+     * @returns The number of models produced (>0 on success), matching `run()`.
+     */
+    refine?(from: point_t[], to: point_t[], model: matrix_t, count: number, iters?: number): number;
 }
 
 /**
