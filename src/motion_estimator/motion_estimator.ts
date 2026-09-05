@@ -557,10 +557,60 @@ export class motion_estimator extends jsfeatNext {
                     rin1.push(to[i]);
                 }
             }
-            // kernel.refine() leaves `model` untouched on a degenerate
-            // result (see homography2d.refine()), so no rollback is needed
-            // here on failure — the linear refit's model simply survives.
-            if (rin0.length > model_points) kernel.refine(rin0, rin1, model, rin0.length, refine_iters);
+            if (rin0.length > model_points) {
+                // Snapshot in case the refined model, though numerically
+                // valid, ends up satisfying fewer than model_points points
+                // under the same reclassification threshold — mirrors the
+                // linear refit's own "keep the pre-refit model/mask" fallback.
+                const pre_refine_buff = this.cache.get_buffer((mc * mr) << 3);
+                const pre_refine_model = new matrix_t(mc, mr, dt, pre_refine_buff.data);
+                model.copy_to(pre_refine_model);
+
+                // kernel.refine() leaves `model` untouched on its own
+                // degenerate result (see homography2d.refine()), so a
+                // return of 0 here needs no special handling beyond
+                // skipping the mask recompute below.
+                if (kernel.refine(rin0, rin1, model, rin0.length, refine_iters) > 0) {
+                    const err_buff = this.cache.get_buffer(count << 2);
+                    const refine_mask_buff = this.cache.get_buffer(count);
+                    const err = err_buff.f32;
+                    const refine_mask = new matrix_t(count, 1, JSFEAT_CONSTANTS.U8C1_t, refine_mask_buff.data);
+
+                    let threshold = params.thresh;
+                    if (method === "lmeds") {
+                        kernel.error(from, to, model, err, count);
+                        const median = new math().median(err, 0, count - 1);
+                        threshold = Math.max(
+                            2.5 * 1.4826 * (1 + 5.0 / (count - model_points)) * Math.sqrt(median),
+                            0.001
+                        );
+                    }
+
+                    const numinliers = this.find_inliers(
+                        kernel,
+                        model,
+                        from,
+                        to,
+                        count,
+                        threshold,
+                        err,
+                        refine_mask.data
+                    );
+
+                    if (numinliers >= model_points) {
+                        refine_mask.copy_to(own_mask);
+                    } else {
+                        // refine's model satisfies too few points under the
+                        // same threshold — keep the pre-refine model/mask.
+                        pre_refine_model.copy_to(model);
+                    }
+
+                    this.cache.put_buffer(err_buff);
+                    this.cache.put_buffer(refine_mask_buff);
+                }
+
+                this.cache.put_buffer(pre_refine_buff);
+            }
         }
 
         if (mask) own_mask.copy_to(mask);
