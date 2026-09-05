@@ -68,3 +68,11 @@ export interface MotionKernel {
     /** Rejects degenerate minimal samples (e.g. collinear points); returns `true` when the subset is usable. */
     check_subset(from: point_t[], to: point_t[], count: number): boolean;
 }
+
+/**
+ * A source of numbers in `[0, 1)`, matching the signature of `Math.random`.
+ * `ransac_params_t`'s `rng` field and `motion_estimator.get_subset` accept
+ * one of these so callers can substitute a seeded generator (e.g.
+ * {@link math.mulberry32}) for deterministic RANSAC/LMEDS runs — issue #189.
+ */
+export type RandomFn = () => number;

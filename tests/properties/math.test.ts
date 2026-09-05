@@ -298,4 +298,36 @@ describe("math invariants", () => {
             expect(m.median(values, 0, 4)).toBe(5.5);
         });
     });
+
+    describe("mulberry32", () => {
+        // Original to jsfeatNext, added for issue #189 so callers can get
+        // OpenCV-style deterministic RANSAC/LMEDS by passing a seeded
+        // RandomFn as ransac_params_t's `rng`, instead of the codebase's own
+        // test-only pattern of globally mocking Math.random.
+
+        it("same seed produces the same sequence", () => {
+            const a = m.mulberry32(42);
+            const b = m.mulberry32(42);
+            for (let i = 0; i < 50; i++) {
+                expect(a()).toBe(b());
+            }
+        });
+
+        it("different seeds diverge", () => {
+            const a = m.mulberry32(1);
+            const b = m.mulberry32(2);
+            const seqA = Array.from({ length: 10 }, () => a());
+            const seqB = Array.from({ length: 10 }, () => b());
+            expect(seqA).not.toEqual(seqB);
+        });
+
+        it("every draw is within [0, 1)", () => {
+            const r = m.mulberry32(123456);
+            for (let i = 0; i < 2000; i++) {
+                const v = r();
+                expect(v).toBeGreaterThanOrEqual(0);
+                expect(v).toBeLessThan(1);
+            }
+        });
+    });
 });

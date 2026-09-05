@@ -45,8 +45,12 @@ import jsfeat from "../vendor/oracle.cjs";
  * for motion_estimator.ransac / lmeds with homography2d and affine2d kernels.
  *
  * RANSAC/LMEDS draw random subsets via Math.random. To make both sides
- * deterministic AND identical, Math.random is stubbed with the same seeded
- * PRNG sequence for the jsfeatNext run and again (re-seeded) for the oracle.
+ * deterministic AND identical, the jsfeatNext side is seeded via
+ * `ransac_params_t`'s injectable `rng` (issue #189) with the same mulberry32
+ * sequence that's stubbed onto the global `Math.random` for the oracle side —
+ * jsfeat itself can't be given an injectable RNG (it's a frozen vendored
+ * dependency, not code this repo owns), so the global mock is still the only
+ * way to make *its* draws deterministic and reproducible across runs.
  *
  * API note (Axis 2): kernels live under jsfeat.motion_model.* in the
  * original; jsfeatNext exposes them as jsfeatNext.homography2d/affine2d.
@@ -105,15 +109,13 @@ describe("parity: motion_estimator vs original jsfeat.motion_estimator", () => {
     it("ransac with homography2d kernel: same model and same inlier mask", () => {
         const { from, to } = makeCorrespondences(N, OUT);
 
-        const params = new jsfeatNext.ransac_params_t(4, 3.0, 0.5, 0.99);
+        const params = new jsfeatNext.ransac_params_t(4, 3.0, 0.5, 0.99, mulberry32(2024));
         const me = jsfeatNext.motion_estimator;
         const kernel = jsfeatNext.homography2d;
         const model = new jsfeatNext.matrix_t(3, 3, F32C1);
         const mask = new jsfeatNext.matrix_t(N, 1, U8C1);
 
-        seededRandom(2024);
         const okN = me.ransac(params, kernel, from, to, N, model, mask, 1000);
-        vi.restoreAllMocks();
 
         const paramsO = new jsfeat.ransac_params_t(4, 3.0, 0.5, 0.99);
         const kernelO = new jsfeat.motion_model.homography2d();
@@ -141,15 +143,13 @@ describe("parity: motion_estimator vs original jsfeat.motion_estimator", () => {
     it("lmeds with homography2d kernel: same model and same inlier mask", () => {
         const { from, to } = makeCorrespondences(N, OUT);
 
-        const params = new jsfeatNext.ransac_params_t(4, 0, 0.45, 0.99);
+        const params = new jsfeatNext.ransac_params_t(4, 0, 0.45, 0.99, mulberry32(777));
         const me = jsfeatNext.motion_estimator;
         const kernel = jsfeatNext.homography2d;
         const model = new jsfeatNext.matrix_t(3, 3, F32C1);
         const mask = new jsfeatNext.matrix_t(N, 1, U8C1);
 
-        seededRandom(777);
         const okN = me.lmeds(params, kernel, from, to, N, model, mask, 1000);
-        vi.restoreAllMocks();
 
         const paramsO = new jsfeat.ransac_params_t(4, 0, 0.45, 0.99);
         const kernelO = new jsfeat.motion_model.homography2d();
@@ -191,15 +191,13 @@ describe("parity: motion_estimator vs original jsfeat.motion_estimator", () => {
         // missing the default check_subset() (original jsfeat returns true
         // there; only homography2d overrides it), which made RANSAC with an
         // affine2d kernel throw TypeError. Now fixed — full parity check.
-        const params = new jsfeatNext.ransac_params_t(3, 3.0, 0.5, 0.99);
+        const params = new jsfeatNext.ransac_params_t(3, 3.0, 0.5, 0.99, mulberry32(31337));
         const me = jsfeatNext.motion_estimator;
         const kernel = jsfeatNext.affine2d;
         const model = new jsfeatNext.matrix_t(3, 3, F32C1);
         const mask = new jsfeatNext.matrix_t(N, 1, U8C1);
 
-        seededRandom(31337);
         const okN = me.ransac(params, kernel, from, to, N, model, mask, 1000);
-        vi.restoreAllMocks();
 
         const paramsO = new jsfeat.ransac_params_t(3, 3.0, 0.5, 0.99);
         const kernelO = new jsfeat.motion_model.affine2d();
