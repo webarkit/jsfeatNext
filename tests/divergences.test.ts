@@ -311,4 +311,122 @@ describe("intentional divergences from jsfeat", () => {
             for (let i = 0; i < W * H; i++) expect(dstN.data[i]).toBe(dstO.data[i]);
         });
     });
+
+    describe("homography2d's DLT solve accumulates in F64, jsfeat in F32 (#186)", () => {
+        /**
+         * jsfeat's homography2d.run() builds the 9x9 DLT normal matrix (LtL)
+         * and solves its eigenvector entirely in F32: 36 upper-triangle
+         * accumulators rounded on every addition, on top of normal equations
+         * already squaring the condition number relative to solving on L
+         * directly. jsfeatNext now runs that whole solve (LtL, eigenvectors,
+         * both denormalization multiplies, and the final scale-to-[8]=1
+         * step) in F64, only rounding down to the caller's model dtype once,
+         * at the very end -- matching OpenCV's HomographyEstimatorCallback,
+         * which uses `double` throughout.
+         *
+         * This is a precision improvement, not a behavior change in kind: a
+         * caller who was getting jsfeat's answer now gets a strictly more
+         * accurate one for the same inputs. tests/parity/motion_estimator.ts
+         * documents that the two no longer match bit-for-bit for this kernel.
+         */
+        function project(m: ArrayLike<number>, x: number, y: number) {
+            const ww = 1.0 / (m[6] * x + m[7] * y + m[8]);
+            return { x: (m[0] * x + m[1] * y + m[2]) * ww, y: (m[3] * x + m[4] * y + m[5]) * ww };
+        }
+
+        function mulberry32(seed: number): () => number {
+            let a = seed >>> 0;
+            return () => {
+                a |= 0;
+                a = (a + 0x6d2b79f5) | 0;
+                let t = Math.imul(a ^ (a >>> 15), 1 | a);
+                t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+                return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+            };
+        }
+
+        // Exact (noise-free) correspondences: any residual error in the
+        // recovered homography is purely a numerical artifact of the solve
+        // itself, not a fit to noisy data, so it isolates the F32-vs-F64
+        // effect cleanly.
+        const GT = [1.05, 0.02, 8.0, -0.03, 0.98, -5.0, 0.0002, -0.0001, 1.0];
+        function makeExactCorrespondences(n: number, seed: number) {
+            const rand = mulberry32(seed);
+            const from: { x: number; y: number }[] = [];
+            const to: { x: number; y: number }[] = [];
+            for (let i = 0; i < n; i++) {
+                const x = 10 + rand() * 300;
+                const y = 10 + rand() * 220;
+                const p = project(GT, x, y);
+                from.push({ x, y });
+                to.push(p);
+            }
+            return { from, to };
+        }
+
+        it("recovers a noise-free homography closer to the true transform than jsfeat does", () => {
+            const N = 12;
+            const { from, to } = makeExactCorrespondences(N, 4242);
+
+            const modelN = new jsfeatNext.matrix_t(3, 3, F32C1);
+            jsfeatNext.homography2d.run(from, to, modelN, N);
+
+            const modelO = new jsfeat.matrix_t(3, 3, OF32C1);
+            new jsfeat.motion_model.homography2d().run(from, to, modelO, N);
+
+            let maxErrN = 0,
+                maxErrO = 0;
+            for (let i = 0; i < N; i++) {
+                const want = project(GT, from[i].x, from[i].y);
+                const gotN = project(modelN.data, from[i].x, from[i].y);
+                const gotO = project(modelO.data, from[i].x, from[i].y);
+                maxErrN = Math.max(maxErrN, Math.hypot(gotN.x - want.x, gotN.y - want.y));
+                maxErrO = Math.max(maxErrO, Math.hypot(gotO.x - want.x, gotO.y - want.y));
+            }
+
+            // jsfeat's F32 accumulation really does introduce a measurable
+            // error here -- otherwise this divergence would exist on paper
+            // only -- and jsfeatNext's F64 solve reduces it.
+            expect(maxErrO).toBeGreaterThan(0);
+            expect(maxErrN).toBeLessThan(maxErrO);
+        });
+
+        it("model coefficients still agree with jsfeat to a loose tolerance (same solve, different precision)", () => {
+            // The divergence is in the last few significant digits, not the
+            // shape of the answer: both sides still land in the same
+            // ballpark, just no longer bit-for-bit at 5 decimals.
+            const N = 12;
+            const { from, to } = makeExactCorrespondences(N, 9001);
+
+            const modelN = new jsfeatNext.matrix_t(3, 3, F32C1);
+            jsfeatNext.homography2d.run(from, to, modelN, N);
+
+            const modelO = new jsfeat.matrix_t(3, 3, OF32C1);
+            new jsfeat.motion_model.homography2d().run(from, to, modelO, N);
+
+            for (let i = 0; i < 9; i++) {
+                expect(modelN.data[i]).toBeCloseTo(modelO.data[i], 1);
+            }
+        });
+
+        it("never produces Infinity/NaN, even across many random configurations (final-scale guard)", () => {
+            // Regression coverage for the scaleFor()-style guard on the final
+            // `1.0 / md[8]` normalization: previously unconditional, so a
+            // near-zero md[8] (pure-perspective degenerate) silently produced
+            // Infinity. Sweeping many configurations instead of hand-crafting
+            // one degenerate case, since forcing md[8] to land near zero
+            // through real point correspondences isn't practical to engineer
+            // directly.
+            for (let seed = 1; seed <= 200; seed++) {
+                const { from, to } = makeExactCorrespondences(8, seed);
+                const model = new jsfeatNext.matrix_t(3, 3, F32C1);
+                const ok = jsfeatNext.homography2d.run(from, to, model, 8);
+                if (!ok) continue; // degenerate (zero-spread) input, not this guard's concern
+                for (let i = 0; i < 9; i++) {
+                    expect(Number.isFinite(model.data[i])).toBe(true);
+                }
+                expect(model.data[8]).toBe(1);
+            }
+        });
+    });
 });
