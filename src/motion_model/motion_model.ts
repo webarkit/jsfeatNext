@@ -509,9 +509,21 @@ export class homography2d extends motion_model {
         _matmath.multiply_3x3(this.model64, this.model64, this.T0);
 
         // set bottom right to 1.0, guarded against a near-zero md[8]
-        // (pure-perspective degenerate) the way OpenCV's scaleFor() is —
-        // md[8] === 0 previously produced Infinity silently.
-        x = Math.abs(md[8]) > JSFEAT_CONSTANTS.EPSILON ? 1.0 / md[8] : 1.0;
+        // (pure-perspective degenerate). md[8] === 0 previously produced
+        // Infinity silently.
+        //
+        // Unlike OpenCV's scaleFor() — whose fallback scale of 1 leaves H
+        // un-normalized (h33 stays near-zero) and is fine there because
+        // OpenCV's consumers use the full matrix — this codebase's own
+        // error() below (and every other caller) hardcodes the h33 term as
+        // the literal constant `1.0`, not `m[8]`. A model whose true h33
+        // can't be scaled to 1 therefore can't be represented correctly by
+        // this class's model format at all: reporting it as degenerate is
+        // the only option that doesn't silently hand back a model that
+        // means something different from what every reader of it assumes.
+        if (Math.abs(md[8]) <= JSFEAT_CONSTANTS.EPSILON) return 0;
+
+        x = 1.0 / md[8];
         md[0] *= x;
         md[1] *= x;
         md[2] *= x;

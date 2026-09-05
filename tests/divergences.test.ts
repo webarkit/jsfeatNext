@@ -391,10 +391,16 @@ describe("intentional divergences from jsfeat", () => {
             expect(maxErrN).toBeLessThan(maxErrO);
         });
 
-        it("model coefficients still agree with jsfeat to a loose tolerance (same solve, different precision)", () => {
+        it("model coefficients still agree with jsfeat to a measured, explicit tolerance (same solve, different precision)", () => {
             // The divergence is in the last few significant digits, not the
-            // shape of the answer: both sides still land in the same
-            // ballpark, just no longer bit-for-bit at 5 decimals.
+            // shape of the answer. Tolerance is data-driven, not arbitrary:
+            // measured (2026-09-05) max absolute per-coefficient difference
+            // across 1000 seeded noise-free 12-point configurations was
+            // ~3.7e-4 -- toBeCloseTo(..., 2) requires < 5e-3, over 13x
+            // headroom above the largest observed difference, while still
+            // being far tighter than a blanket "same ballpark" check would
+            // be. Re-measure and adjust if this ever starts failing instead
+            // of loosening it blindly.
             const N = 12;
             const { from, to } = makeExactCorrespondences(N, 9001);
 
@@ -405,7 +411,7 @@ describe("intentional divergences from jsfeat", () => {
             new jsfeat.motion_model.homography2d().run(from, to, modelO, N);
 
             for (let i = 0; i < 9; i++) {
-                expect(modelN.data[i]).toBeCloseTo(modelO.data[i], 1);
+                expect(modelN.data[i]).toBeCloseTo(modelO.data[i], 2);
             }
         });
 
@@ -413,10 +419,8 @@ describe("intentional divergences from jsfeat", () => {
             // Regression coverage for the scaleFor()-style guard on the final
             // `1.0 / md[8]` normalization: previously unconditional, so a
             // near-zero md[8] (pure-perspective degenerate) silently produced
-            // Infinity. Sweeping many configurations instead of hand-crafting
-            // one degenerate case, since forcing md[8] to land near zero
-            // through real point correspondences isn't practical to engineer
-            // directly.
+            // Infinity. Sweeping many configurations as a broad safety net,
+            // in addition to the deterministic case below.
             for (let seed = 1; seed <= 200; seed++) {
                 const { from, to } = makeExactCorrespondences(8, seed);
                 const model = new jsfeatNext.matrix_t(3, 3, F32C1);
@@ -427,6 +431,35 @@ describe("intentional divergences from jsfeat", () => {
                 }
                 expect(model.data[8]).toBe(1);
             }
+        });
+
+        it("a near-zero md[8] is reported as degenerate, not silently forced to a corrupted h33=1 model", () => {
+            // Deterministic (no RNG): 4 nearly-collinear points (found via a
+            // seeded search, then hardcoded) whose recovered pre-scale h33
+            // lands within EPSILON of zero. This is the case Qodo's review of
+            // #192 caught: an earlier version of the guard set the scale
+            // factor to 1 in this branch (leaving the other 8 coefficients
+            // un-rescaled) but then still unconditionally forced md[8] = 1 --
+            // fabricating a different, corrupted transform rather than
+            // reporting degeneracy. homography2d.error() (and every RANSAC/
+            // LMEDS caller) hardcodes h33 as the literal constant 1.0, so a
+            // model that can't actually be scaled to h33=1 can't be
+            // represented correctly here at all: run() must return 0.
+            const from = [
+                { x: 10.000148300289874, y: 9.999948440617416 },
+                { x: 60.000414931323846, y: 60.00017959228367 },
+                { x: 109.9996105791321, y: 110.00031765410048 },
+                { x: 160.00033988108672, y: 160.00016441007912 },
+            ];
+            const to = [
+                { x: 10.366303065541363, y: 10.366095888020284 },
+                { x: 76.13625586280475, y: 76.13595723431364 },
+                { x: 179.89893414872458, y: 179.9000905349382 },
+                { x: 367.9492868530562, y: 367.94888332621275 },
+            ];
+            const model = new jsfeatNext.matrix_t(3, 3, F32C1);
+            const ok = jsfeatNext.homography2d.run(from, to, model, 4);
+            expect(ok).toBe(0);
         });
     });
 });
