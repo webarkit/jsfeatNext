@@ -124,6 +124,7 @@ export class matrix_t implements IMatrix_T {
             this.allocate();
         } else {
             this.buffer = _data_buffer;
+            matrix_t._reject_S64_t(this.type);
             // data user asked for
             this.data =
                 this.type & JSFEAT_CONSTANTS.U8_t
@@ -137,6 +138,27 @@ export class matrix_t implements IMatrix_T {
     }
 
     /**
+     * `S64_t` is a declared, publicly exported data type (inherited from
+     * jsfeat) that no view-selection code path actually supports: without
+     * this check, requesting it silently falls through to an F64_t view —
+     * right byte count, wrong interpretation, no error (issue #139).
+     * Rejecting it loudly is a deliberate divergence from jsfeat, which
+     * returns the wrong view silently; see `tests/divergences.test.ts`.
+     *
+     * @param type The data-type component of a packed type signature.
+     * @throws If `type` includes `S64_t`.
+     */
+    private static _reject_S64_t(type: number): void {
+        if (type & JSFEAT_CONSTANTS.S64_t) {
+            throw new Error(
+                "matrix_t: S64_t is declared but not implemented (issue #139) — " +
+                    "no view-selection path returns a genuine 64-bit integer view. " +
+                    "Supported types: U8_t, S32_t, F32_t, F64_t."
+            );
+        }
+    }
+
+    /**
      * Allocates a fresh backing buffer sized from the current
      * `cols * rows * channel * sizeof(type)` and points {@link data} at the
      * view matching {@link type}. Any previous buffer reference is dropped.
@@ -146,6 +168,7 @@ export class matrix_t implements IMatrix_T {
         delete this.data;
         delete this.buffer;
         //
+        matrix_t._reject_S64_t(this.type);
         this.buffer = new data_t(this.cols * this.dt._get_data_type_size(this.type) * this.channel * this.rows);
         this.data =
             this.type & JSFEAT_CONSTANTS.U8_t
