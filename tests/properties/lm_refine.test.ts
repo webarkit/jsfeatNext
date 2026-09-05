@@ -630,4 +630,73 @@ describe("motion_estimator.find_homography with refine_iters", () => {
         for (let i = 0; i < 9; i++) expect(model.data[i]).toBeCloseTo(preModel.data[i], 5);
         for (let i = 0; i < N; i++) expect(mask.data[i]).toBe(prePreMask.data[i]);
     });
+
+    it("skips the refine step entirely when the linear refit's inlier set is too small to refine", () => {
+        // Exactly model_points (4) correspondences: ransac's special case
+        // (count === model_points) marks all 4 as inliers, so
+        // rin0.length (4) is not > model_points (4) -- the refine block's
+        // own guard, mirroring the linear refit's identical guard just
+        // above it in the same function.
+        const N = 4;
+        const rand = mulberry32(303);
+        const GT = [1.05, 0.02, 8.0, -0.03, 0.98, -5.0, 0.0002, -0.0001, 1.0];
+        const from: { x: number; y: number }[] = [],
+            to: { x: number; y: number }[] = [];
+        for (let i = 0; i < N; i++) {
+            const x = 10 + rand() * 300,
+                y = 10 + rand() * 220;
+            from.push({ x, y });
+            to.push(project(GT, x, y));
+        }
+
+        const me = jsfeatNext.motion_estimator;
+        const kernel = jsfeatNext.homography2d;
+        const params = new jsfeatNext.ransac_params_t(4, 3.0, 0.5, 0.99);
+
+        const model = new jsfeatNext.matrix_t(3, 3, F32C1);
+        const mask = new jsfeatNext.matrix_t(N, 1, U8C1);
+        const ok = me.find_homography(params, kernel, from, to, N, model, mask, "ransac", 1000, 10);
+
+        expect(ok).toBe(true);
+        for (let i = 0; i < N; i++) expect(mask.data[i]).toBe(1);
+    });
+
+    it("keeps the pre-refine model/mask when kernel.refine() itself reports degeneracy", () => {
+        // Fake kernel whose refine() always reports failure (0), exercising
+        // find_homography's `kernel.refine(...) > 0` guard's false branch --
+        // distinct from the "reverts... too few points" test above, which
+        // exercises refine() *succeeding* with a bad model instead.
+        const N = 20;
+        const rand = mulberry32(404);
+        const GT = [1.05, 0.02, 8.0, -0.03, 0.98, -5.0, 0.0002, -0.0001, 1.0];
+        const from: { x: number; y: number }[] = [],
+            to: { x: number; y: number }[] = [];
+        for (let i = 0; i < N; i++) {
+            const x = 10 + rand() * 300,
+                y = 10 + rand() * 220;
+            from.push({ x, y });
+            to.push(project(GT, x, y));
+        }
+
+        const real = jsfeatNext.homography2d;
+        const alwaysDegenerateRefine = Object.create(real);
+        alwaysDegenerateRefine.refine = () => 0;
+
+        const me = jsfeatNext.motion_estimator;
+        const params = new jsfeatNext.ransac_params_t(4, 3.0, 0.5, 0.99, jsfeatNext.math.mulberry32(77));
+
+        const preModel = new jsfeatNext.matrix_t(3, 3, F32C1);
+        const preMask = new jsfeatNext.matrix_t(N, 1, U8C1);
+        const okPre = me.find_homography(params, real, from, to, N, preModel, preMask, "ransac", 1000, 0);
+        expect(okPre).toBe(true);
+
+        const model = new jsfeatNext.matrix_t(3, 3, F32C1);
+        const mask = new jsfeatNext.matrix_t(N, 1, U8C1);
+        const params2 = new jsfeatNext.ransac_params_t(4, 3.0, 0.5, 0.99, jsfeatNext.math.mulberry32(77));
+        const ok = me.find_homography(params2, alwaysDegenerateRefine, from, to, N, model, mask, "ransac", 1000, 10);
+
+        expect(ok).toBe(true);
+        for (let i = 0; i < 9; i++) expect(model.data[i]).toBeCloseTo(preModel.data[i], 5);
+        for (let i = 0; i < N; i++) expect(mask.data[i]).toBe(preMask.data[i]);
+    });
 });
