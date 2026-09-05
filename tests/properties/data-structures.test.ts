@@ -263,6 +263,27 @@ describe("ransac_params_t", () => {
         expect([p.size, p.thresh, p.eps, p.prob]).toEqual([0, 0.5, 0.5, 0.99]);
     });
 
+    it("rng defaults to something that behaves like Math.random (issue #189)", () => {
+        const p = new jsfeatNext.ransac_params_t();
+        for (let i = 0; i < 200; i++) {
+            const v = p.rng();
+            expect(v).toBeGreaterThanOrEqual(0);
+            expect(v).toBeLessThan(1);
+        }
+    });
+
+    it("accepts an injected rng and calls exactly that function", () => {
+        let calls = 0;
+        const rng = () => {
+            calls++;
+            return 0.5;
+        };
+        const p = new jsfeatNext.ransac_params_t(4, 0.5, 0.5, 0.99, rng);
+        expect(p.rng()).toBe(0.5);
+        expect(p.rng()).toBe(0.5);
+        expect(calls).toBe(2);
+    });
+
     it("update_iters never exceeds the cap and stays non-negative", () => {
         const p = new jsfeatNext.ransac_params_t(4, 0.5, 0.5, 0.99);
         for (const eps of [0, 0.1, 0.3, 0.5, 0.7, 0.9, 1]) {

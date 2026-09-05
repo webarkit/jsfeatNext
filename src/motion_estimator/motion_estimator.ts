@@ -48,7 +48,7 @@ import { ransac_params_t } from "./ransac_params_t";
 import { JSFEAT_CONSTANTS } from "../constants/constants";
 import { homography2d } from "../motion_model/motion_model";
 import { math } from "../math/math";
-import type { MotionKernel, TypedArray } from "../types";
+import type { MotionKernel, RandomFn, TypedArray } from "../types";
 
 /**
  * Robust motion-model estimation from noisy point correspondences via
@@ -66,8 +66,8 @@ export class motion_estimator extends jsfeatNext {
 
     /**
      * Draws a random minimal sample of `need_cnt` distinct correspondences
-     * (via `Math.random`) and validates it with `kernel.check_subset`.
-     * Retries up to 1000 times before giving up.
+     * and validates it with `kernel.check_subset`. Retries up to 1000 times
+     * before giving up.
      *
      * @param kernel   The motion-model kernel (validates the sample).
      * @param from     Source points. @param to Destination points.
@@ -75,6 +75,9 @@ export class motion_estimator extends jsfeatNext {
      * @param max_cnt  Total number of correspondences to draw from.
      * @param from_sub Output array receiving the sampled source points.
      * @param to_sub   Output array receiving the sampled destination points.
+     * @param rng      Source of `[0, 1)` randomness. Default `Math.random`
+     *                  (issue #189 — pass a seeded {@link RandomFn}, e.g.
+     *                  `math.mulberry32`, for reproducible draws).
      * @returns `true` when a valid subset was found.
      */
     get_subset(
@@ -84,7 +87,8 @@ export class motion_estimator extends jsfeatNext {
         need_cnt: number,
         max_cnt: number,
         from_sub: point_t[],
-        to_sub: point_t[]
+        to_sub: point_t[],
+        rng: RandomFn = Math.random
     ): boolean {
         const max_try = 1000;
         const indices = [];
@@ -100,7 +104,7 @@ export class motion_estimator extends jsfeatNext {
                 idx_i = 0;
                 while (!ok) {
                     ok = true;
-                    idx_i = indices[i] = Math.floor(Math.random() * max_cnt) | 0;
+                    idx_i = indices[i] = Math.floor(rng() * max_cnt) | 0;
                     for (j = 0; j < i; ++j) {
                         if (idx_i == indices[j]) {
                             ok = false;
@@ -171,7 +175,6 @@ export class motion_estimator extends jsfeatNext {
      * afterwards, in `cv::findHomography`, is a separate caller-level layer;
      * see {@link find_homography} (issue #185).
      *
-
      * @param params    Estimation parameters ({@link ransac_params_t}).
      * @param kernel    Motion-model kernel (`homography2d` / `affine2d`).
      * @param from      Source points. @param to Destination points.
@@ -245,7 +248,7 @@ export class motion_estimator extends jsfeatNext {
 
         for (; iter < niters; ++iter) {
             // generate subset
-            found = this.get_subset(kernel, from, to, model_points, count, subset0, subset1);
+            found = this.get_subset(kernel, from, to, model_points, count, subset0, subset1, params.rng);
             if (!found) {
                 if (iter == 0) {
                     this.cache.put_buffer(m_buff);
@@ -370,7 +373,7 @@ export class motion_estimator extends jsfeatNext {
 
         for (; iter < niters; ++iter) {
             // generate subset
-            found = this.get_subset(kernel, from, to, model_points, count, subset0, subset1);
+            found = this.get_subset(kernel, from, to, model_points, count, subset0, subset1, params.rng);
             if (!found) {
                 if (iter == 0) {
                     this.cache.put_buffer(m_buff);

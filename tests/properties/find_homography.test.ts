@@ -466,4 +466,32 @@ describe("motion_estimator.find_homography", () => {
         expect(ok).toBe(false);
         for (let i = 0; i < N; i++) expect(mask.data[i]).toBe(7);
     });
+
+    it("params.rng (issue #189) makes ransac() and find_homography() reproducible without a global Math.random mock", () => {
+        const N = 40;
+        const OUT = 6;
+        const { from, to } = makeCorrespondences(N, OUT, 321);
+        const me = jsfeatNext.motion_estimator;
+        const kernel = jsfeatNext.homography2d;
+
+        const run = () => {
+            // A fresh seeded generator each call: no vi.spyOn(Math, "random")
+            // anywhere in this test, demonstrating the injectable rng is a
+            // real alternative to the global-mock pattern used elsewhere in
+            // this file and in tests/parity/motion_estimator.test.ts.
+            const params = new jsfeatNext.ransac_params_t(4, 3.0, 0.5, 0.99, jsfeatNext.math.mulberry32(555));
+            const model = new jsfeatNext.matrix_t(3, 3, F32C1);
+            const mask = new jsfeatNext.matrix_t(N, 1, U8C1);
+            const ok = me.find_homography(params, kernel, from, to, N, model, mask);
+            return { ok, model: Array.from(model.data as Float32Array), mask: Array.from(mask.data as Uint8Array) };
+        };
+
+        const first = run();
+        const second = run();
+
+        expect(first.ok).toBe(true);
+        expect(second.ok).toBe(true);
+        expect(second.model).toEqual(first.model);
+        expect(second.mask).toEqual(first.mask);
+    });
 });
