@@ -182,10 +182,44 @@ describe("motion_estimator.find_homography", () => {
         expect(reprojectionError(model.data as Float32Array, from, to)).toBeLessThan(1);
     });
 
-    it("method: 'lmeds' composes the same refit/mask-recompute layer", () => {
+    it("method: 'lmeds' actually refits — thresh=0 (the documented 'ignored by lmeds' value) must not silently no-op it", () => {
+        const N = 12;
+        const { from, to } = makeCorrespondences(N, 0, 123);
+        const me = jsfeatNext.motion_estimator;
+        const kernel = jsfeatNext.homography2d;
+        // thresh=0 mirrors the existing lmeds() call convention (see
+        // tests/parity/motion_estimator.test.ts): lmeds ignores it internally
+        // and derives its own robust threshold. find_homography must do the
+        // same for its post-refit reclassification, or thresh=0 collapses
+        // find_inliers to zero inliers and the refit is silently discarded.
+        const params = new jsfeatNext.ransac_params_t(4, 0, 0.45, 0.99);
+
+        const rawModel = new jsfeatNext.matrix_t(3, 3, F32C1);
+        const rawMask = new jsfeatNext.matrix_t(N, 1, U8C1);
+        const okRaw = me.lmeds(params, kernel, from, to, N, rawModel, rawMask, 1000);
+        expect(okRaw).toBe(true);
+        const rawErr = reprojectionError(rawModel.data as Float32Array, from, to);
+
+        const model = new jsfeatNext.matrix_t(3, 3, F32C1);
+        const mask = new jsfeatNext.matrix_t(N, 1, U8C1);
+        const ok = me.find_homography(params, kernel, from, to, N, model, mask, "lmeds");
+
+        expect(ok).toBe(true);
+        for (let i = 0; i < N; i++) expect(mask.data[i]).toBe(1);
+
+        const refitErr = reprojectionError(model.data as Float32Array, from, to);
+        // the refit model must differ from the raw minimal-sample model
+        // (proves the refit actually ran, not a silent fallback) and reduce
+        // reprojection error on this noise-free set.
+        expect(model.data[0]).not.toBeCloseTo(rawModel.data[0], 6);
+        expect(refitErr).toBeLessThan(rawErr);
+        expect(refitErr).toBeLessThan(0.05);
+    });
+
+    it("method: 'lmeds' with outliers: mask and model agree after the refit", () => {
         const N = 40;
         const OUT = 6;
-        const { from, to } = makeCorrespondences(N, OUT, 123);
+        const { from, to } = makeCorrespondences(N, OUT, 456);
         const me = jsfeatNext.motion_estimator;
         const kernel = jsfeatNext.homography2d;
         const params = new jsfeatNext.ransac_params_t(4, 0, 0.45, 0.99);
@@ -196,17 +230,16 @@ describe("motion_estimator.find_homography", () => {
 
         expect(ok).toBe(true);
         let numinliers = 0;
-        const inFrom: { x: number; y: number }[] = [],
-            inTo: { x: number; y: number }[] = [];
-        for (let i = 0; i < N; i++) {
-            numinliers += mask.data[i];
-            if (mask.data[i]) {
-                inFrom.push(from[i]);
-                inTo.push(to[i]);
-            }
-        }
+        for (let i = 0; i < N; i++) numinliers += mask.data[i];
         expect(numinliers).toBeGreaterThanOrEqual(N - OUT - 1);
-        expect(reprojectionError(model.data as Float32Array, inFrom, inTo)).toBeLessThan(1);
+
+        for (let i = 0; i < N; i++) {
+            if (!mask.data[i]) continue;
+            const p = project(Array.from(model.data as Float32Array), from[i].x, from[i].y);
+            const dx = p.x - to[i].x,
+                dy = p.y - to[i].y;
+            expect(Math.sqrt(dx * dx + dy * dy)).toBeLessThan(1);
+        }
     });
 
     it("mask parameter is optional", () => {
