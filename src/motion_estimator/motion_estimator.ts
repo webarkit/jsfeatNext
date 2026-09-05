@@ -102,7 +102,7 @@ export class motion_estimator extends jsfeatNext {
             for (; i < need_cnt && ssiter < max_try;) {
                 ok = false;
                 idx_i = 0;
-                while (!ok) {
+                while (!ok && ssiter < max_try) {
                     ok = true;
                     idx_i = indices[i] = Math.floor(rng() * max_cnt) | 0;
                     for (j = 0; j < i; ++j) {
@@ -111,7 +111,16 @@ export class motion_estimator extends jsfeatNext {
                             break;
                         }
                     }
+                    // A duplicate draw counts against the same ssiter/max_try
+                    // budget as a check_subset rejection below, so a
+                    // degenerate (but RandomFn-contract-compliant) injected
+                    // rng — e.g. one that always returns the same value —
+                    // can't hang this loop forever once #189 made rng
+                    // injectable. Math.random's duplicate rate is negligible
+                    // enough that this doesn't change behavior for it.
+                    if (!ok) ++ssiter;
                 }
+                if (!ok) break;
                 from_sub[i] = from[idx_i];
                 to_sub[i] = to[idx_i];
                 if (!kernel.check_subset(from_sub, to_sub, i + 1)) {
