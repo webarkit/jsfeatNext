@@ -106,7 +106,7 @@ describe("parity: motion_estimator vs original jsfeat.motion_estimator", () => {
     const N = 40;
     const OUT = 6;
 
-    it("ransac with homography2d kernel: same model and same inlier mask", () => {
+    it("ransac with homography2d kernel: same inlier mask (model value diverges on purpose, see #186)", () => {
         const { from, to } = makeCorrespondences(N, OUT);
 
         const params = new jsfeatNext.ransac_params_t(4, 3.0, 0.5, 0.99, mulberry32(2024));
@@ -131,16 +131,18 @@ describe("parity: motion_estimator vs original jsfeat.motion_estimator", () => {
         for (let i = 0; i < N; i++) {
             expect(mask.data[i]).toBe(maskO.data[i]);
         }
-        for (let i = 0; i < 9; i++) {
-            expect(model.data[i]).toBeCloseTo(modelO.data[i], 5);
-        }
+        // Model coefficients are NOT compared here: homography2d's DLT now
+        // accumulates in F64 (issue #186), so it deliberately diverges from
+        // jsfeat's F32 accumulation by a small amount even given the exact
+        // same inlier set and minimal samples. tests/divergences.test.ts
+        // covers that jsfeatNext's result is the more accurate one.
         // sanity: the outliers must be rejected
         for (let i = 0; i < OUT; i++) {
             expect(mask.data[i]).toBe(0);
         }
     });
 
-    it("lmeds with homography2d kernel: same model and same inlier mask", () => {
+    it("lmeds with homography2d kernel: same inlier mask (model value diverges on purpose, see #186)", () => {
         const { from, to } = makeCorrespondences(N, OUT);
 
         const params = new jsfeatNext.ransac_params_t(4, 0, 0.45, 0.99, mulberry32(777));
@@ -164,9 +166,7 @@ describe("parity: motion_estimator vs original jsfeat.motion_estimator", () => {
         for (let i = 0; i < N; i++) {
             expect(mask.data[i]).toBe(maskO.data[i]);
         }
-        for (let i = 0; i < 9; i++) {
-            expect(model.data[i]).toBeCloseTo(modelO.data[i], 5);
-        }
+        // Model coefficients not compared — see the ransac case above (#186).
     });
 
     it("ransac with affine2d kernel: same model and same inlier mask", () => {

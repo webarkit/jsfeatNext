@@ -56,19 +56,28 @@ import { linalg } from "../linalg/linalg";
  * (Moved out of the src/jsfeatNext.ts monolith in issue #47.)
  */
 export class motion_model extends jsfeatNext {
-    /** 3×3 normalization transform for the source points. */
+    /**
+     * 3×3 normalization transform for the source points. F64 (issue #186):
+     * shared by `homography2d`'s DLT solve, which needs the precision, and
+     * by `affine2d`'s denormalization step, which gets it for free.
+     */
     public T0: matrix_t;
-    /** 3×3 normalization transform for the destination points. */
+    /** 3×3 normalization transform for the destination points. F64 (issue #186), see {@link T0}. */
     public T1: matrix_t;
-    /** 6×6 normal-equations matrix scratch (`Aᵀ·A`). */
+    /**
+     * 6×6 normal-equations matrix scratch (`Aᵀ·A`), used only by
+     * `affine2d`'s well-conditioned 6-DOF solve. Left at F32 — issue #186
+     * measured the DLT precision problem in `homography2d` specifically and
+     * scoped affine2d's `lu_solve` path out as unmeasured.
+     */
     public AtA: matrix_t;
-    /** 6×1 normal-equations right-hand side scratch (`Aᵀ·B`). */
+    /** 6×1 normal-equations right-hand side scratch (`Aᵀ·B`). Left at F32, see {@link AtA}. */
     public AtB: matrix_t;
 
     constructor() {
         super();
-        this.T0 = new matrix_t(3, 3, JSFEAT_CONSTANTS.F32_t | JSFEAT_CONSTANTS.C1_t);
-        this.T1 = new matrix_t(3, 3, JSFEAT_CONSTANTS.F32_t | JSFEAT_CONSTANTS.C1_t);
+        this.T0 = new matrix_t(3, 3, JSFEAT_CONSTANTS.F64_t | JSFEAT_CONSTANTS.C1_t);
+        this.T1 = new matrix_t(3, 3, JSFEAT_CONSTANTS.F64_t | JSFEAT_CONSTANTS.C1_t);
         this.AtA = new matrix_t(6, 6, JSFEAT_CONSTANTS.F32_t | JSFEAT_CONSTANTS.C1_t);
         this.AtB = new matrix_t(6, 1, JSFEAT_CONSTANTS.F32_t | JSFEAT_CONSTANTS.C1_t);
     }
@@ -314,15 +323,32 @@ export class affine2d extends motion_model {
  * Minimal sample size: 4.
  */
 export class homography2d extends motion_model {
-    /** 9×9 scratch for the DLT normal matrix `LᵀL`. */
+    /**
+     * 9×9 scratch for the DLT normal matrix `LᵀL`. F64 (issue #186): forming
+     * the normal equations already costs half the available significant
+     * digits (squares the condition number vs. solving on `L` directly), so
+     * accumulating 36 upper-triangle sums per point in F32 on top of that
+     * capped precision well below what's achievable — matches OpenCV's
+     * `HomographyEstimatorCallback::runKernel`, which uses `double` throughout.
+     */
     public mLtL: matrix_t;
-    /** 9×9 scratch for its eigenvectors. */
+    /** 9×9 scratch for its eigenvectors. F64 (issue #186), see {@link mLtL}. */
     public Evec: matrix_t;
+    /**
+     * F64 scratch for the model through eigenvector extraction, both
+     * denormalization multiplies and the final scale-to-`[8]=1` step (issue
+     * #186) — `model` itself may be F32 (every existing caller constructs it
+     * that way), so writing directly into it partway through would round
+     * back down to F32 before the computation is even finished. Copied into
+     * the caller's `model` once, at the very end of {@link run}.
+     */
+    private model64: matrix_t;
 
     constructor() {
         super();
-        this.mLtL = new matrix_t(9, 9, JSFEAT_CONSTANTS.F32_t | JSFEAT_CONSTANTS.C1_t);
-        this.Evec = new matrix_t(9, 9, JSFEAT_CONSTANTS.F32_t | JSFEAT_CONSTANTS.C1_t);
+        this.mLtL = new matrix_t(9, 9, JSFEAT_CONSTANTS.F64_t | JSFEAT_CONSTANTS.C1_t);
+        this.Evec = new matrix_t(9, 9, JSFEAT_CONSTANTS.F64_t | JSFEAT_CONSTANTS.C1_t);
+        this.model64 = new matrix_t(3, 3, JSFEAT_CONSTANTS.F64_t | JSFEAT_CONSTANTS.C1_t);
     }
 
     /**
@@ -339,7 +365,7 @@ export class homography2d extends motion_model {
     run(from: point_t[], to: point_t[], model: matrix_t, count: number): number {
         let i = 0,
             j = 0;
-        const md = model.data,
+        const md = this.model64.data,
             t0d = this.T0.data,
             t1d = this.T1.data;
         const LtL = this.mLtL.data,
@@ -478,12 +504,14 @@ export class homography2d extends motion_model {
         ((md[3] = evd[75]), (md[4] = evd[76]), (md[5] = evd[77]));
         ((md[6] = evd[78]), (md[7] = evd[79]), (md[8] = evd[80]));
 
-        // denormalize
-        _matmath.multiply_3x3(model, this.T1, model);
-        _matmath.multiply_3x3(model, model, this.T0);
+        // denormalize (fully in F64 via model64 — model itself may be F32)
+        _matmath.multiply_3x3(this.model64, this.T1, this.model64);
+        _matmath.multiply_3x3(this.model64, this.model64, this.T0);
 
-        // set bottom right to 1.0
-        x = 1.0 / md[8];
+        // set bottom right to 1.0, guarded against a near-zero md[8]
+        // (pure-perspective degenerate) the way OpenCV's scaleFor() is —
+        // md[8] === 0 previously produced Infinity silently.
+        x = Math.abs(md[8]) > JSFEAT_CONSTANTS.EPSILON ? 1.0 / md[8] : 1.0;
         md[0] *= x;
         md[1] *= x;
         md[2] *= x;
@@ -493,6 +521,8 @@ export class homography2d extends motion_model {
         md[6] *= x;
         md[7] *= x;
         md[8] = 1.0;
+
+        this.model64.copy_to(model);
 
         return 1;
     }
