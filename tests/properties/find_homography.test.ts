@@ -139,6 +139,16 @@ afterEach(() => {
     vi.restoreAllMocks();
 });
 
+/** Seeds Math.random for deterministic get_subset draws, matching
+ * tests/parity/motion_estimator.test.ts's own seededRandom convention.
+ * Needed wherever a test has outliers and enough points that whether
+ * ransac()/lmeds() land on a clean subset within max_iters depends on the
+ * random draw (issue #189 — the RNG isn't injectable yet, so seeding the
+ * global is the only way to make these tests non-flaky). */
+function seededRandom(seed: number) {
+    return vi.spyOn(Math, "random").mockImplementation(mulberry32(seed));
+}
+
 describe("motion_estimator.find_homography", () => {
     it("noise-free correspondences: refit converges tighter and more consistently than raw ransac()", () => {
         const N = 12;
@@ -186,6 +196,7 @@ describe("motion_estimator.find_homography", () => {
 
         const model = new jsfeatNext.matrix_t(3, 3, F32C1);
         const mask = new jsfeatNext.matrix_t(N, 1, U8C1);
+        seededRandom(2024);
         const ok = me.find_homography(params, kernel, from, to, N, model, mask);
 
         expect(ok).toBe(true);
@@ -224,6 +235,85 @@ describe("motion_estimator.find_homography", () => {
         expect(ok).toBe(true);
         for (let i = 0; i < N; i++) expect(mask.data[i]).toBe(1);
         expect(reprojectionError(model.data as Float32Array, from, to)).toBeLessThan(1);
+    });
+
+    // The next two tests inject a fake kernel (real homography2d via
+    // prototype delegation, `run` overridden only for the >model_points call
+    // find_homography makes for the refit) to force the two fallback
+    // branches directly. Neither is reachable through real ransac()/lmeds()
+    // data: homography2d.run's degeneracy check is a point-spread test, and
+    // once a 4-point minimal sample already has non-zero spread, any inlier
+    // superset containing those same 4 points keeps it non-zero too, so the
+    // real kernel can't be coaxed into failing only on the larger refit call.
+
+    it("refit returning <= 0 (degenerate, e.g. collinear inliers) keeps the pre-refit model and mask", () => {
+        const N = 20;
+        const { from, to } = makeCorrespondences(N, 0, 42);
+        const me = jsfeatNext.motion_estimator;
+        const real = jsfeatNext.homography2d;
+        const params = new jsfeatNext.ransac_params_t(4, 3.0, 0.5, 0.99);
+
+        const degenerateOnRefit = Object.create(real);
+        degenerateOnRefit.run = (
+            f: typeof from,
+            t: typeof to,
+            m: InstanceType<typeof jsfeatNext.matrix_t>,
+            count: number
+        ) => (count > params.size ? 0 : real.run(f, t, m, count));
+
+        const preRefitModel = new jsfeatNext.matrix_t(3, 3, F32C1);
+        const preRefitMask = new jsfeatNext.matrix_t(N, 1, U8C1);
+        seededRandom(7);
+        const okPre = me.ransac(params, real, from, to, N, preRefitModel, preRefitMask, 1000);
+        vi.restoreAllMocks();
+        expect(okPre).toBe(true);
+
+        const model = new jsfeatNext.matrix_t(3, 3, F32C1);
+        const mask = new jsfeatNext.matrix_t(N, 1, U8C1);
+        seededRandom(7); // identical draw, so ransac()'s own result matches preRefitModel/mask exactly
+        const ok = me.find_homography(params, degenerateOnRefit, from, to, N, model, mask);
+
+        expect(ok).toBe(true);
+        for (let i = 0; i < 9; i++) expect(model.data[i]).toBeCloseTo(preRefitModel.data[i], 5);
+        for (let i = 0; i < N; i++) expect(mask.data[i]).toBe(preRefitMask.data[i]);
+    });
+
+    it("refit that collapses the inlier count below model_points keeps the pre-refit model and mask", () => {
+        const N = 20;
+        const { from, to } = makeCorrespondences(N, 0, 43);
+        const me = jsfeatNext.motion_estimator;
+        const real = jsfeatNext.homography2d;
+        const params = new jsfeatNext.ransac_params_t(4, 3.0, 0.5, 0.99);
+
+        // "Succeeds" on the refit call but writes the identity, which fits
+        // essentially none of these GT-transformed (translated + scaled)
+        // correspondences, so the post-refit reclassification collapses to
+        // well under model_points inliers.
+        const badRefit = Object.create(real);
+        badRefit.run = (f: typeof from, t: typeof to, m: InstanceType<typeof jsfeatNext.matrix_t>, count: number) => {
+            if (count > params.size) {
+                const identity = [1, 0, 0, 0, 1, 0, 0, 0, 1];
+                for (let i = 0; i < 9; i++) m.data[i] = identity[i];
+                return 1;
+            }
+            return real.run(f, t, m, count);
+        };
+
+        const preRefitModel = new jsfeatNext.matrix_t(3, 3, F32C1);
+        const preRefitMask = new jsfeatNext.matrix_t(N, 1, U8C1);
+        seededRandom(11);
+        const okPre = me.ransac(params, real, from, to, N, preRefitModel, preRefitMask, 1000);
+        vi.restoreAllMocks();
+        expect(okPre).toBe(true);
+
+        const model = new jsfeatNext.matrix_t(3, 3, F32C1);
+        const mask = new jsfeatNext.matrix_t(N, 1, U8C1);
+        seededRandom(11);
+        const ok = me.find_homography(params, badRefit, from, to, N, model, mask);
+
+        expect(ok).toBe(true);
+        for (let i = 0; i < 9; i++) expect(model.data[i]).toBeCloseTo(preRefitModel.data[i], 5);
+        for (let i = 0; i < N; i++) expect(mask.data[i]).toBe(preRefitMask.data[i]);
     });
 
     it("method: 'lmeds' actually refits — thresh=0 (the documented 'ignored by lmeds' value) must not silently no-op it", () => {
@@ -309,6 +399,7 @@ describe("motion_estimator.find_homography", () => {
 
         const model = new jsfeatNext.matrix_t(3, 3, F32C1);
         const mask = new jsfeatNext.matrix_t(N, 1, U8C1);
+        seededRandom(2024);
         const ok = me.find_homography(params, kernel, from, to, N, model, mask, "lmeds");
 
         expect(ok).toBe(true);
