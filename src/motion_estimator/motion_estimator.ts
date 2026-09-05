@@ -162,10 +162,16 @@ export class motion_estimator extends jsfeatNext {
 
     /**
      * RANSAC estimation: repeatedly fits the kernel's model to random
-     * minimal samples, keeps the hypothesis with the most inliers (adapting
-     * the iteration count from the observed inlier ratio), and finally
-     * refits the model on all inliers of the best hypothesis.
+     * minimal samples, keeping the hypothesis with the most inliers
+     * (adapting the iteration count from the observed inlier ratio).
      *
+     * Returns the winning **minimal-sample** model as-is — it does not refit
+     * over the full inlier set, matching both `jsfeat.motion_estimator.ransac`
+     * and `cv::RANSACPointSetRegistrator::run`. The refit OpenCV performs
+     * afterwards, in `cv::findHomography`, is a separate caller-level layer;
+     * see {@link find_homography} (issue #185).
+     *
+
      * @param params    Estimation parameters ({@link ransac_params_t}).
      * @param kernel    Motion-model kernel (`homography2d` / `affine2d`).
      * @param from      Source points. @param to Destination points.
@@ -277,7 +283,13 @@ export class motion_estimator extends jsfeatNext {
      * Least-median-of-squares estimation: like {@link ransac} but scores each
      * hypothesis by the MEDIAN squared error (no inlier threshold needed —
      * robust up to 50% outliers), then derives an inlier threshold from the
-     * winning median's robust standard deviation and refits on the inliers.
+     * winning median's robust standard deviation and classifies inliers
+     * against it.
+     *
+     * Like {@link ransac}, the returned model is the winning **minimal-sample**
+     * fit — it does not refit over the classified inliers, matching
+     * `jsfeat.motion_estimator.lmeds` and `cv::LMeDSPointSetRegistrator::run`.
+     * See {@link find_homography} (issues #185, #188).
      *
      * @param params    Estimation parameters (`thresh` is ignored).
      * @param kernel    Motion-model kernel (`homography2d` / `affine2d`).
@@ -399,5 +411,112 @@ export class motion_estimator extends jsfeatNext {
         this.cache.put_buffer(err_buff);
 
         return result;
+    }
+
+    /**
+     * The caller-level layer OpenCV has (`cv::findHomography` /
+     * `cv::estimateAffine2D`) and jsfeat never ported: runs {@link ransac} or
+     * {@link lmeds} to find a robust minimal-sample model, then refits the
+     * model over the full inlier set of the winning hypothesis via a single
+     * extra `kernel.run()`, and recomputes the inlier mask against the refit
+     * model so `model` and `mask` describe the same transform (mirroring
+     * OpenCV's `runKernel` + `LMSolver`-less refit + `computeError` steps in
+     * `fundam.cpp`, minus the Levenberg-Marquardt polish tracked in #187).
+     *
+     * `ransac()`/`lmeds()` themselves are untouched by this and stay at
+     * jsfeat/OpenCV parity — see their doc comments and issues #185/#188.
+     *
+     * If the refit is degenerate (`kernel.run()` on the inlier set returns
+     * `<= 0`) or collapses the inlier count below `params.size`, the
+     * pre-refit minimal-sample model and mask are kept rather than returning
+     * garbage.
+     *
+     * @param params    Estimation parameters ({@link ransac_params_t});
+     *                   `params.size` is the kernel's minimal sample size
+     *                   (4 for `homography2d`, 3 for `affine2d`).
+     * @param kernel    Motion-model kernel (`homography2d` / `affine2d`).
+     * @param from      Source points. @param to Destination points.
+     * @param count     Number of correspondences.
+     * @param model     Output model matrix; refit over all inliers on success.
+     * @param mask      Output 0/1 inlier mask (`count`×1 matrix), recomputed
+     *                   against the refit model. Optional.
+     * @param method    `"ransac"` (default) or `"lmeds"`.
+     * @param max_iters Iteration cap forwarded to the underlying estimator. Default 1000.
+     * @returns `true` when the underlying estimator (`ransac`/`lmeds`) found a model.
+     */
+    find_homography(
+        params: ransac_params_t,
+        kernel: MotionKernel,
+        from: point_t[],
+        to: point_t[],
+        count: number,
+        model: matrix_t,
+        mask?: matrix_t,
+        method: "ransac" | "lmeds" = "ransac",
+        max_iters: number = 1000
+    ): boolean {
+        const model_points = params.size;
+        const mc = model.cols,
+            mr = model.rows;
+        const dt = model.type | JSFEAT_CONSTANTS.C1_t;
+
+        const mask_buff = this.cache.get_buffer(count);
+        const own_mask = new matrix_t(count, 1, JSFEAT_CONSTANTS.U8C1_t, mask_buff.data);
+
+        const result =
+            method === "lmeds"
+                ? this.lmeds(params, kernel, from, to, count, model, own_mask, max_iters)
+                : this.ransac(params, kernel, from, to, count, model, own_mask, max_iters);
+
+        if (!result) {
+            if (mask) own_mask.copy_to(mask);
+            this.cache.put_buffer(mask_buff);
+            return false;
+        }
+
+        const in0: point_t[] = [];
+        const in1: point_t[] = [];
+        for (let i = 0; i < count; ++i) {
+            if (own_mask.data[i]) {
+                in0.push(from[i]);
+                in1.push(to[i]);
+            }
+        }
+
+        if (in0.length > model_points) {
+            const m_buff = this.cache.get_buffer((mc * mr) << 3);
+            const M = new matrix_t(mc, mr, dt, m_buff.data);
+
+            if (kernel.run(in0, in1, M, in0.length) > 0) {
+                const err_buff = this.cache.get_buffer(count << 2);
+                const refit_mask_buff = this.cache.get_buffer(count);
+                const err = err_buff.f32;
+                const refit_mask = new matrix_t(count, 1, JSFEAT_CONSTANTS.U8C1_t, refit_mask_buff.data);
+
+                // Reclassify against params.thresh regardless of method: OpenCV's
+                // findHomography applies the same ransacReprojThreshold-derived
+                // criterion to both RANSAC and LMEDS results at this final step,
+                // even though LMEDS's own robust threshold (derived from the
+                // median) is what selected the hypothesis in the first place.
+                const numinliers = this.find_inliers(kernel, M, from, to, count, params.thresh, err, refit_mask.data);
+
+                if (numinliers >= model_points) {
+                    M.copy_to(model);
+                    refit_mask.copy_to(own_mask);
+                }
+                // else: refit collapsed the inlier count — keep the pre-refit model/mask
+
+                this.cache.put_buffer(err_buff);
+                this.cache.put_buffer(refit_mask_buff);
+            }
+            // else: degenerate refit (e.g. collinear inliers) — keep the pre-refit model/mask
+
+            this.cache.put_buffer(m_buff);
+        }
+
+        if (mask) own_mask.copy_to(mask);
+        this.cache.put_buffer(mask_buff);
+
+        return true;
     }
 }
