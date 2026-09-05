@@ -493,12 +493,22 @@ export class motion_estimator extends jsfeatNext {
                 const err = err_buff.f32;
                 const refit_mask = new matrix_t(count, 1, JSFEAT_CONSTANTS.U8C1_t, refit_mask_buff.data);
 
-                // Reclassify against params.thresh regardless of method: OpenCV's
-                // findHomography applies the same ransacReprojThreshold-derived
-                // criterion to both RANSAC and LMEDS results at this final step,
-                // even though LMEDS's own robust threshold (derived from the
-                // median) is what selected the hypothesis in the first place.
-                const numinliers = this.find_inliers(kernel, M, from, to, count, params.thresh, err, refit_mask.data);
+                // `params.thresh` is meaningless for lmeds (its own doc says
+                // "unused by LMEDS", and callers correctly pass 0 per the
+                // existing lmeds() call convention — using it here would make
+                // every point fail and silently no-op the refit). Rederive
+                // lmeds's own robust threshold from the refit model's error
+                // distribution instead, via the same formula lmeds() itself
+                // uses; ransac keeps params.thresh, matching OpenCV's
+                // ransacReprojThreshold applying at this final step.
+                let threshold = params.thresh;
+                if (method === "lmeds") {
+                    kernel.error(from, to, M, err, count);
+                    const median = new math().median(err, 0, count - 1);
+                    threshold = Math.max(2.5 * 1.4826 * (1 + 5.0 / (count - model_points)) * Math.sqrt(median), 0.001);
+                }
+
+                const numinliers = this.find_inliers(kernel, M, from, to, count, threshold, err, refit_mask.data);
 
                 if (numinliers >= model_points) {
                     M.copy_to(model);
