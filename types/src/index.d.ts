@@ -34,4 +34,4 @@ export type { ransac_params_t } from './motion_estimator/ransac_params_t';
 export type { match_t, IMatch_T } from './bfmatcher/match_t';
 export type { pose_t, IPose_T } from './pose_estimator/pose_estimator';
 export type { ICache } from './cache/cache';
-export type { TypedArray, NumericArray, MotionKernel } from './types';
+export type { TypedArray, NumericArray, MotionKernel, RandomFn } from './types';

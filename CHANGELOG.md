@@ -1,4 +1,54 @@
 
+## 0.16.0 - 2026-09-06
+
+### 🐛 Bug Fixes
+
+- Add find_homography, the missing refit layer RANSAC/LMEDS never had (eb1fd65)
+
+- Derive lmeds's own reclassification threshold in find_homography (c52b05c)
+
+- Don't leak stale pool bytes into the caller's mask on failure; fix flaky lmeds test (0c97300)
+
+- Get_subset must not hang forever on a degenerate injected RandomFn (db1e134)
+
+- Run homography2d's DLT solve in F64 instead of F32 (81689eb)
+
+- Report a near-zero h33 as degenerate instead of fabricating a corrupted model (23e1ba2)
+
+- Fix flaky test and recompute the mask after LM refine (90b0da8)
+
+- Reject S64_t instead of silently returning an F64_t view (0965875)
+
+- Correct outline sizing and level-scale coordinate un-scaling in ORB training (5873899)
+
+- Validate S64_t before discarding allocate()'s existing storage (66c8059)
+
+
+### 👷 CI
+
+- Switch npm publish to Trusted Publishers (OIDC), drop NPM_TOKEN (ac8006e)
+
+
+### 📚 Documentation
+
+- Note that Trusted Publisher setup must explicitly allow npm publish (3a2d9c7)
+
+
+### 🚀 Features
+
+- Injectable RNG for ransac/lmeds minimal-sample draws (ca82e30)
+
+- Levenberg-Marquardt refinement for homography/affine (issue #187) (7186ff6)
+
+
+### 🧪 Testing
+
+- Seed RNG to deflake outlier tests, cover both refit-fallback branches (5a9e774)
+
+- Cover the two remaining branches Codecov flagged in find_homography's refine block (d98b1c2)
+
+
+
 ## 0.15.0 - 2026-09-03
 
 ### 🐛 Bug Fixes

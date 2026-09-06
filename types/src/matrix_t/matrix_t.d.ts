@@ -69,6 +69,18 @@ export declare class matrix_t implements IMatrix_T {
      */
     constructor(c: number, r: number, _data_type: number, _data_buffer?: data_t);
     /**
+     * `S64_t` is a declared, publicly exported data type (inherited from
+     * jsfeat) that no view-selection code path actually supports: without
+     * this check, requesting it silently falls through to an F64_t view —
+     * right byte count, wrong interpretation, no error (issue #139).
+     * Rejecting it loudly is a deliberate divergence from jsfeat, which
+     * returns the wrong view silently; see `tests/divergences.test.ts`.
+     *
+     * @param type The data-type component of a packed type signature.
+     * @throws If `type` includes `S64_t`.
+     */
+    private static _reject_S64_t;
+    /**
      * Allocates a fresh backing buffer sized from the current
      * `cols * rows * channel * sizeof(type)` and points {@link data} at the
      * view matching {@link type}. Any previous buffer reference is dropped.

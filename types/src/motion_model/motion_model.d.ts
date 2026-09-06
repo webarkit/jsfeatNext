@@ -10,13 +10,22 @@ import { TypedArray } from '../types';
  * (Moved out of the src/jsfeatNext.ts monolith in issue #47.)
  */
 export declare class motion_model extends jsfeatNext {
-    /** 3×3 normalization transform for the source points. */
+    /**
+     * 3×3 normalization transform for the source points. F64 (issue #186):
+     * shared by `homography2d`'s DLT solve, which needs the precision, and
+     * by `affine2d`'s denormalization step, which gets it for free.
+     */
     T0: matrix_t;
-    /** 3×3 normalization transform for the destination points. */
+    /** 3×3 normalization transform for the destination points. F64 (issue #186), see {@link T0}. */
     T1: matrix_t;
-    /** 6×6 normal-equations matrix scratch (`Aᵀ·A`). */
+    /**
+     * 6×6 normal-equations matrix scratch (`Aᵀ·A`), used only by
+     * `affine2d`'s well-conditioned 6-DOF solve. Left at F32 — issue #186
+     * measured the DLT precision problem in `homography2d` specifically and
+     * scoped affine2d's `lu_solve` path out as unmeasured.
+     */
     AtA: matrix_t;
-    /** 6×1 normal-equations right-hand side scratch (`Aᵀ·B`). */
+    /** 6×1 normal-equations right-hand side scratch (`Aᵀ·B`). Left at F32, see {@link AtA}. */
     AtB: matrix_t;
     constructor();
     /** @returns `x²`. */
@@ -80,6 +89,25 @@ export declare class affine2d extends motion_model {
      * @returns Always `true`.
      */
     check_subset(from: point_t[], to: point_t[], count: number): boolean;
+    /**
+     * Non-linear (Levenberg-Marquardt) refinement of the affine `model`
+     * (issue #187), mirroring OpenCV's `Affine2DRefineCallback`. The model
+     * is already linear in its 6 parameters, and `run()` already solves the
+     * exact least-squares optimum for them via normal equations — so LM
+     * seeded from that solution has zero gradient at the start and
+     * terminates immediately without changing it (this mirrors OpenCV's own
+     * note that `estimateAffine2D` skips the extra `runKernel` refit
+     * `findHomography` does, since LM alone already converges to the LS
+     * answer for a linear model). Implemented for API symmetry with
+     * {@link homography2d.refine}, not because it moves the answer.
+     *
+     * @param from  Source points. @param to Destination points.
+     * @param model 3×3 affine model to refine in place (bottom row `[0,0,1]`).
+     * @param count Number of correspondences.
+     * @param iters LM iteration cap. Default 10.
+     * @returns 1 (an affine model has no degenerate-normalization case).
+     */
+    refine(from: point_t[], to: point_t[], model: matrix_t, count: number, iters?: number): number;
 }
 /**
  * Homography (8-DOF perspective) motion-model kernel for
@@ -88,10 +116,26 @@ export declare class affine2d extends motion_model {
  * Minimal sample size: 4.
  */
 export declare class homography2d extends motion_model {
-    /** 9×9 scratch for the DLT normal matrix `LᵀL`. */
+    /**
+     * 9×9 scratch for the DLT normal matrix `LᵀL`. F64 (issue #186): forming
+     * the normal equations already costs half the available significant
+     * digits (squares the condition number vs. solving on `L` directly), so
+     * accumulating 36 upper-triangle sums per point in F32 on top of that
+     * capped precision well below what's achievable — matches OpenCV's
+     * `HomographyEstimatorCallback::runKernel`, which uses `double` throughout.
+     */
     mLtL: matrix_t;
-    /** 9×9 scratch for its eigenvectors. */
+    /** 9×9 scratch for its eigenvectors. F64 (issue #186), see {@link mLtL}. */
     Evec: matrix_t;
+    /**
+     * F64 scratch for the model through eigenvector extraction, both
+     * denormalization multiplies and the final scale-to-`[8]=1` step (issue
+     * #186) — `model` itself may be F32 (every existing caller constructs it
+     * that way), so writing directly into it partway through would round
+     * back down to F32 before the computation is even finished. Copied into
+     * the caller's `model` once, at the very end of {@link run}.
+     */
+    private model64;
     constructor();
     /**
      * Estimates the homography mapping `from` -> `to` by normalized DLT:
@@ -123,4 +167,28 @@ export declare class homography2d extends motion_model {
      * @returns `true` when the 4-point sample is usable.
      */
     check_subset(from: point_t[], to: point_t[], count: number): boolean;
+    /**
+     * Non-linear (Levenberg-Marquardt) refinement of the homography `model`
+     * over all `count` correspondences, minimizing forward-transfer
+     * (reprojection) error rather than the algebraic DLT residual `run()`
+     * minimizes (issue #187) — this is what actually delivers OpenCV's
+     * sub-pixel accuracy; the `run()`/refit precision work in #185/#186 only
+     * gets a linear (algebraic) fit as close as a linear fit can get.
+     * Mirrors OpenCV's `HomographyRefineCallback` (residual and Jacobian
+     * below match its analytic derivation exactly) run through `LMSolver`.
+     *
+     * `model` must already satisfy this class's `h33 === 1` invariant (e.g.
+     * the output of `run()` or `find_homography()` — see `error()`'s own
+     * hardcoded `+ 1.0` term). After refinement, the same invariant is
+     * re-enforced: a refined `h33` too close to zero to safely rescale is
+     * reported as degenerate rather than returning a corrupted model, exactly
+     * as `run()`'s own final-scale guard does.
+     *
+     * @param from  Source points. @param to Destination points.
+     * @param model 3×3 homography to refine in place.
+     * @param count Number of correspondences.
+     * @param iters LM iteration cap. Default 10 (OpenCV's `refineIters` default).
+     * @returns 1 on success, 0 if the refined model can't be rescaled to `h33 = 1`.
+     */
+    refine(from: point_t[], to: point_t[], model: matrix_t, count: number, iters?: number): number;
 }
