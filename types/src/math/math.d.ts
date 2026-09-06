@@ -1,5 +1,6 @@
 import { default as jsfeatNext } from '../core/core';
 import { matrix_t } from '../matrix_t/matrix_t';
+import { RandomFn } from '../types';
 /**
  * General math utilities: Gaussian-kernel generation, an in-place quicksort
  * and a selection-based median. Mirrors `jsfeat.math` from the original
@@ -60,4 +61,18 @@ export declare class math extends jsfeatNext {
      * @returns The median value of the range.
      */
     median(array: number[] | Int32Array | Float32Array, low: number, high: number): number;
+    /**
+     * Seedable pseudo-random generator (mulberry32), returning a {@link RandomFn}
+     * matching `Math.random`'s `[0, 1)` contract. Deterministic for a given
+     * seed and fast (one 32-bit multiply-heavy mix per call).
+     *
+     * Original to jsfeatNext (not ported from jsfeat), added for issue #189:
+     * `ransac_params_t`'s `rng` field and `motion_estimator.get_subset` accept
+     * `Math.random` by default, so this is what a caller reaches for to make
+     * `ransac()`/`lmeds()` reproducible across runs instead.
+     *
+     * @param seed 32-bit integer seed.
+     * @returns A `RandomFn` producing the same sequence for the same seed.
+     */
+    mulberry32(seed: number): RandomFn;
 }

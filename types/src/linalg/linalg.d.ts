@@ -2,6 +2,20 @@ import { default as jsfeatNext } from '../core/core';
 import { matrix_t } from '../matrix_t/matrix_t';
 import { default as matmath } from '../matmath/matmath';
 /**
+ * The residual/Jacobian contract {@link linalg.lm_solve} refines against.
+ * Original to jsfeatNext (issue #187) — jsfeat has no non-linear solver.
+ */
+export interface LMCallback {
+    /**
+     * Fills `err` (length `m`, the solver's `num_residuals`) with the
+     * residuals at `params` (length `n`). When `J` is not `null`, also fills
+     * it — row-major, `m`×`n` — with the Jacobian at `params`.
+     *
+     * @returns `false` to report the parameters as degenerate and abort the solve.
+     */
+    compute(params: Float64Array, err: Float64Array, J: Float64Array | null): boolean;
+}
+/**
  * Dense linear-algebra solvers built on Jacobi rotations: LU and Cholesky
  * linear-system solvers, singular value decomposition (and SVD-based solve /
  * pseudo-inverse) and symmetric eigen-decomposition. Mirrors `jsfeat.linalg`
@@ -63,6 +77,37 @@ export declare class linalg extends jsfeatNext {
      * @returns 1 (the decomposition does not detect failure).
      */
     cholesky_solve(A: matrix_t, B: matrix_t): number;
+    /**
+     * Levenberg-Marquardt: refines `params` to minimize `Σ err(params)²` by
+     * repeatedly solving the damped normal system `(JᵀJ + λI)·Δ = Jᵀ·err`
+     * for a step `Δ`, accepting it (and shrinking `λ`) when it reduces the
+     * cost, or rejecting it (and growing `λ`) when it doesn't — the standard
+     * trust-region compromise between Gauss-Newton (fast near the optimum)
+     * and gradient descent (robust far from it).
+     *
+     * Original to jsfeatNext (issue #187) — jsfeat has no non-linear solver.
+     * Uses {@link cholesky_solve} on the damped normal system rather than an
+     * SVD-based solve: with `λ > 0` the damped `JᵀJ + λI` is always SPD, so
+     * Cholesky suffices and the solver has no dependency on SVD (relevant to
+     * a future `no_std`/WASM port, where SVD is a materially bigger ask than
+     * Cholesky).
+     *
+     * @param params        `n`×1 F64 matrix, the parameter vector — mutated
+     *                       in place to the refined result (or left as the
+     *                       best point found, on a degenerate step).
+     * @param num_residuals `m`, the number of residuals `callback` fills.
+     * @param callback      Computes residuals (and, when asked, the
+     *                       Jacobian) at a given parameter vector.
+     * @param max_iters     Iteration cap. Default 10 (matches OpenCV's
+     *                       `LMSolver`/`refineIters` default).
+     * @param eps           Stops early once the relative cost improvement
+     *                       between iterations drops below this. Default 1e-10.
+     * @returns `false` if `callback` ever reports degeneracy; `true` otherwise
+     *          (matching `LMSolver`, this does not mean "converged" — only
+     *          that `max_iters` were run, or `eps` was reached, without
+     *          numerical failure).
+     */
+    lm_solve(params: matrix_t, num_residuals: number, callback: LMCallback, max_iters?: number, eps?: number): boolean;
     /**
      * Singular value decomposition `A = U · diag(W) · Vᵀ` via one-sided
      * Jacobi rotations. Singular values arrive in descending order.
