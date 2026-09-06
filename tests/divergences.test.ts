@@ -172,6 +172,25 @@ describe("intentional divergences from jsfeat", () => {
                 expect(() => new jsfeatNext.matrix_t(4, 4, t | jsfeatNext.C1_t)).not.toThrow();
             }
         });
+
+        it("rejecting an allocate() call to switch to S64_t leaves the matrix's existing data/buffer intact", () => {
+            // Qodo review finding: allocate() used to delete this.data/this.buffer
+            // before validating the new type, so a caller who set `type` to
+            // S64_t and called allocate() (catching the resulting throw) was
+            // left with a corrupted matrix -- data/buffer both undefined,
+            // even though the matrix's actual bytes were never touched.
+            const m = new jsfeatNext.matrix_t(4, 4, F32C1);
+            m.data[0] = 42;
+            const dataBefore = m.data;
+            const bufferBefore = m.buffer;
+
+            m.type = jsfeatNext.S64_t | jsfeatNext.C1_t;
+            expect(() => m.allocate()).toThrow(/S64_t/);
+
+            expect(m.data).toBe(dataBefore);
+            expect(m.buffer).toBe(bufferBefore);
+            expect(m.data[0]).toBe(42);
+        });
     });
 
     describe("imgproc.warp_affine fills the (-1, 0) source band instead of extrapolating (#119)", () => {
