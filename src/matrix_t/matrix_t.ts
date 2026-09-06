@@ -164,11 +164,15 @@ export class matrix_t implements IMatrix_T {
      * view matching {@link type}. Any previous buffer reference is dropped.
      */
     allocate(): void {
+        // Validate before discarding anything: allocate() is public API and
+        // can be called on an already-valid matrix (e.g. after changing
+        // `type`) -- deleting data/buffer first would leave that matrix
+        // corrupted (data/buffer undefined) if this throws.
+        matrix_t._reject_S64_t(this.type);
         // clear references
         delete this.data;
         delete this.buffer;
         //
-        matrix_t._reject_S64_t(this.type);
         this.buffer = new data_t(this.cols * this.dt._get_data_type_size(this.type) * this.channel * this.rows);
         this.data =
             this.type & JSFEAT_CONSTANTS.U8_t
