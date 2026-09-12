@@ -181,19 +181,23 @@ describe("parity: orb.describe vs original jsfeat.orb", () => {
     it("produces identical 32-byte descriptors for identical corners", () => {
         const { next, orig } = grayPair();
 
-        // corners from the (already parity-verified) FAST detector
+        // Both sides describe the SAME keypoints. This test is about
+        // orb.describe, so the corner list is an input to it, not something
+        // under test here: jsfeatNext's fast_corners diverges from jsfeat's
+        // deliberately (#202), and that divergence is pinned in
+        // tests/divergences.test.ts rather than re-tested through ORB.
         const { nextC, origC } = makeCorners(W * H);
         const fc = jsfeatNext.fast_corners;
         fc.set_threshold(20);
-        jsfeat.fast_corners.set_threshold(20);
         const count = fc.detect(next, nextC, 20); // generous border for 32px patches
-        const countO = jsfeat.fast_corners.detect(orig, origC, 20);
-        expect(count).toBe(countO);
         expect(count).toBeGreaterThan(0);
         // deterministic angles (orb.describe reads corner.angle)
         for (let i = 0; i < count; i++) {
             const ang = ((i * 37) % 360) * (Math.PI / 180);
             nextC[i].angle = ang;
+            origC[i].x = nextC[i].x;
+            origC[i].y = nextC[i].y;
+            origC[i].score = nextC[i].score;
             origC[i].angle = ang;
         }
 
