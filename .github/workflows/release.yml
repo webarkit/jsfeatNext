@@ -122,11 +122,14 @@ jobs:
                     $PRERELEASE_FLAG
 
             - name: Update npm for trusted-publishing support
-              # Trusted Publishers (OIDC) needs npm >= 11.5.1; Node's bundled
-              # npm can lag behind that (e.g. Node 24.18.0 ships npm 10.9.4).
-              # Only the publish step needs the newer CLI, so this runs right
-              # before it rather than replacing the .nvmrc-pinned Node used
-              # for install/build/test above.
+              # Trusted Publishers (OIDC) needs npm >= 11.5.1, and Node's
+              # bundled npm can lag behind that (Node 24.18.0, pinned here
+              # until 2026-09-12, shipped npm 10.9.4). The currently pinned
+              # 24.20.0 bundles npm 11.19.0 and already clears the floor, so
+              # this step is now a safeguard against the pin moving rather
+              # than a requirement. Only the publish step needs the newer
+              # CLI, so this runs right before it rather than replacing the
+              # .nvmrc-pinned Node used for install/build/test above.
               run: npm install -g npm@latest
 
             - name: Publish to npm

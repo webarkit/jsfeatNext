@@ -9,7 +9,7 @@
 
 ## Environment & commands
 
-- **Node:** v24.18.0 (see `.nvmrc`; npm 11). **Package manager:** npm.
+- **Node:** v24.20.0 (see `.nvmrc`; bundles npm 11). **Package manager:** npm.
 - Install: `npm install` (regenerate the lockfile only with npm 11, e.g. `npx npm@11 install` — older npm writes incomplete cross-platform lockfiles that break CI's `npm ci`)
 - Build: `npm run build-ts` → Vite library mode → `dist/jsfeatNext.js` (UMD) + `dist/jsfeatNext.mjs` (ESM) + `types/` (via vite-plugin-dts)
 - Watch/dev: `npm run dev-ts`
