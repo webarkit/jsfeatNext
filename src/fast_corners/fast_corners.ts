@@ -98,6 +98,13 @@ export class fast_corners extends jsfeatNext {
      * suppression on the corner scores. Results are written into the
      * pre-allocated `corners` array (each entry gets `x`, `y`, `score`).
      *
+     * Diverges from jsfeat deliberately: jsfeat writes each row's candidate
+     * columns 1-based into the scratch buffer and reads them back 0-based, so
+     * one never-written (recycled, non-zeroed) cell per row feeds suppression
+     * and each row's last candidate is dropped. This writes and reads 0-based,
+     * which makes the result a pure function of the input and recovers those
+     * corners. See tests/divergences.test.ts and issue #202.
+     *
      * @param src     Source grayscale image (`U8C1`).
      * @param corners Pre-allocated point pool to fill.
      * @param border  Pixels to skip along each edge (min 3). Default 3.
@@ -215,8 +222,8 @@ export class fast_corners extends jsfeatNext {
                             if (x < vt) {
                                 ++_count;
                                 if (_count > K) {
-                                    ++ncorners;
                                     cpbuf[cornerpos + ncorners] = j;
+                                    ++ncorners;
                                     buf[curr + j] = score_func(img, ptr, pixel, sd, threshold);
                                     break;
                                 }
@@ -235,8 +242,8 @@ export class fast_corners extends jsfeatNext {
                             if (x > vt) {
                                 ++_count;
                                 if (_count > K) {
-                                    ++ncorners;
                                     cpbuf[cornerpos + ncorners] = j;
+                                    ++ncorners;
                                     buf[curr + j] = score_func(img, ptr, pixel, sd, threshold);
                                     break;
                                 }
