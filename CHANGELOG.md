@@ -1,4 +1,11 @@
 
+## Unreleased
+
+### 🐛 Bug Fixes
+
+- **fast_corners**: `detect` indexed its per-row candidate buffer inconsistently (written 1-based, read 0-based). It dropped each row's last corner and fed one uninitialised, pool-recycled cell into non-maximum suppression, which made its output depend on process history instead of on the image. It is now a pure function of its input and finds the corners that were being dropped. This is an intentional divergence from jsfeat, which has the same defect ([#202](https://github.com/webarkit/jsfeatNext/issues/202)).
+
+
 ## 0.16.0 - 2026-09-06
 
 ### 🐛 Bug Fixes

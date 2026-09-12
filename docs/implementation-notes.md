@@ -322,6 +322,51 @@ jsfeatNext **throws**; original jsfeat returned a wrong pseudo-inverse
 silently. This is an intentional divergence, registered in
 `tests/divergences.test.ts`.
 
+### `fast_corners.detect` per-row candidate buffer — FIXED in [#202](https://github.com/webarkit/jsfeatNext/issues/202)
+
+jsfeat writes each image row's corner columns into the `cpbuf` scratch buffer
+1-based:
+
+```js
+++ncorners;
+cpbuf[cornerpos + ncorners] = j;
+```
+
+and reads them back 0-based, one row later:
+
+```js
+for (k = 0; k < ncorners; ++k) {
+    j = cpbuf[cornerpos + k];
+    /* ... */
+}
+```
+
+Two consequences, on every image:
+
+1. **Each row's last candidate is dropped** — the cell holding it is never read.
+2. **`cpbuf[cornerpos + 0]` is read without ever being written.** The buffer
+   comes from the shared pool (`get_buffer` only grows a node, it never zeroes
+   it), so it holds whatever an earlier and unrelated call left there. `detect`
+   is therefore not a pure function of its input: the same image with the same
+   options returns different corner sets depending on what the process did
+   beforehand.
+
+The phantom candidate is only _observable_ when the recycled cell happens to
+hold a small non-negative integer; any other value indexes `buf` out of bounds,
+yields `undefined`, and fails every comparison. That is why the defect looks
+intermittent rather than constant.
+
+jsfeatNext writes 0-based, matching the read. The relation to jsfeat becomes
+containment rather than equality, and it is structural: `cpbuf` only enumerates
+candidates, while every suppression decision reads scores out of `buf`, which
+the defect never touches. So jsfeatNext's corner set is a superset of jsfeat's
+— measured at 33 vs 27 on the synthetic scene in
+`tests/divergences.test.ts` (threshold 20, border 3), with no jsfeat corner
+missing across seven scene seeds.
+
+Pinned in `tests/divergences.test.ts`; the purity invariant lives in
+`tests/properties/detectors.test.ts`.
+
 ---
 
 ## 4. Behaviour that looks wrong but is not
