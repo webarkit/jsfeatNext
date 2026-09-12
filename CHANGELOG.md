@@ -1,9 +1,36 @@
 
-## Unreleased
+## 0.17.0 - 2026-09-12
 
 ### 🐛 Bug Fixes
 
-- **fast_corners**: `detect` indexed its per-row candidate buffer inconsistently (written 1-based, read 0-based). It dropped each row's last corner and fed one uninitialised, pool-recycled cell into non-maximum suppression, which made its output depend on process history instead of on the image. It is now a pure function of its input and finds the corners that were being dropped. This is an intentional divergence from jsfeat, which has the same defect ([#202](https://github.com/webarkit/jsfeatNext/issues/202)).
+- Index the per-row candidate buffer consistently (b065e4b)
+
+- Replace fast_corners equality guards with #202-aware checks (009ee92)
+
+- Make the GitHub Release step idempotent so same-tag retries work (ffd48c1)
+
+
+### 📚 Documentation
+
+- Record the fast_corners candidate-buffer divergence (9066abd)
+
+
+### 📦 Build
+
+- Bump vite-plugin-dts from 5.0.3 to 5.1.0 (d6ed987)
+
+
+### 🧪 Testing
+
+- Describe the same keypoints on both sides in the ORB test (7804f7e)
+
+- Sweep seven scene seeds for the fast_corners superset relation (38fec73)
+
+
+### 🧹 Miscellaneous
+
+- Pin Node v24.20.0 in .nvmrc (92862d7)
+
 
 
 ## 0.16.0 - 2026-09-06

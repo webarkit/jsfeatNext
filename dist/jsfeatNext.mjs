@@ -1,5 +1,5 @@
 /*!
- * jsfeatNext v0.16.0 — https://github.com/webarkit/jsfeatNext
+ * jsfeatNext v0.17.0 — https://github.com/webarkit/jsfeatNext
  *
  * SPDX-License-Identifier: LGPL-3.0-or-later
  * Copyright 2026 WebARKit. Author(s): Walter Perdan @kalwalt
@@ -100,7 +100,7 @@ var e = new class {
 	S32C2_t: 514
 }, a = {
 	name: "@webarkit/jsfeat-next",
-	version: "0.16.0",
+	version: "0.17.0",
 	description: "Typescript version of jsfeat for WebARKit",
 	main: "dist/jsfeatNext.js",
 	module: "dist/jsfeatNext.mjs",
@@ -967,13 +967,13 @@ var S = class extends c {
 				for (s = b; s < S; ++s, ++F) if (k = r[F], A = -k + 255, j = D[A + r[F + V]] | D[A + r[F + K]], j != 0 && (j &= D[A + r[F + H]] | D[A + r[F + J]], j &= D[A + r[F + W]] | D[A + r[F + X]], j &= D[A + r[F + te]] | D[A + r[F + Q]], j != 0)) {
 					if (j &= D[A + r[F + ee]] | D[A + r[F + q]], j &= D[A + r[F + U]] | D[A + r[F + Y]], j &= D[A + r[F + G]] | D[A + r[F + Z]], j &= D[A + r[F + ne]] | D[A + r[F + re]], j & 1) for (l = k - O, C = 0, c = 0; c < 25; ++c) if (u = r[F + g[c]], u < l) {
 						if (++C, C > 8) {
-							++M, h[N + M] = s, m[P + s] = E(r, F, g, _, O);
+							h[N + M] = s, ++M, m[P + s] = E(r, F, g, _, O);
 							break;
 						}
 					} else C = 0;
 					if (j & 2) for (l = k + O, C = 0, c = 0; c < 25; ++c) if (u = r[F + g[c]], u > l) {
 						if (++C, C > 8) {
-							++M, h[N + M] = s, m[P + s] = E(r, F, g, _, O);
+							h[N + M] = s, ++M, m[P + s] = E(r, F, g, _, O);
 							break;
 						}
 					} else C = 0;
