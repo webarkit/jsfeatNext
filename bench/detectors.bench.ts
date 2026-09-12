@@ -60,6 +60,15 @@ import { noiseImage, keypointPool } from "../tests/properties/helpers";
  *
  * Identical on both sides in every case, so the ratio is meaningful.
  *
+ * fast_corners no longer belongs in that list (#202): jsfeatNext fixes an
+ * off-by-one in jsfeat's per-row candidate buffer, so its corner set is now a
+ * structural SUPERSET of jsfeat's rather than an equal one (proved in
+ * `tests/divergences.test.ts`) -- 26,206 vs jsfeat's 26,016 at threshold 20 on
+ * this same input. Equality can never hold again for this detector, so the two
+ * `describe` blocks below check containment plus a bounded excess instead; see
+ * `assertContainmentWithinTolerance`. yape06 and yape are untouched by #202 and
+ * keep the strict `assertEqualCounts` check.
+ *
  * ## Why noise rather than cornerScene
  *
  * cornerScene is built for the correctness tests — a handful of clean shapes —
@@ -141,6 +150,56 @@ function assertEqualCounts(name: string, next: number, orig: number) {
     }
 }
 
+/**
+ * fast_corners' own equivalent of `assertEqualCounts` (#202).
+ *
+ * jsfeatNext's `fast_corners.detect` fixes an off-by-one in jsfeat's per-row
+ * candidate buffer that dropped each row's last candidate and fed one
+ * pool-recycled, never-written cell into non-maximum suppression. The fix is
+ * a pure restoration: it can only add corners jsfeat was wrongly dropping, it
+ * can never remove one jsfeat finds. `tests/divergences.test.ts` proves this
+ * containment structurally (every jsfeat corner is present in jsfeatNext's
+ * set, across seven scene seeds) and empirically (`n` always `>` `o`). This
+ * guard re-asserts the same two properties here, where the workload is dense
+ * seeded noise rather than the divergence test's synthetic scene:
+ *
+ *   1. `next` must never be LESS than `orig` -- that would mean the fix
+ *      stopped restoring genuinely dropped corners, or started dropping ones
+ *      jsfeat still finds. Either is a real regression, not #202.
+ *   2. The excess must stay small. Measured on this exact input: +0.73% at
+ *      threshold 20 (26,206 vs jsfeat's 26,016) and +2.78% at threshold 60
+ *      (13,278 vs jsfeat's 12,919) -- the excess is one dropped-then-restored
+ *      candidate per image row regardless of threshold, so it is a bigger
+ *      share of a smaller corner count. `TOLERANCE` below is 5%, giving
+ *      ~1.8x headroom above the larger of those two measurements -- enough
+ *      to absorb this one known defect's variance across thresholds/images
+ *      without also absorbing an unrelated workload divergence (a genuine
+ *      regression that started finding, say, 15-20% more or fewer corners
+ *      still trips this).
+ *
+ * Together these still catch what `assertEqualCounts` caught -- the bench
+ * silently reporting a ratio for two different workloads -- just expressed as
+ * a bounded range instead of a point, because #202 permanently moved the
+ * right answer off that point.
+ */
+const FAST_CORNERS_EXCESS_TOLERANCE = 0.05; // 5%, see docstring above
+
+function assertContainmentWithinTolerance(name: string, next: number, orig: number) {
+    if (next < orig) {
+        throw new Error(
+            `${name}: jsfeatNext found FEWER corners (${next}) than jsfeat (${orig}) -- containment broken (#202)`
+        );
+    }
+    const excess = (next - orig) / orig;
+    if (excess > FAST_CORNERS_EXCESS_TOLERANCE) {
+        throw new Error(
+            `${name}: jsfeatNext found ${next} corners, jsfeat found ${orig} (+${(excess * 100).toFixed(2)}%), ` +
+                `over the ${(FAST_CORNERS_EXCESS_TOLERANCE * 100).toFixed(0)}% tolerance for #202's known divergence ` +
+                `-- workloads may no longer be comparable`
+        );
+    }
+}
+
 describe("fast_corners.detect — threshold 20 (~26k corners)", () => {
     const { next, orig } = pair();
     // Pools are allocated once, outside the timed region.
@@ -149,7 +208,7 @@ describe("fast_corners.detect — threshold 20 (~26k corners)", () => {
 
     jsfeatNext.fast_corners.set_threshold(20);
     jsfeat.fast_corners.set_threshold(20);
-    assertEqualCounts(
+    assertContainmentWithinTolerance(
         "fast_corners thr 20",
         jsfeatNext.fast_corners.detect(next, keypointPool(POOL), BORDER),
         jsfeat.fast_corners.detect(orig, keypointPool(POOL), BORDER)
@@ -181,7 +240,7 @@ describe("fast_corners.detect — threshold 60 (~13k corners)", () => {
 
     jsfeatNext.fast_corners.set_threshold(60);
     jsfeat.fast_corners.set_threshold(60);
-    assertEqualCounts(
+    assertContainmentWithinTolerance(
         "fast_corners thr 60",
         jsfeatNext.fast_corners.detect(next, keypointPool(POOL), BORDER),
         jsfeat.fast_corners.detect(orig, keypointPool(POOL), BORDER)
