@@ -361,8 +361,9 @@ containment rather than equality, and it is structural: `cpbuf` only enumerates
 candidates, while every suppression decision reads scores out of `buf`, which
 the defect never touches. So jsfeatNext's corner set is a superset of jsfeat's
 — measured at 33 vs 27 on the synthetic scene in
-`tests/divergences.test.ts` (threshold 20, border 3), with no jsfeat corner
-missing across seven scene seeds.
+`tests/divergences.test.ts` (threshold 20, border 3), with the containment
+holding, and no jsfeat corner missing, across the seven scene seeds that test
+sweeps (`[99, 1, 2, 3, 4, 5, 12345]`).
 
 Pinned in `tests/divergences.test.ts`; the purity invariant lives in
 `tests/properties/detectors.test.ts`.

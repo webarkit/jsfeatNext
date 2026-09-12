@@ -561,14 +561,13 @@ describe("intentional divergences from jsfeat", () => {
         const W2 = 96,
             H2 = 72;
 
-        function scenePair() {
+        function scenePair(seed = 99) {
             const next = new jsfeatNext.matrix_t(W2, H2, U8C1);
             const orig = new jsfeat.matrix_t(W2, H2, OU8C1);
             const px = new Uint8Array(W2 * H2);
             for (let y = 0; y < H2; y++) {
                 for (let x = 0; x < W2; x++) px[y * W2 + x] = 20 + ((x + y) & 7);
             }
-            let seed = 99;
             for (let s = 0; s < 25; s++) {
                 seed = (seed * 1103515245 + 12345) & 0x7fffffff;
                 const cx = 8 + ((seed >>> 8) % (W2 - 24));
@@ -587,8 +586,8 @@ describe("intentional divergences from jsfeat", () => {
 
         const key = (p: { x: number; y: number; score: number }) => `${p.x},${p.y},${p.score}`;
 
-        function detectBoth() {
-            const { next, orig } = scenePair();
+        function detectBoth(seed = 99) {
+            const { next, orig } = scenePair(seed);
             const nextC = Array.from({ length: W2 * H2 }, () => new jsfeatNext.keypoint_t(0, 0, 0, 0, -1));
             const origC = Array.from({ length: W2 * H2 }, () => new jsfeat.keypoint_t(0, 0, 0, 0, -1));
             jsfeatNext.fast_corners.set_threshold(20);
@@ -604,10 +603,17 @@ describe("intentional divergences from jsfeat", () => {
         }
 
         it("finds corners jsfeat drops, and never loses one jsfeat finds", () => {
-            const { n, o, nextKeys, origKeys } = detectBoth();
-            const found = new Set(nextKeys);
-            expect(origKeys.filter((k) => !found.has(k))).toEqual([]);
-            expect(n).toBeGreaterThan(o);
+            const seeds = [99, 1, 2, 3, 4, 5, 12345];
+            for (const seed of seeds) {
+                const { n, o, nextKeys, origKeys } = detectBoth(seed);
+                const found = new Set(nextKeys);
+                const missing = origKeys.filter((k) => !found.has(k));
+                expect(missing, `seed ${seed}: jsfeat corner(s) missing from jsfeatNext's set`).toEqual([]);
+                expect(
+                    n,
+                    `seed ${seed}: expected jsfeatNext (n=${n}) to find more corners than jsfeat (o=${o})`
+                ).toBeGreaterThan(o);
+            }
         });
 
         it("returns the same corners across repeated calls, whatever the pool has been used for", () => {
