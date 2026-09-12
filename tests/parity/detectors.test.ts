@@ -118,23 +118,11 @@ function expectSameCorners(
     }
 }
 
-describe("parity: fast_corners vs original jsfeat.fast_corners", () => {
-    it("set_threshold + detect find identical corners", () => {
-        const { next, orig } = grayPair();
-        const { nextC, origC } = makeCorners(W * H);
-
-        const fc = jsfeatNext.fast_corners;
-        fc.set_threshold(20);
-        jsfeat.fast_corners.set_threshold(20);
-
-        const nN = fc.detect(next, nextC, 3);
-        const nO = jsfeat.fast_corners.detect(orig, origC, 3);
-
-        expect(nN).toBe(nO);
-        expect(nN).toBeGreaterThan(0);
-        expectSameCorners(nextC, origC, nN);
-    });
-});
+// fast_corners is no longer bit-parity with jsfeat: jsfeat's off-by-one in
+// the per-row candidate buffer (#202) drops each row's last corner and feeds
+// one uninitialised cell into suppression. The corrected behaviour, and the
+// relation that still holds against jsfeat, are registered in
+// tests/divergences.test.ts.
 
 describe("parity: yape06 vs original jsfeat.yape06", () => {
     it("detect finds identical keypoints (default thresholds)", () => {

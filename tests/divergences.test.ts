@@ -534,4 +534,93 @@ describe("intentional divergences from jsfeat", () => {
             expect(ok).toBe(0);
         });
     });
+
+    describe("fast_corners.detect indexes the per-row candidate buffer consistently (#202)", () => {
+        /**
+         * jsfeat writes each image row's corner columns into the `cpbuf`
+         * scratch buffer 1-based (`++ncorners; cpbuf[cornerpos+ncorners]=j`)
+         * and reads them back 0-based (`cpbuf[cornerpos+k]`, k in [0,n)).
+         * Two consequences, on every image:
+         *
+         *  1. Each row's LAST candidate is never read, so real corners are
+         *     dropped.
+         *  2. `cpbuf[cornerpos+0]` is read without ever being written. The
+         *     buffer comes from the shared pool, which only ever grows and
+         *     never zeroes, so it holds whatever an earlier and unrelated
+         *     call left there — making detect's output depend on process
+         *     history rather than on the image.
+         *
+         * jsfeatNext writes 0-based, matching the read. The relation to
+         * jsfeat is therefore containment rather than equality, and it is
+         * structural rather than incidental: `cpbuf` only enumerates
+         * CANDIDATES, while every non-maximum-suppression decision reads
+         * scores out of `buf`, which the defect never touches. So removing
+         * the phantom candidate can only drop spurious corners, and
+         * restoring the row's last candidate can only add real ones.
+         */
+        const W2 = 96,
+            H2 = 72;
+
+        function scenePair() {
+            const next = new jsfeatNext.matrix_t(W2, H2, U8C1);
+            const orig = new jsfeat.matrix_t(W2, H2, OU8C1);
+            const px = new Uint8Array(W2 * H2);
+            for (let y = 0; y < H2; y++) {
+                for (let x = 0; x < W2; x++) px[y * W2 + x] = 20 + ((x + y) & 7);
+            }
+            let seed = 99;
+            for (let s = 0; s < 25; s++) {
+                seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+                const cx = 8 + ((seed >>> 8) % (W2 - 24));
+                seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+                const cy = 8 + ((seed >>> 8) % (H2 - 24));
+                const size = 3 + ((seed >>> 4) % 6);
+                const val = 120 + ((seed >>> 12) % 130);
+                for (let y = cy; y < Math.min(H2, cy + size); y++) {
+                    for (let x = cx; x < Math.min(W2, cx + size); x++) px[y * W2 + x] = val;
+                }
+            }
+            next.data.set(px);
+            orig.data.set(px);
+            return { next, orig };
+        }
+
+        const key = (p: { x: number; y: number; score: number }) => `${p.x},${p.y},${p.score}`;
+
+        function detectBoth() {
+            const { next, orig } = scenePair();
+            const nextC = Array.from({ length: W2 * H2 }, () => new jsfeatNext.keypoint_t(0, 0, 0, 0, -1));
+            const origC = Array.from({ length: W2 * H2 }, () => new jsfeat.keypoint_t(0, 0, 0, 0, -1));
+            jsfeatNext.fast_corners.set_threshold(20);
+            jsfeat.fast_corners.set_threshold(20);
+            const n = jsfeatNext.fast_corners.detect(next, nextC, 3);
+            const o = jsfeat.fast_corners.detect(orig, origC, 3);
+            return {
+                n,
+                o,
+                nextKeys: nextC.slice(0, n).map(key),
+                origKeys: origC.slice(0, o).map(key),
+            };
+        }
+
+        it("finds corners jsfeat drops, and never loses one jsfeat finds", () => {
+            const { n, o, nextKeys, origKeys } = detectBoth();
+            const found = new Set(nextKeys);
+            expect(origKeys.filter((k) => !found.has(k))).toEqual([]);
+            expect(n).toBeGreaterThan(o);
+        });
+
+        it("returns the same corners across repeated calls, whatever the pool has been used for", () => {
+            // The buffers detect borrows are recycled between calls, so an
+            // unrelated call in between is enough to shift an implementation
+            // that reads an uninitialised cell.
+            const first = detectBoth().nextKeys.join("|");
+            const throwaway = new jsfeatNext.matrix_t(40, 40, U8C1);
+            throwaway.data.fill(0);
+            for (let i = 0; i < 40 * 40; i += 3) throwaway.data[i] = 220;
+            const scratch = Array.from({ length: 1600 }, () => new jsfeatNext.keypoint_t(0, 0, 0, 0, -1));
+            jsfeatNext.fast_corners.detect(throwaway, scratch, 3);
+            expect(detectBoth().nextKeys.join("|")).toBe(first);
+        });
+    });
 });

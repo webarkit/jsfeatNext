@@ -180,6 +180,72 @@ describe("detector invariants", () => {
                 expect(b[i].score).toBe(a[i].score);
             }
         });
+
+        /**
+         * detect() is a pure function of (image, border, threshold): what the
+         * shared buffer pool happens to contain must not reach the output.
+         * The pool hands out recycled buffers and never zeroes them (#202),
+         * so this poisons every node with a plausible column index before
+         * each run. The value matters: 0, or a byte pattern that lands far
+         * outside the image, is invisible either way.
+         */
+        it("is independent of what the shared buffer pool contains (#202)", () => {
+            const POOL_NODES = 30; // shared_cache.allocate(30, ...) in src/core/core.ts
+            const BYTES = Math.max(3 * W, ((W + 1) * 3) << 2);
+
+            function poisonPool(value: number) {
+                const nodes = [];
+                for (let i = 0; i < POOL_NODES; i++) {
+                    const n = jsfeatNext.cache.get_buffer(BYTES);
+                    n.i32.fill(value);
+                    nodes.push(n);
+                }
+                for (const n of nodes) jsfeatNext.cache.put_buffer(n);
+            }
+
+            function detectWithPoison(value: number) {
+                poisonPool(value);
+                fc.set_threshold(20);
+                const corners = keypointPool(W * H);
+                const n = fc.detect(cornerScene(W, H), corners, 3);
+                return corners
+                    .slice(0, n)
+                    .map((p) => `${p.x},${p.y},${p.score}`)
+                    .join("|");
+            }
+
+            const clean = detectWithPoison(0);
+            expect(clean.length).toBeGreaterThan(0);
+            expect(detectWithPoison(11)).toBe(clean);
+            expect(detectWithPoison(40)).toBe(clean);
+        });
+
+        /**
+         * A bright block placed hard against the right edge of the scanned
+         * band puts a real corner in the LAST candidate slot of its row. The
+         * 1-based write / 0-based read of #202 dropped exactly that slot, so
+         * the corner never reached suppression.
+         *
+         * ex = min(w - 3, w - border) is the exclusive column limit, so the
+         * last scanned column is W - 4 (= 92 for W = 96). A textured (not
+         * flat) background is used because a flat one produces tied scores
+         * along the block's edge, which non-maximum suppression's strict
+         * `>` then wipes out entirely regardless of this bug — empirically
+         * confirmed to fail pre-fix (0 corners found) and pass post-fix
+         * (a corner at exactly column 92) for this exact placement.
+         */
+        it("does not drop the last corner candidate of a row (#202)", () => {
+            fc.set_threshold(20);
+            const border = 3;
+            const img = image(W, H, (x, y) => 20 + ((x + y) & 7));
+            for (let y = 30; y < 33; y++) {
+                for (let x = W - 4; x < W - 1; x++) img.data[y * W + x] = 200;
+            }
+            const corners = keypointPool(W * H);
+            const n = fc.detect(img, corners, border);
+            const found = corners.slice(0, n).map((p) => `${p.x},${p.y}`);
+            expect(found.filter((k) => k.startsWith(`${W - 4},`)).length).toBeGreaterThan(0);
+        });
     });
 
     describe("yape06", () => {
