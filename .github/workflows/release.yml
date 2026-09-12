@@ -109,17 +109,40 @@ jobs:
                   RELEASE_NOTES: ${{ steps.changelog.outputs.content }}
               run: printf '%s\n' "$RELEASE_NOTES" > release-notes.md
 
-            - name: Create GitHub Release
+            - name: Create or refresh the GitHub Release
               env:
                   GH_TOKEN: ${{ github.token }}
-                  # --prerelease keeps the release out of the "Latest" slot on
-                  # the releases page; empty for a stable release.
-                  PRERELEASE_FLAG: ${{ steps.tag.outputs.prerelease == 'true' && '--prerelease' || '' }}
+                  TAG: ${{ steps.tag.outputs.name }}
+                  # Passed as an explicit true/false rather than as a bare
+                  # `--prerelease` flag: the edit path below MUST be able to say
+                  # "false", or re-running a stable release would silently demote
+                  # it to a prerelease. `--prerelease=true` keeps a prerelease out
+                  # of the "Latest" slot on the releases page.
+                  PRERELEASE: ${{ steps.tag.outputs.prerelease }}
               run: |
-                  gh release create "${{ steps.tag.outputs.name }}" \
-                    --title "${{ steps.tag.outputs.name }}" \
-                    --notes-file release-notes.md \
-                    $PRERELEASE_FLAG
+                  # `gh release create` has no upsert mode: it fails outright if a
+                  # release already exists for the tag. Because this step runs
+                  # BEFORE "Publish to npm", any failure at or after the publish
+                  # left a real GitHub Release behind, and the same-tag re-run
+                  # documented in MAINTAINERS.md then died here instead of
+                  # retrying the step that actually failed. That happened for
+                  # real during 0.16.0 and had to be worked around by manually
+                  # deleting the release before each retry. See #198.
+                  #
+                  # `gh release view` exits 0 when the release exists and 1 when
+                  # it does not; that exit code is the whole detection.
+                  if gh release view "$TAG" >/dev/null 2>&1; then
+                      echo "::notice::GitHub Release $TAG already exists — refreshing its notes instead of creating it (retry path, #198)"
+                      gh release edit "$TAG" \
+                        --title "$TAG" \
+                        --notes-file release-notes.md \
+                        --prerelease="$PRERELEASE"
+                  else
+                      gh release create "$TAG" \
+                        --title "$TAG" \
+                        --notes-file release-notes.md \
+                        --prerelease="$PRERELEASE"
+                  fi
 
             - name: Update npm for trusted-publishing support
               # Trusted Publishers (OIDC) needs npm >= 11.5.1, and Node's

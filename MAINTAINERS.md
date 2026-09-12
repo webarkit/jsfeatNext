@@ -60,10 +60,15 @@ Publishing a new version is a two-phase process: a **manual** phase you control 
    - runs `npm ci`, `npm test`, `npm run build-ts` (rebuilds `dist/`/`types/` fresh from the tagged commit as a safety check — the workflow does **not** trust whatever happens to be committed)
    - runs `npm pack --dry-run` and logs the resulting tarball contents/size (informational; see the packaging trim in #60)
    - generates release notes from Conventional Commits with **[git-cliff](https://git-cliff.org/)** (config: [`cliff.toml`](cliff.toml)), covering everything since the previous tag
-   - creates the **GitHub Release** for the tag with those generated notes as the body
+   - creates the **GitHub Release** for the tag with those generated notes as the body — or, if one already exists for that tag, refreshes its title/notes/prerelease flag instead, so a re-run is safe (#198)
    - runs `npm publish --provenance --access public --tag <dist-tag>`
 
    You can watch it under the repo's **Actions** tab. If a step fails (e.g. a transient npm registry error during publish), you do **not** need to re-tag — re-run it manually via **Actions → Release → Run workflow**, entering the existing tag.
+
+   **Two things to know about re-running:**
+
+   - **The GitHub Release step is idempotent.** It detects an existing release for the tag and updates it rather than failing. Before #198 it did not, which is why the 0.16.0 release had to be retried by manually running `gh release delete 0.16.0 --yes` first — that workaround is no longer needed, and the notes are regenerated from the same commit range on every run.
+   - **`npm publish` is *not* idempotent, by design.** npm refuses to republish a version that already exists. So if the publish itself succeeded and a later problem sent you back here, the re-run will fail at "Publish to npm" with a 403 / `EPUBLISHCONFLICT` — that means *the version is already on npm*, not that something is broken. Verify with `npm view @webarkit/jsfeat-next versions` before assuming a failure needs fixing. To ship a corrected artifact you must bump to a new version; npm does not allow overwriting one.
 
 #### Prereleases (alpha / beta / rc)
 
