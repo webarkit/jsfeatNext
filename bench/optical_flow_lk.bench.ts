@@ -57,6 +57,27 @@ import { noiseImage, keypointPool } from "../tests/properties/helpers";
  * few-hundred range: enough points to amortise call overhead, not so many that
  * the case times point-selection cost instead of tracking cost.
  *
+ * ## Seed points come from jsfeatNext ONLY, mirrored onto both sides
+ *
+ * This bench measures `optical_flow_lk.track`, not `fast_corners.detect` — the
+ * seed points are an *input* to what is being measured, so both sides must
+ * track the exact same points rather than each detecting its own. Since #202,
+ * jsfeatNext's `fast_corners` fixes an off-by-one that jsfeat still has and so
+ * finds a structurally different (superset) corner count than jsfeat at the
+ * same threshold (see `tests/divergences.test.ts`) — if each side seeded from
+ * its own detector here, `track` would run over two different workloads, and
+ * the point-count guard that used to catch that would now fail on every run
+ * rather than the rare one that matters.
+ *
+ * `seedPoints` is therefore called once, against jsfeatNext, and that single
+ * `xy` array is fed to *both* `track` calls below. This mirrors the ORB parity
+ * test's fix in commit 3a7f8ec (see `tests/parity/detectors.test.ts`, which
+ * takes corners from jsfeatNext's detector once and mirrors them into
+ * oracle-owned objects for jsfeat's side) — same idea, applied to a flat
+ * `Float32Array` instead of `keypoint_t` objects. Making the workload equal by
+ * construction is strictly better than a guard that merely detects when it
+ * stops being equal.
+ *
  * ## Parameters mirror the example demo
  *
  * `win_size=20`, `max_iterations=30`, `epsilon=0.01`, `min_eigen_threshold=0.001`,
@@ -82,8 +103,8 @@ const WIN_SIZE = 20;
 const MAX_ITER = 30;
 const EPSILON = 0.01;
 const MIN_EIGEN = 0.001;
-const FAST_THRESHOLD = 116; // ~572 corners on this noise image at border 20
-// Headroom over the ~572 corners the threshold above yields; not image-sized
+const FAST_THRESHOLD = 116; // ~966 corners from jsfeatNext on this noise image at border 20 (#202)
+// Headroom over the ~966 corners the threshold above yields; not image-sized
 // (307,200) -- an oversized pool just retains dead objects through the timed
 // region (see bench/detectors.bench.ts's POOL constant for the same reasoning).
 const POOL = 1200;
@@ -119,33 +140,32 @@ function seedPoints(img: matrix_t, detect: (img: matrix_t, corners: KeypointPool
     return { xy, n };
 }
 
-describe("optical_flow_lk.track (~570 points)", () => {
-    const { next, orig, pyrN, pyrO } = pyramidPair();
+describe("optical_flow_lk.track (~966 points)", () => {
+    const { next, pyrN, pyrO } = pyramidPair();
 
+    // Seeded from jsfeatNext ONLY (see the "Seed points come from jsfeatNext
+    // ONLY" docstring above) -- the same xy array is handed to both track()
+    // calls below, so the two sides track identical points by construction
+    // and no cross-implementation count guard is needed here at all.
     jsfeatNext.fast_corners.set_threshold(FAST_THRESHOLD);
-    jsfeat.fast_corners.set_threshold(FAST_THRESHOLD);
-    const seedN = seedPoints(next, (img, corners, border) => jsfeatNext.fast_corners.detect(img, corners, border));
-    const seedO = seedPoints(orig, (img, corners, border) => jsfeat.fast_corners.detect(img, corners, border));
-
-    if (seedN.n !== seedO.n) {
-        throw new Error(`optical_flow_lk seed points: jsfeatNext found ${seedN.n}, jsfeat found ${seedO.n}`);
-    }
+    const seed = seedPoints(next, (img, corners, border) => jsfeatNext.fast_corners.detect(img, corners, border));
 
     // curr_xy is a pure output parameter (see optical_flow_lk.ts docstring):
     // seeding it has no effect, but track() still writes into it every call, so
-    // each side gets its own scratch buffer.
-    const currN = new Float32Array(seedN.n * 2);
-    const currO = new Float32Array(seedO.n * 2);
-    const statusN = new Uint8Array(seedN.n);
-    const statusO = new Uint8Array(seedO.n);
+    // each side gets its own scratch buffer even though they share the same
+    // input xy/count.
+    const currN = new Float32Array(seed.n * 2);
+    const currO = new Float32Array(seed.n * 2);
+    const statusN = new Uint8Array(seed.n);
+    const statusO = new Uint8Array(seed.n);
 
     bench("jsfeatNext", () => {
         jsfeatNext.optical_flow_lk.track(
             pyrN,
             pyrN,
-            seedN.xy,
+            seed.xy,
             currN,
-            seedN.n,
+            seed.n,
             WIN_SIZE,
             MAX_ITER,
             statusN,
@@ -158,9 +178,9 @@ describe("optical_flow_lk.track (~570 points)", () => {
         jsfeat.optical_flow_lk.track(
             pyrO,
             pyrO,
-            seedO.xy,
+            seed.xy,
             currO,
-            seedO.n,
+            seed.n,
             WIN_SIZE,
             MAX_ITER,
             statusO,
