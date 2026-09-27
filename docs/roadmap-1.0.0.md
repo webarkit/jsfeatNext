@@ -142,8 +142,8 @@ is **not** one of the issues whose closure defines `1.0.0` as shipped.
 
 | Issue | Outcome | Evidence |
 | --- | --- | --- |
-| [#133](https://github.com/webarkit/jsfeatNext/issues/133) | shipped in 0.15.0; default `max_distance` made width-independent before 1.0 ([#213](https://github.com/webarkit/jsfeatNext/pull/213)) | closing comment on #133 |
-| [#83](https://github.com/webarkit/jsfeatNext/issues/83) | shipped in 0.15.0; degenerate-`K` / non-finite-`H` guards added before 1.0 ([#214](https://github.com/webarkit/jsfeatNext/pull/214)); `intrinsics()` stays (camera geometry) | closing comment on #83 |
+| [#133](https://github.com/webarkit/jsfeatNext/issues/133) | shipped in 0.15.0; a width-independent default `max_distance` lands separately in [#213](https://github.com/webarkit/jsfeatNext/pull/213) before 1.0 | closing comment on #133 |
+| [#83](https://github.com/webarkit/jsfeatNext/issues/83) | shipped in 0.15.0; degenerate-`K` / non-finite-`H` guards land separately in [#214](https://github.com/webarkit/jsfeatNext/pull/214) before 1.0; `intrinsics()` stays (camera geometry) | closing comment on #83 |
 | [#96](https://github.com/webarkit/jsfeatNext/issues/96) | contract + adapter in webarkit/webarkit (`packages/cv-backend-spec`, `packages/cv-backend-jsfeatnext`) | webarkit/webarkit PR #4 |
 | [#128](https://github.com/webarkit/jsfeatNext/issues/128), [#129](https://github.com/webarkit/jsfeatNext/issues/129) | folded into the spec; 13 conformance tests pin the negotiation rules | closing comments on #128, #129 |
 | [#97](https://github.com/webarkit/jsfeatNext/issues/97) | stays open as the roadmap pointer; readiness map updated | — |
