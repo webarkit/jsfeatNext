@@ -172,6 +172,14 @@ export class pose_estimator {
             cx = k[2],
             fy = k[4],
             cy = k[5];
+        // A zero or non-finite focal length would not fail here: 1/0 is
+        // Infinity, and every later NaN sails through `n1 < 1e-12` (false for
+        // NaN), so estimate() would return a NaN pose flagged good = true.
+        if (!(Number.isFinite(fx) && fx !== 0 && Number.isFinite(fy) && fy !== 0)) {
+            throw new Error(
+                `jsfeatNext.pose_estimator: intrinsics need finite, non-zero focal lengths (fx=${fx}, fy=${fy})`
+            );
+        }
         // prettier-ignore
         return new Float64Array([
             1 / fx, 0,      -cx / fx,
@@ -187,7 +195,8 @@ export class pose_estimator {
      * @param H   3×3 homography (any single-channel numeric `matrix_t`).
      * @param out Optional pose to write into; a fresh {@link pose_t} otherwise.
      * @returns   The pose. `out.good` is `false` — and `R`/`t` untouched — when
-     *            `H`/`K` are degenerate (a near-zero mapped column).
+     *            `H`/`K` are degenerate (a near-zero mapped column) or when
+     *            `H` contains a non-finite value.
      */
     estimate(H: matrix_t, out?: pose_t): pose_t {
         const pose = out || new pose_t();
@@ -211,7 +220,11 @@ export class pose_estimator {
 
         const n1 = Math.hypot(b1[0], b1[1], b1[2]);
         const n2 = Math.hypot(b2[0], b2[1], b2[2]);
-        if (n1 < 1e-12 || n2 < 1e-12) {
+        // Written NaN-safe on purpose: `n1 < 1e-12` is false for NaN, so a
+        // non-finite H would otherwise produce a NaN pose flagged good. The
+        // translation column is checked separately because a NaN there leaves
+        // n1 and n2 perfectly finite.
+        if (!(n1 >= 1e-12 && n2 >= 1e-12) || !Number.isFinite(b3[0] + b3[1] + b3[2])) {
             pose.good = false;
             return pose;
         }

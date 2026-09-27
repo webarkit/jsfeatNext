@@ -299,3 +299,43 @@ describe("pose_estimator front-of-camera and degeneracy", () => {
         expect(p.good).toBe(true);
     });
 });
+
+describe("pose_estimator degenerate inputs (pre-1.0 audit)", () => {
+    const validK = () => jsfeatNext.pose_estimator.intrinsics(640, 480);
+
+    it("rejects intrinsics with a zero or non-finite focal length instead of producing a NaN pose", () => {
+        const K0 = validK();
+        K0.data[0] = 0;
+        expect(() => new jsfeatNext.pose_estimator(K0)).toThrow(/fx=0/);
+        const est = new jsfeatNext.pose_estimator(validK());
+        const Kn = validK();
+        Kn.data[4] = NaN;
+        expect(() => est.setIntrinsics(Kn)).toThrow(/fy=NaN/);
+    });
+
+    it("a homography with a non-finite entry yields good=false, never a NaN pose flagged good", () => {
+        const est = new jsfeatNext.pose_estimator(validK());
+        for (let i = 0; i < 9; ++i) {
+            // every entry, so the translation column (indices 2, 5, 8) is covered too
+            const { H } = synthH(validK(), rodrigues(0, 1, 0, 0.3), [0.1, -0.2, 2.0]);
+            H.data[i] = NaN;
+            const pose = est.estimate(H);
+            expect(pose.good).toBe(false);
+            expect(Array.from(pose.R.data).every(Number.isFinite)).toBe(true);
+            expect(Array.from(pose.t).every(Number.isFinite)).toBe(true);
+        }
+    });
+
+    it("is invariant to the homography's projective scale: estimate(s*H) equals estimate(H)", () => {
+        const K = validK();
+        const est = new jsfeatNext.pose_estimator(K);
+        const { H } = synthH(K, rodrigues(1, 2, 0, 0.7), [0.3, 0.1, 3.0]);
+        const Hs = new jsfeatNext.matrix_t(3, 3, F64C1);
+        for (let i = 0; i < 9; ++i) Hs.data[i] = -2.5 * H.data[i];
+        const a = est.estimate(H);
+        const b = est.estimate(Hs);
+        expect(a.good && b.good).toBe(true);
+        for (let i = 0; i < 9; ++i) expect(b.R.data[i]).toBeCloseTo(a.R.data[i], 9);
+        for (let i = 0; i < 3; ++i) expect(b.t[i]).toBeCloseTo(a.t[i], 9);
+    });
+});
