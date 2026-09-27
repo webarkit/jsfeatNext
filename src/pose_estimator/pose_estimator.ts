@@ -220,11 +220,14 @@ export class pose_estimator {
 
         const n1 = Math.hypot(b1[0], b1[1], b1[2]);
         const n2 = Math.hypot(b2[0], b2[1], b2[2]);
-        // Written NaN-safe on purpose: `n1 < 1e-12` is false for NaN, so a
-        // non-finite H would otherwise produce a NaN pose flagged good. The
-        // translation column is checked separately because a NaN there leaves
-        // n1 and n2 perfectly finite.
-        if (!(n1 >= 1e-12 && n2 >= 1e-12) || !Number.isFinite(b3[0] + b3[1] + b3[2])) {
+        // Written NaN- and Infinity-safe on purpose: `n1 < 1e-12` is false for
+        // NaN, and an infinite norm passes `n1 >= 1e-12`, so a non-finite H
+        // would otherwise produce a NaN pose flagged good. The translation
+        // column is checked per component (a NaN there leaves n1 and n2
+        // finite, and a sum of huge finite components can overflow).
+        const finite_columns = Number.isFinite(n1) && Number.isFinite(n2);
+        const finite_t = Number.isFinite(b3[0]) && Number.isFinite(b3[1]) && Number.isFinite(b3[2]);
+        if (!(finite_columns && finite_t && n1 >= 1e-12 && n2 >= 1e-12)) {
             pose.good = false;
             return pose;
         }
