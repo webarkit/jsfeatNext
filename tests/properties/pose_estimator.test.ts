@@ -338,4 +338,31 @@ describe("pose_estimator degenerate inputs (pre-1.0 audit)", () => {
         for (let i = 0; i < 9; ++i) expect(b.R.data[i]).toBeCloseTo(a.R.data[i], 9);
         for (let i = 0; i < 3; ++i) expect(b.t[i]).toBeCloseTo(a.t[i], 9);
     });
+
+    it("an infinite entry in a rotation column yields good=false, not a NaN rotation flagged good", () => {
+        // K⁻¹ has non-zero principal-point terms, so one Infinity in the first
+        // column makes every component of b1 infinite: n1 = Infinity passes a
+        // bare `n1 >= 1e-12` and the divisions store NaN into R.
+        const est = new jsfeatNext.pose_estimator(validK());
+        const { H } = synthH(validK(), rodrigues(0, 1, 0, 0.3), [0.1, -0.2, 2.0]);
+        H.data[6] = Infinity;
+        const pose = est.estimate(H);
+        expect(pose.good).toBe(false);
+        expect(Array.from(pose.R.data).every(Number.isFinite)).toBe(true);
+    });
+
+    it("accepts a huge but finite translation whose component sum overflows", () => {
+        // Identity intrinsics: K⁻¹ = I, unit rotation columns, t = [1e308]*3.
+        // Each component is finite; their sum is Infinity, which must not be
+        // what the guard tests.
+        const I = new jsfeatNext.matrix_t(3, 3, F64C1);
+        I.data.set([1, 0, 0, 0, 1, 0, 0, 0, 1]);
+        const est = new jsfeatNext.pose_estimator(I);
+        const H = new jsfeatNext.matrix_t(3, 3, F64C1);
+        H.data.set([1, 0, 1e308, 0, 1, 1e308, 0, 0, 1e308]);
+        const pose = est.estimate(H);
+        expect(pose.good).toBe(true);
+        expect(Array.from(pose.t).every(Number.isFinite)).toBe(true);
+        expect(pose.t[2]).toBe(1e308); // lambda = 2 / (n1 + n2) = 1 for unit columns
+    });
 });
