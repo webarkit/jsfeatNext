@@ -42,15 +42,18 @@ In the browser (UMD build), the global is the namespace directly:
 ## List of features ✨
 
 - TypeScript definitions, with full TSDoc on every public class/method (`npm run docs` to generate a browsable API reference locally)
+- The natural-feature pipeline end to end: FAST/YAPE detection → ORB descriptors → `bfmatcher` Hamming matching → RANSAC homography → `pose_estimator` camera pose `(R, t)`. The pluggable `CvBackend` contract and its jsfeatNext adapter live in [webarkit/webarkit](https://github.com/webarkit/webarkit) (`packages/cv-backend-spec`, `packages/cv-backend-jsfeatnext`); jsfeatNext itself stays contract-agnostic.
 - UMD (browser `<script>`) + ESM builds, built with **Vite** library mode
 - npm package
-- 250+ tests across 22 files: characterization tests asserting numeric/behavioral parity against the original jsfeat, plus property/invariant tests, ground-truth reference tests, and a registry of intentional divergences
+- 350+ tests across 28 files: characterization tests asserting numeric/behavioral parity against the original jsfeat, plus property/invariant tests, ground-truth reference tests, and a registry of intentional divergences
 
 ## Modules 📚
 
 These classes are attached to the `jsfeatNext` namespace (`jsfeatNext.<name>`):
 
-`cache` · `fast_corners` · `homography2d` · `affine2d` · `imgproc` · `keypoint_t` · `linalg` · `math` · `matmath` · `matrix_t` · `motion_estimator` · `ransac_params_t` · `optical_flow_lk` · `orb` · `pyramid_t` · `transform` · `yape` · `yape06`
+`cache` · `fast_corners` · `homography2d` · `affine2d` · `imgproc` · `keypoint_t` · `linalg` · `math` · `matmath` · `matrix_t` · `motion_estimator` · `ransac_params_t` · `optical_flow_lk` · `orb` · `bfmatcher` · `match_t` · `pose_estimator` · `pose_t` · `pyramid_t` · `transform` · `yape` · `yape06`
+
+`pose_estimator` is a constructor (`new jsfeatNext.pose_estimator(K)`) like the data structures, because it holds the inverted intrinsics; the other algorithm modules are singletons.
 
 ## Requirements & building 🛠️
 

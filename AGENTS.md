@@ -75,4 +75,5 @@ Replace `{{FILENAME}}` with the file's basename. Never stack a second header on 
 ## Roadmap pointers
 
 - **Remaining vs jsfeat:** port `haar` (#43) and `bbf` (#44); exhaustive per-symbol parity audit (#45).
-- **Toward 1.0:** prerelease-tag support in the release pipeline (#81); examples modernization (#79); new descriptors like FREAK (#80); replace remaining `any` usages with shared types/interfaces (#85); performance-benchmark suite with result storage (#86); strengthen tests beyond parity — property/invariant + edge-case + third-party ground-truth (#87).
+- **1.0.0 scope (closed):** the natural-feature pipeline is complete (`bfmatcher` #133, `pose_estimator` #83); the `CvBackend` contract and adapter live in webarkit/webarkit (#96, #128, #129); `docs/roadmap-1.0.0.md` §7 records the closure.
+- **Next (1.1.0):** GMS match filter (#134), TEBLID (#135), FREAK (#80), adapter wiring (#136), tree-shakeable bundle (#137) — design in `docs/features2d-expansion-plan.md`.
