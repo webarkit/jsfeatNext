@@ -147,8 +147,10 @@ is **not** one of the issues whose closure defines `1.0.0` as shipped.
 | [#96](https://github.com/webarkit/jsfeatNext/issues/96) | contract + adapter in webarkit/webarkit (`packages/cv-backend-spec`, `packages/cv-backend-jsfeatnext`) | webarkit/webarkit PR #4 |
 | [#128](https://github.com/webarkit/jsfeatNext/issues/128), [#129](https://github.com/webarkit/jsfeatNext/issues/129) | folded into the spec; 13 conformance tests pin the negotiation rules | closing comments on #128, #129 |
 | [#97](https://github.com/webarkit/jsfeatNext/issues/97) | stays open as the roadmap pointer; readiness map updated | — |
+| [#205](https://github.com/webarkit/jsfeatNext/issues/205) | added to the milestone on 2026-09-27 as a pre-1.0 hardening fix, on the §1 reasoning that a correctness bug in a shipped primitive should not ride into 1.0: a full corner pool now makes `detect` throw a diagnostic error instead of a raw `TypeError`, with scratch buffers returned first | closing PR [#216](https://github.com/webarkit/jsfeatNext/pull/216) |
 
-`1.0.0` is therefore complete by the §2 rule. The release itself follows
+`1.0.0` is therefore complete by the §2 rule once #216 lands; #205 is the
+one late addition to that rule. The release itself follows
 `MAINTAINERS.md` §2; see `CHANGELOG.md` for the shipped version. The
 execution record for this closure is
 `docs/superpowers/plans/2026-09-27-milestone-1.0.0-closure.md`.
