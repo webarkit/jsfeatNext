@@ -99,7 +99,8 @@ export class yape {
      * array (each entry gets `x`, `y` and `score`).
      *
      * @param src    Source grayscale image (size must match {@link init}).
-     * @param points Pre-allocated keypoint pool to fill.
+     * @param points Pre-allocated keypoint pool to fill. Must hold every
+     *               keypoint the image yields, otherwise `detect` throws (#205).
      * @param border Pixels to skip along each edge. Default 4.
      * @returns The number of points written into `points`.
      */
@@ -156,6 +157,14 @@ export class yape {
                     (++x, ++rowx);
                 } else {
                     if (thirdCheck(scores, rowx, w) >= 3 && isLocalMaxima(scores, rowx, score, hw, R)) {
+                        // yape borrows nothing from the pool, so there is
+                        // nothing to return before failing on a full pool (#205)
+                        if (number_of_points === points.length) {
+                            throw new Error(
+                                `jsfeatNext.yape.detect: corners pool of ${points.length} is full; ` +
+                                    `the image yields more corners, pre-allocate a larger pool`
+                            );
+                        }
                         pt = points[number_of_points];
                         ((pt.x = x), (pt.y = y), (pt.score = abs_score));
                         ++number_of_points;

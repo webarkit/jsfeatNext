@@ -88,7 +88,8 @@ export class yape06 extends jsfeatNext {
      * {@link min_eigen_value_threshold}.
      *
      * @param src    Source grayscale image (`U8C1`).
-     * @param points Pre-allocated keypoint pool to fill.
+     * @param points Pre-allocated keypoint pool to fill. Must hold every
+     *               keypoint the image yields, otherwise `detect` throws (#205).
      * @param border Pixels to skip along each edge. Default 5.
      * @returns The number of points written into `points`.
      */
@@ -153,6 +154,15 @@ export class yape06 extends jsfeatNext {
                 ) {
                     min_eigen_value = hessianMinEigenValue(srd_d, rowx, lv, Dxx, Dyy, Dxy, Dyx);
                     if (min_eigen_value > eigen_thresh) {
+                        // return the scratch buffer before failing on a full
+                        // pool, so the throw cannot leak it (#205)
+                        if (number_of_points === points.length) {
+                            this.cache.put_buffer(lap_buf);
+                            throw new Error(
+                                `jsfeatNext.yape06.detect: corners pool of ${points.length} is full; ` +
+                                    `the image yields more corners, pre-allocate a larger pool`
+                            );
+                        }
                         pt = points[number_of_points];
                         ((pt.x = x), (pt.y = y), (pt.score = min_eigen_value));
                         ++number_of_points;
