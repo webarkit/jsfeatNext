@@ -180,6 +180,16 @@ describe("bfmatcher.match", () => {
         // and the guard means neither number is ever produced
         expect(() => jsfeatNext.bfmatcher.match(q, narrow)).toThrow();
     });
+
+    it("the default max_distance accepts every distance the width allows (64 bytes: up to 512)", () => {
+        const query = new jsfeatNext.matrix_t(64, 1, OU8C1); // all-zero bits
+        const train = new jsfeatNext.matrix_t(64, 1, OU8C1);
+        train.data.fill(0xff, 0, 37); // 296 bits
+        train.data[37] = 0x0f; // + 4 = 300 > 256
+        const m = jsfeatNext.bfmatcher.match(query, train);
+        expect(m).toHaveLength(1);
+        expect(m[0].distance).toBe(300);
+    });
 });
 
 describe("bfmatcher.knnMatch / ratio_test", () => {

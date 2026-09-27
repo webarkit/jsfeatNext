@@ -165,9 +165,11 @@ export class bfmatcher extends jsfeatNext {
      *
      * @param query        Query descriptors (U8, one row per descriptor).
      * @param train        Train descriptors, same row width as `query`.
-     * @param max_distance Maximum Hamming distance to accept a pair.
+     * @param max_distance Maximum Hamming distance to accept a pair. Unlimited
+     *                     by default; the old default of 256 was the 32-byte
+     *                     (ORB) maximum and silently truncated wider descriptors.
      */
-    match(query: matrix_t, train: matrix_t, max_distance = 256): match_t[] {
+    match(query: matrix_t, train: matrix_t, max_distance = Number.POSITIVE_INFINITY): match_t[] {
         const q_cnt = query.rows;
         const t_cnt = train.rows;
         const { qw, tw, word_len } = bfmatcher.pairWords(query, train);
