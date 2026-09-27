@@ -137,3 +137,18 @@ is **not** one of the issues whose closure defines `1.0.0` as shipped.
 - Design background: `docs/features2d-expansion-plan.md` (the `#128`/`#129`
   contract-amendment work this plan sequences after `#96`)
 - Architecture direction: `#96`, `#97`
+
+## 7. Resolution (2026-09-27)
+
+| Issue | Outcome | Evidence |
+| --- | --- | --- |
+| [#133](https://github.com/webarkit/jsfeatNext/issues/133) | shipped in 0.15.0; default `max_distance` made width-independent before 1.0 ([#213](https://github.com/webarkit/jsfeatNext/pull/213)) | closing comment on #133 |
+| [#83](https://github.com/webarkit/jsfeatNext/issues/83) | shipped in 0.15.0; degenerate-`K` / non-finite-`H` guards added before 1.0 ([#214](https://github.com/webarkit/jsfeatNext/pull/214)); `intrinsics()` stays (camera geometry) | closing comment on #83 |
+| [#96](https://github.com/webarkit/jsfeatNext/issues/96) | contract + adapter in webarkit/webarkit (`packages/cv-backend-spec`, `packages/cv-backend-jsfeatnext`) | webarkit/webarkit PR #4 |
+| [#128](https://github.com/webarkit/jsfeatNext/issues/128), [#129](https://github.com/webarkit/jsfeatNext/issues/129) | folded into the spec; 13 conformance tests pin the negotiation rules | closing comments on #128, #129 |
+| [#97](https://github.com/webarkit/jsfeatNext/issues/97) | stays open as the roadmap pointer; readiness map updated | — |
+
+`1.0.0` is therefore complete by the §2 rule. The release itself follows
+`MAINTAINERS.md` §2; see `CHANGELOG.md` for the shipped version. The
+execution record for this closure is
+`docs/superpowers/plans/2026-09-27-milestone-1.0.0-closure.md`.
