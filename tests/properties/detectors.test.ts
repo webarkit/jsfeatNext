@@ -476,3 +476,69 @@ describe("detector invariants", () => {
         });
     });
 });
+
+describe("detector pools (issue #205)", () => {
+    // Each detector fills a caller-supplied pool without checking its length.
+    // The write past the end used to surface as a raw TypeError from inside
+    // the hot loop -- and, for fast_corners and yape06, leaked the scratch
+    // buffers borrowed before it. The pool-balance hook in tests/setup runs
+    // after each of these tests, so a leak on the throw path fails them.
+    const img = cornerScene(64, 64);
+
+    describe("fast_corners", () => {
+        const fc = jsfeatNext.fast_corners;
+        const full = () => fc.detect(img, keypointPool(64 * 64), 3);
+
+        it("throws a diagnostic error, not a TypeError, when the pool is too small", () => {
+            const n = full();
+            expect(n).toBeGreaterThan(1);
+            expect(() => fc.detect(img, keypointPool(n - 1), 3)).toThrow(
+                `jsfeatNext.fast_corners.detect: corners pool of ${n - 1} is full`
+            );
+        });
+
+        it("accepts a pool of exactly the corner count", () => {
+            const n = full();
+            expect(fc.detect(img, keypointPool(n), 3)).toBe(n);
+        });
+    });
+
+    describe("yape06", () => {
+        const y06 = jsfeatNext.yape06;
+        const full = () => y06.detect(img, keypointPool(64 * 64), 5);
+
+        it("throws a diagnostic error, not a TypeError, when the pool is too small", () => {
+            const n = full();
+            expect(n).toBeGreaterThan(1);
+            expect(() => y06.detect(img, keypointPool(n - 1), 5)).toThrow(
+                `jsfeatNext.yape06.detect: corners pool of ${n - 1} is full`
+            );
+        });
+
+        it("accepts a pool of exactly the corner count", () => {
+            const n = full();
+            expect(y06.detect(img, keypointPool(n), 5)).toBe(n);
+        });
+    });
+
+    describe("yape", () => {
+        const y = jsfeatNext.yape;
+        const full = () => {
+            y.init(64, 64, 5, 1);
+            return y.detect(img, keypointPool(64 * 64), 4);
+        };
+
+        it("throws a diagnostic error, not a TypeError, when the pool is too small", () => {
+            const n = full();
+            expect(n).toBeGreaterThan(1);
+            expect(() => y.detect(img, keypointPool(n - 1), 4)).toThrow(
+                `jsfeatNext.yape.detect: corners pool of ${n - 1} is full`
+            );
+        });
+
+        it("accepts a pool of exactly the corner count", () => {
+            const n = full();
+            expect(y.detect(img, keypointPool(n), 4)).toBe(n);
+        });
+    });
+});

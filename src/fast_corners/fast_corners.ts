@@ -106,7 +106,8 @@ export class fast_corners extends jsfeatNext {
      * corners. See tests/divergences.test.ts and issue #202.
      *
      * @param src     Source grayscale image (`U8C1`).
-     * @param corners Pre-allocated point pool to fill.
+     * @param corners Pre-allocated point pool to fill. Must hold every corner
+     *                the image yields, otherwise `detect` throws (issue #205).
      * @param border  Pixels to skip along each edge (min 3). Default 3.
      * @returns The number of corners written into `corners`.
      */
@@ -284,7 +285,16 @@ export class fast_corners extends jsfeatNext {
                     score > buf[curr + j] &&
                     score > buf[curr + jp1]
                 ) {
-                    // save corner
+                    // save corner -- after returning the scratch buffers if the
+                    // caller's pool is full, so the throw cannot leak them (#205)
+                    if (corners_cnt === corners.length) {
+                        this.cache.put_buffer(buf_node);
+                        this.cache.put_buffer(cpbuf_node);
+                        throw new Error(
+                            `jsfeatNext.fast_corners.detect: corners pool of ${corners.length} is full; ` +
+                                `the image yields more corners, pre-allocate a larger pool`
+                        );
+                    }
                     pt = corners[corners_cnt];
                     ((pt.x = j), (pt.y = i - 1), (pt.score = score));
                     corners_cnt++;
