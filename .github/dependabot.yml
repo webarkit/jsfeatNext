@@ -11,6 +11,14 @@ updates:
       target-branch: "dev"
       schedule:
           interval: "weekly"
+      groups:
+          # @vitest/coverage-v8 pins its `vitest` peer to the exact same
+          # version, so one-sided bumps can never install (ERESOLVE): the pair
+          # has to move in a single PR (see #211 / #212).
+          vitest:
+              patterns:
+                  - "vitest"
+                  - "@vitest/*"
 
     - package-ecosystem: "github-actions"
       # Workflow files stored in the default location of `.github/workflows`. (You don't need to specify `/.github/workflows` for `directory`. You can use `directory: "/"`.)
