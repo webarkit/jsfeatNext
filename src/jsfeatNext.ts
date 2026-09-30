@@ -59,6 +59,7 @@ import { affine2d, homography2d } from "./motion_model/motion_model";
 import { optical_flow_lk } from "./optical_flow_lk/optical_flow_lk";
 import { bfmatcher } from "./bfmatcher/bfmatcher";
 import { match_t } from "./bfmatcher/match_t";
+import { data_t } from "./node_utils/data_t";
 import { pose_estimator, pose_t } from "./pose_estimator/pose_estimator";
 
 // Thin aggregator (issue #47): every algorithm lives in its own module under
@@ -89,6 +90,9 @@ jsfeatNext.keypoint_t = keypoint_t;
 jsfeatNext.ransac_params_t = ransac_params_t;
 
 jsfeatNext.match_t = match_t;
+
+// raw byte storage, like jsfeat's `jsfeat.data_t` (surface parity, #45)
+jsfeatNext.data_t = data_t;
 
 // pose_estimator is stateful (holds inverted intrinsics), constructed with a
 // K, so it is a constructor class like matrix_t -- NOT a stateless singleton.
