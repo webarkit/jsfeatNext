@@ -76,11 +76,16 @@ export class fast_corners extends jsfeatNext {
         this._threshold = 20;
         this.pixel_off = new Int32Array(25);
         this.score_diff = new Int32Array(25);
+        // jsfeat fills the table at load (`fast_corners.set_threshold(20)` in
+        // its bundle); without this a fresh instance detected nothing until
+        // the caller set a threshold (#45 surface audit).
+        this.set_threshold(20);
     }
 
     /**
      * Sets the detection threshold and rebuilds the classification lookup
-     * table. Must be called at least once before {@link detect}.
+     * table. The constructor calls it with 20, jsfeat's default, so
+     * {@link detect} works out of the box.
      *
      * @param threshold Minimum center-vs-circle intensity difference, clamped to [0, 255].
      * @returns The clamped threshold actually stored.
