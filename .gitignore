@@ -3,6 +3,12 @@ node_modules/
 docs/api/
 coverage/
 
+# Build output (#143). Rebuilt by `npm install` via the `prepare` script and by
+# release.yml before publishing; committing it only ever shipped stale bundles
+# to the examples and noise to every diff.
+dist/
+types/
+
 # Benchmark output. Deliberately never committed: bench/README.md explains
 # why a checked-in baseline invites the cross-machine comparison the whole
 # ratio-based design exists to avoid.

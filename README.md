@@ -89,7 +89,7 @@ npm install @webarkit/jsfeat-next
 
 ## Examples 🧪
 
-The `examples` folder demonstrates **both ways of consuming the library**. Build first (`npm run build-ts`), then open the examples in a browser.
+The `examples` folder demonstrates **both ways of consuming the library**. They load the bundle from `dist/`, which is **not tracked in git**: `npm install` builds it for you (through the `prepare` script), or run `npm run build-ts` after editing `src/`; then open the examples in a browser. A page opened from a clone that was never installed will fail to find `dist/jsfeatNext.js`.
 
 ### ESM examples — `import` from `dist/jsfeatNext.mjs`
 
