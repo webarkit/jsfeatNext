@@ -470,7 +470,7 @@ describe("ground truth: resample vs an exact area average", () => {
 describe("ground truth: compute_integral_image", () => {
     it("the sum table matches a brute-force recomputation of every cell", () => {
         const src = noiseImage(W, H, 808);
-        const sum = new Int32Array((W + 1) * (H + 1));
+        const sum = new Int32Array((W + 1) * (H + 1)).fill(999);
         ip.compute_integral_image(src, sum, null, null);
 
         const want = refIntegralImage(src.data, W, H);
@@ -482,8 +482,8 @@ describe("ground truth: compute_integral_image", () => {
         // requested, so the sqsum path needs its own coverage — a gap mutation
         // testing already caught once in the phase-2 invariant tests.
         const src = noiseImage(W, H, 909);
-        const sum = new Int32Array((W + 1) * (H + 1));
-        const sqsum = new Float64Array((W + 1) * (H + 1));
+        const sum = new Int32Array((W + 1) * (H + 1)).fill(999);
+        const sqsum = new Float64Array((W + 1) * (H + 1)).fill(999);
         ip.compute_integral_image(src, sum, sqsum, null);
 
         const want = refIntegralImage(src.data, W, H);
