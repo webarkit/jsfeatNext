@@ -82,6 +82,8 @@ CI runs a **collection-only smoke check** (`npm run bench:smoke`) that verifies 
 npm install @webarkit/jsfeat-next
 ```
 
+The published package ships `dist/` and `types/` prebuilt. Installing from a **git reference** (`github:webarkit/jsfeatNext#<ref>`) instead builds them on install through the `prepare` script, which needs this repo's devDependencies: that works with a normal install, but not with `--omit=dev` (or `NODE_ENV=production`), where the build toolchain is absent. Use the npm package for production installs.
+
 ## Known limitations 🔍
 
 - Not every original jsfeat class is ported yet — `haar` and `bbf` (Haar-cascade / BBF object detection) are not implemented. Tracked in [#43](https://github.com/webarkit/jsfeatNext/issues/43) and [#44](https://github.com/webarkit/jsfeatNext/issues/44).
