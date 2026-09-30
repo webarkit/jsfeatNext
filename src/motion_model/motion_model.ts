@@ -48,6 +48,12 @@ import { JSFEAT_CONSTANTS } from "../constants/constants";
 import matmath from "../matmath/matmath";
 import { linalg, LMCallback } from "../linalg/linalg";
 
+// One instance each, shared by every call (#169): constructing them per call
+// was a measurable fixed cost on the 3- and 4-point RANSAC minimal samples,
+// where the real arithmetic is smallest. Both classes are stateless.
+const shared_matmath = new matmath();
+const shared_linalg = new linalg();
+
 /**
  * Shared base of the motion-model kernels ({@link affine2d},
  * {@link homography2d}): scratch matrices plus the point-normalization and
@@ -218,8 +224,8 @@ export class affine2d extends motion_model {
             pt1,
             px = 0.0,
             py = 0.0;
-        const _matmath = new matmath();
-        const _linalg = new linalg();
+        const _matmath = shared_matmath;
+        const _linalg = shared_linalg;
 
         this.iso_normalize_points(from, to, t0d, t1d, count);
 
@@ -360,7 +366,7 @@ export class affine2d extends motion_model {
             },
         };
 
-        const _linalg = new linalg();
+        const _linalg = shared_linalg;
         _linalg.lm_solve(params, count * 2, callback, iters);
 
         for (let i = 0; i < 6; ++i) model.data[i] = params.data[i];
@@ -431,8 +437,8 @@ export class homography2d extends motion_model {
             y = 0.0,
             X = 0.0,
             Y = 0.0;
-        const _linalg = new linalg();
-        const _matmath = new matmath();
+        const _linalg = shared_linalg;
+        const _matmath = shared_matmath;
 
         // norm
         let smx = 0.0,
@@ -637,7 +643,7 @@ export class homography2d extends motion_model {
         //if( have_collinear_points(from, count) || have_collinear_points(to, count) ) {
         //return false;
         //}
-        const _matmath = new matmath();
+        const _matmath = shared_matmath;
         if (count == 4) {
             let negative = 0;
 
@@ -785,7 +791,7 @@ export class homography2d extends motion_model {
             },
         };
 
-        const _linalg = new linalg();
+        const _linalg = shared_linalg;
         _linalg.lm_solve(params, count * 2, callback, iters);
 
         const h8 = params.data[8];

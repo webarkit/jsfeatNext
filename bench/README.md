@@ -15,11 +15,46 @@ diagnosed, and their numbers are deliberately not updated.**
 
 | case | 4 runs | status |
 | --- | --- | --- |
-| **`linalg.lu_solve`** | 1.43 / 1.49 / 1.46 / 1.47 | **open — the tightest signal in the suite** |
-| `homography2d.check_subset` | 1.35 / 1.27 / 1.28 / 1.63 | open — one of three `new matmath()` sites |
-| `affine2d.run` 3 pts | 1.34 / 1.31 / 1.30 / 1.41 | open — same cause as above |
-| `math.get_gaussian_kernel` size 7 | 1.23 / 1.21 / 1.16 / 1.15 | open — 4/4, at or just above the floor |
-| `homography2d.run` 40 pts | 1.17 / 1.22 / 1.12 / 1.10 | borderline |
+| **`linalg.lu_solve`** | 1.43 / 1.49 / 1.46 / 1.47 | **resolved — harness artefact** (#169, see below); 1.00–1.02 on the built bundle |
+| `homography2d.check_subset` | 1.35 / 1.27 / 1.28 / 1.63 | **resolved** (#169): mostly the same artefact; the per-call `new matmath()` was hoisted too, 1.12 on the built bundle |
+| `affine2d.run` 3 pts | 1.34 / 1.31 / 1.30 / 1.41 | **resolved** (#169): same two causes; 1.12 on the built bundle |
+| `math.get_gaussian_kernel` size 7 | 1.23 / 1.21 / 1.16 / 1.15 | **resolved** (#169): harness artefact; flips sign run to run on the built bundle (0.92–1.09) |
+| `homography2d.run` 40 pts | 1.17 / 1.22 / 1.12 / 1.10 | resolved with the above: jsfeatNext faster on the built bundle |
+
+### The vite-node import artefact (#169)
+
+Every number above was measured on **source transformed by vite-node**, and
+that transform rewrites each `import { x } from "./y"` into a per-call lookup
+on a module-namespace object. A cross-module helper such as `linalg_base`'s
+`swap`, called in `lu_solve`'s pivot loop, therefore costs a property load
+plus an un-inlined call per invocation — a cost the **Rollup bundle consumers
+install does not pay**, because there every import is a plain binding.
+
+The probe that settled it (6×6 `lu_solve`, identical bytes, same process):
+
+| variant | hz |
+| --- | --- |
+| jsfeatNext through the vite-node transform | 1.41 M |
+| same algorithm, imported `swap` captured into a local `const` | 2.26 M |
+| same algorithm, `swap` defined in the same file | 2.20 M |
+| **jsfeatNext from `dist/jsfeatNext.mjs`** | **2.12 M** |
+| jsfeat (reference) | 2.14 M |
+
+Original jsfeat is immune because it is one IIFE per module: its `swap` is a
+closure in the same scope. So the artefact only ever inflates jsfeatNext's
+side of the ratio, and only for cases that cross a module boundary inside
+the timed region — which is exactly the set of findings that survived #159,
+#165 and #166.
+
+**How to read a ratio from now on:** run `npm run bench:dist` (after
+`npm run build-ts`) before treating any jsfeatNext-vs-jsfeat number as a
+statement about shipped code. The default `npm run bench` stays as the
+no-build, CI-smoke-checked harness; its ratios are upper bounds for anything
+that crosses a module boundary. The numbers in `history.jsonl` were all
+recorded on the default harness and remain comparable with each other, not
+with `bench:dist` runs. Case names are the keys of that file, so they are
+kept verbatim even where their parenthetical is now historical (the
+`check_subset` case no longer allocates a `matmath`).
 | `yape06.detect` | 1.02 / 1.04 / 1.06\* / 1.03 | **resolved** (see caveat) |
 | `yape.detect` | 1.11 / 1.02 / 1.05\* / 1.00 | **resolved** (#166) |
 | `matmath.invert_3x3` | 1.03 / 1.09 / 1.12 / 1.10 | **resolved** (#165) |
