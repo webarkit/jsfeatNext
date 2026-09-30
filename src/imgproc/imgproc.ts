@@ -657,6 +657,9 @@ export class imgproc extends jsfeatNext {
             }
             ((p = (w1 + 1) | 0), (pup = 1));
             for (i = 0, k = 0; i < h0; ++i, ++p, ++pup) {
+                // column 0 of this row: never reached by the loops below (#131)
+                dst_sum[p - 1] = 0;
+                dst_sqsum[p - 1] = 0;
                 s = s2 = 0;
                 for (j = 0; j <= w0 - 2; j += 2, k += 2, p += 2, pup += 2) {
                     v = src_d[k];
@@ -683,6 +686,7 @@ export class imgproc extends jsfeatNext {
             }
             ((p = (w1 + 1) | 0), (pup = 1));
             for (i = 0, k = 0; i < h0; ++i, ++p, ++pup) {
+                dst_sum[p - 1] = 0; // column 0 (#131)
                 s = 0;
                 for (j = 0; j <= w0 - 2; j += 2, k += 2, p += 2, pup += 2) {
                     s += src_d[k];
@@ -702,6 +706,7 @@ export class imgproc extends jsfeatNext {
             }
             ((p = (w1 + 1) | 0), (pup = 1));
             for (i = 0, k = 0; i < h0; ++i, ++p, ++pup) {
+                dst_sqsum[p - 1] = 0; // column 0 (#131)
                 s2 = 0;
                 for (j = 0; j <= w0 - 2; j += 2, k += 2, p += 2, pup += 2) {
                     v = src_d[k];
@@ -727,6 +732,7 @@ export class imgproc extends jsfeatNext {
             // diagonal
             ((p = (w1 + 1) | 0), (pup = 0));
             for (i = 0, k = 0; i < h0; ++i, ++p, ++pup) {
+                dst_tilted[p - 1] = 0; // column 0 (#131); the later passes only touch columns >= 1
                 for (j = 0; j <= w0 - 2; j += 2, k += 2, p += 2, pup += 2) {
                     dst_tilted[p] = src_d[k] + dst_tilted[pup];
                     dst_tilted[p + 1] = src_d[k + 1] + dst_tilted[pup + 1];

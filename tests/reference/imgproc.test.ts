@@ -490,4 +490,39 @@ describe("ground truth: compute_integral_image", () => {
         expectExact("sum (combined call)", sum, want.sum, (W + 1) * (H + 1));
         expectExact("sqsum", sqsum, want.sqsum, (W + 1) * (H + 1));
     });
+
+    it("writes the first column itself, so a reused (dirty) buffer gives the same tables as a fresh one (#131)", () => {
+        // The other tests hand in freshly allocated, zero-filled buffers, so
+        // column 0 reads as zero whether or not the function wrote it. The
+        // shared pool hands out REUSED buffers, which is where an unwritten
+        // column shows up. Pre-fill with a sentinel to make the write visible.
+        const src = noiseImage(W, H, 1010);
+        const n = (W + 1) * (H + 1);
+        const w1 = W + 1;
+        const clean = { sum: new Int32Array(n), sqsum: new Float64Array(n), tilted: new Int32Array(n) };
+        const dirty = {
+            sum: new Int32Array(n).fill(999),
+            sqsum: new Float64Array(n).fill(999),
+            tilted: new Int32Array(n).fill(999),
+        };
+        ip.compute_integral_image(src, clean.sum, clean.sqsum, clean.tilted);
+        ip.compute_integral_image(src, dirty.sum, dirty.sqsum, dirty.tilted);
+
+        for (let i = 0; i <= H; i++) {
+            expect(dirty.sum[i * w1], `sum column 0, row ${i}`).toBe(0);
+            expect(dirty.sqsum[i * w1], `sqsum column 0, row ${i}`).toBe(0);
+            expect(dirty.tilted[i * w1], `tilted column 0, row ${i}`).toBe(0);
+        }
+        expectExact("sum (dirty vs clean)", dirty.sum, clean.sum, n);
+        expectExact("sqsum (dirty vs clean)", dirty.sqsum, clean.sqsum, n);
+        expectExact("tilted (dirty vs clean)", dirty.tilted, clean.tilted, n);
+
+        // and the single-table branches, which have their own loops
+        const only = new Int32Array(n).fill(999);
+        ip.compute_integral_image(src, only, null, null);
+        expectExact("sum (sum-only branch, dirty)", only, clean.sum, n);
+        const sqOnly = new Float64Array(n).fill(999);
+        ip.compute_integral_image(src, null, sqOnly, null);
+        expectExact("sqsum (sqsum-only branch, dirty)", sqOnly, clean.sqsum, n);
+    });
 });
