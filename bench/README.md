@@ -20,15 +20,32 @@ diagnosed, and their numbers are deliberately not updated.**
 | `affine2d.run` 3 pts | 1.34 / 1.31 / 1.30 / 1.41 | **resolved** (#169): same two causes; 1.12 on the built bundle |
 | `math.get_gaussian_kernel` size 7 | 1.23 / 1.21 / 1.16 / 1.15 | **resolved** (#169): harness artefact; flips sign run to run on the built bundle (0.92–1.09) |
 | `homography2d.run` 40 pts | 1.17 / 1.22 / 1.12 / 1.10 | resolved with the above: jsfeatNext faster on the built bundle |
+| `yape06.detect` | 1.02 / 1.04 / 1.06\* / 1.03 | **resolved** (see caveat) |
+| `yape.detect` | 1.11 / 1.02 / 1.05\* / 1.00 | **resolved** (#166) |
+| `matmath.invert_3x3` | 1.03 / 1.09 / 1.12 / 1.10 | **resolved** (#165) |
+| `linalg.svd_*`, `eigenVV` | all ≤ 1.17 | **resolved** (#159) |
+| everything else | within ±1.12 | noise |
+
+\* = jsfeatNext faster in that run.
+
+**One caveat on `yape06`.** #166 measured it at 1.14–1.47 on its own branch and
+concluded the alias had *not* helped there. On merged `dev` it measures ~1.04.
+The improvement is real across four runs but **not explained**: the alias alone
+did not produce it, so something in the combination of the three fixes did.
+Recorded as unexplained rather than credited to any one change.
 
 ### The vite-node import artefact (#169)
 
-Every number above was measured on **source transformed by vite-node**, and
-that transform rewrites each `import { x } from "./y"` into a per-call lookup
-on a module-namespace object. A cross-module helper such as `linalg_base`'s
-`swap`, called in `lu_solve`'s pivot loop, therefore costs a property load
-plus an un-inlined call per invocation — a cost the **Rollup bundle consumers
-install does not pay**, because there every import is a plain binding.
+`lu_solve` was the last and tightest signal — 1.43–1.49 with a ±0.03 spread —
+and #159 had predicted its fix could not touch it (`lu_solve` constructs no
+internal `matrix_t`). Profiling it under #169 found the cause outside the
+library: every number in the table was measured on **source transformed by
+vite-node**, and that transform rewrites each `import { x } from "./y"` into
+a per-call lookup on a module-namespace object. A cross-module helper such as
+`linalg_base`'s `swap`, called in `lu_solve`'s pivot loop, therefore costs a
+property load plus an un-inlined call per invocation — a cost the **Rollup
+bundle consumers install does not pay**, because there every import is a
+plain binding.
 
 The probe that settled it (6×6 `lu_solve`, identical bytes, same process):
 
@@ -44,7 +61,10 @@ Original jsfeat is immune because it is one IIFE per module: its `swap` is a
 closure in the same scope. So the artefact only ever inflates jsfeatNext's
 side of the ratio, and only for cases that cross a module boundary inside
 the timed region — which is exactly the set of findings that survived #159,
-#165 and #166.
+#165 and #166. The two `motion_model` minimal-sample cases had a second,
+real cause on top: a `matmath` and a `linalg` constructed per call, hoisted
+to module-level instances in the same change (1.16–1.17 → 1.12 on the built
+bundle, inside the noise floor).
 
 **How to read a ratio from now on:** run `npm run bench:dist` (after
 `npm run build-ts`) before treating any jsfeatNext-vs-jsfeat number as a
@@ -55,24 +75,6 @@ recorded on the default harness and remain comparable with each other, not
 with `bench:dist` runs. Case names are the keys of that file, so they are
 kept verbatim even where their parenthetical is now historical (the
 `check_subset` case no longer allocates a `matmath`).
-| `yape06.detect` | 1.02 / 1.04 / 1.06\* / 1.03 | **resolved** (see caveat) |
-| `yape.detect` | 1.11 / 1.02 / 1.05\* / 1.00 | **resolved** (#166) |
-| `matmath.invert_3x3` | 1.03 / 1.09 / 1.12 / 1.10 | **resolved** (#165) |
-| `linalg.svd_*`, `eigenVV` | all ≤ 1.17 | **resolved** (#159) |
-| everything else | within ±1.12 | noise |
-
-\* = jsfeatNext faster in that run.
-
-**One caveat on `yape06`.** #166 measured it at 1.14–1.47 on its own branch and
-concluded the alias had *not* helped there. On merged `dev` it measures ~1.04.
-The improvement is real across four runs but **not explained**: the alias alone
-did not produce it, so something in the combination of the three fixes did.
-Recorded as unexplained rather than credited to any one change.
-
-`lu_solve` is now the clearest open finding — 1.43–1.49 with a ±0.03 spread,
-tighter than YAPE ever was. #159's "What this does NOT explain" section called
-this out in advance: `lu_solve` constructs no internal `matrix_t`, so that fix
-could not have touched it. It has never been profiled.
 
 ## Read the ratio, not the absolute numbers
 
