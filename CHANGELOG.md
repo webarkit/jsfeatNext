@@ -1,4 +1,68 @@
 
+## 1.0.0 - 2026-09-30
+
+### 🐛 Bug Fixes
+
+- Make the default max_distance width-independent (refs #133) (7505bae)
+
+- Reject degenerate intrinsics and non-finite homographies (refs #83) (9475402)
+
+- Require finite column norms and check translation components individually (aa4618f)
+
+- Fail with a diagnostic error when the caller's corner pool overflows (closes #205) (d0fc19a)
+
+- Write the first column of every integral-image table (closes #131) (b38f262)
+
+- Fill the threshold table in the constructor, like jsfeat; pin default-state parity (eaf6d69)
+
+
+### ⚡ Performance
+
+- Explain the four open findings and hoist motion_model's per-call helpers (closes #169) (e4a36ae)
+
+
+### 👷 CI
+
+- Group vitest with @vitest/* so the peer-pinned pair bumps together (97a32a9)
+
+
+### 📚 Documentation
+
+- Record the 1.0.0 milestone closure and document the pipeline modules (79d6628)
+
+- Say the #213/#214 hardening lands separately rather than claiming it shipped (8e8ea27)
+
+- Record #205 as the late addition to the 1.0.0 milestone (cba31a8)
+
+- Count bfmatcher among the 14 algorithm singletons (9583610)
+
+- Keep the status table whole and retire the stale lu_solve paragraph (338a57a)
+
+- State that git-reference installs need devDependencies to build (59ed153)
+
+
+### 📦 Build
+
+- Bump vite from 8.2.2 to 8.3.0 (f3af994)
+
+- Bump vite-plugin-dts from 5.1.0 to 5.1.1 (450175b)
+
+- Bump prettier from 3.9.6 to 3.9.8 (b878443)
+
+
+### 🧪 Testing
+
+- Start every integral-image test from a sentinel-filled buffer (3706fd3)
+
+- Pin the API surface against jsfeat symbol by symbol, and attach data_t (closes #45) (ec7a683)
+
+
+### 🧹 Miscellaneous
+
+- Stop tracking dist/ and types/, add a prepare script (closes #143) (1436838)
+
+
+
 ## 0.17.0 - 2026-09-12
 
 ### 🐛 Bug Fixes
