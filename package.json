@@ -30,6 +30,7 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "bench": "vitest bench",
+  "bench:dist": "vitest bench --run --config vitest.bench-dist.config.mts",
     "bench:ratios": "vitest bench --run --outputJson bench-results/raw.json && node scripts/bench-ratios.mjs bench-results/raw.json --append bench/history.jsonl",
     "test:watch": "vitest",
     "docs": "typedoc"
