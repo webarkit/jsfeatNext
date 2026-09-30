@@ -208,7 +208,7 @@ describe("imgproc invariants", () => {
             //   S(y1,x1) - S(y0,x1) - S(y1,x0) + S(y0,x0)
             const src = noiseImage(W, H, 203);
             const stride = W + 1;
-            const sum = new Int32Array(stride * (H + 1));
+            const sum = new Int32Array(stride * (H + 1)).fill(999);
             ip.compute_integral_image(src, sum as unknown as number[], null as never, null as never);
 
             const rand = rng(204);
@@ -230,7 +230,7 @@ describe("imgproc invariants", () => {
         it("has a zero first row and column", () => {
             const src = noiseImage(8, 8, 205);
             const stride = 9;
-            const sum = new Int32Array(stride * 9);
+            const sum = new Int32Array(stride * 9).fill(999);
             ip.compute_integral_image(src, sum as unknown as number[], null as never, null as never);
             for (let x = 0; x <= 8; x++) expect(sum[x]).toBe(0);
             for (let y = 0; y <= 8; y++) expect(sum[y * stride]).toBe(0);
@@ -239,7 +239,7 @@ describe("imgproc invariants", () => {
         it("the bottom-right corner equals the total sum of the image", () => {
             const src = noiseImage(W, H, 206);
             const stride = W + 1;
-            const sum = new Int32Array(stride * (H + 1));
+            const sum = new Int32Array(stride * (H + 1)).fill(999);
             ip.compute_integral_image(src, sum as unknown as number[], null as never, null as never);
 
             let total = 0;
@@ -250,8 +250,8 @@ describe("imgproc invariants", () => {
         it("the squared-sum table matches a brute-force sum of squares", () => {
             const src = noiseImage(W, H, 207);
             const stride = W + 1;
-            const sum = new Int32Array(stride * (H + 1));
-            const sqsum = new Int32Array(stride * (H + 1));
+            const sum = new Int32Array(stride * (H + 1)).fill(999);
+            const sqsum = new Int32Array(stride * (H + 1)).fill(999);
             ip.compute_integral_image(src, sum as unknown as number[], sqsum as unknown as number[], null as never);
 
             let total = 0;
@@ -269,11 +269,11 @@ describe("imgproc invariants", () => {
             const stride = W + 1;
             const cells = stride * (H + 1);
 
-            const sumOnly = new Int32Array(cells);
+            const sumOnly = new Int32Array(cells).fill(999);
             ip.compute_integral_image(src, sumOnly as unknown as number[], null as never, null as never);
 
-            const sumWithSq = new Int32Array(cells);
-            const sqsum = new Int32Array(cells);
+            const sumWithSq = new Int32Array(cells).fill(999);
+            const sqsum = new Int32Array(cells).fill(999);
             ip.compute_integral_image(
                 src,
                 sumWithSq as unknown as number[],
