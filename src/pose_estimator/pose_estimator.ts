@@ -79,7 +79,7 @@ export class pose_t implements IPose_T {
  *
  * ## Why this is a constructor class, not a namespace singleton
  *
- * The 14 algorithm modules (`imgproc`, `orb`, …) are stateless singletons on
+ * The 14 algorithm modules (`imgproc`, `orb`, `bfmatcher`, …) are stateless singletons on
  * the namespace. This one is **stateful** — it holds the inverted intrinsics
  * `K⁻¹` — and the public API constructs it with a `K`
  * (`new jsfeatNext.pose_estimator(K)`). So it lives with the constructor
