@@ -20,6 +20,7 @@
     "types"
   ],
   "scripts": {
+    "prepare": "npm run build-ts",
     "build-ts": "vite build",
     "dev-ts": "vite build --watch",
     "format-check": "prettier --check .",

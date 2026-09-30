@@ -33,12 +33,12 @@ Publishing a new version is a two-phase process: a **manual** phase you control 
    ```bash
    npm run build-ts
    ```
-   This regenerates `dist/jsfeatNext.js` (UMD), `dist/jsfeatNext.mjs` (ESM) and `types/`. All three are committed to the repo.
+   This regenerates `dist/jsfeatNext.js` (UMD), `dist/jsfeatNext.mjs` (ESM) and `types/`. Since #143 none of them is tracked in git (they are rebuilt by `npm install` through the `prepare` script, and by the release workflow before publishing), so this step only confirms the tree builds; there is nothing to commit from it.
 4. **Generate the local changelog.** We use git-cliff to parse the conventional commits and prepend the new version's section to `CHANGELOG.md`. Pass `--tag X.Y.Z` (the version you're releasing) so the section is labelled with the version rather than "unreleased" — the tag doesn't exist yet at this point:
    ```bash
    npx git-cliff --unreleased --tag X.Y.Z --prepend CHANGELOG.md
    ```
-5. **Commit and PR to `dev`.** Commit the version bump + rebuilt `dist/`/`types/` + updated `CHANGELOG.md` (Conventional Commit, e.g. `chore(release): bump version to X.Y.Z and rebuild dist`), push a branch, open a PR **against `dev`**, get it green, merge.
+5. **Commit and PR to `dev`.** Commit the version bump (`package.json` + `package-lock.json`) and the updated `CHANGELOG.md` (Conventional Commit, e.g. `chore(release): bump version to X.Y.Z`), push a branch, open a PR **against `dev`**, get it green, merge. `dist/` and `types/` are not committed (#143).
 6. **Promote `dev` to `main`.** Once `dev` has everything intended for the release:
    ```bash
    git checkout main
