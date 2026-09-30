@@ -39,6 +39,8 @@
 import { describe, it, expect } from "vitest";
 import jsfeatNext from "../../src/jsfeatNext";
 import jsfeat from "../vendor/oracle.cjs";
+import { fast_corners } from "../../src/fast_corners/fast_corners";
+import { cornerScene, keypointPool } from "../properties/helpers";
 
 /**
  * The per-symbol parity table issue #45 asked for, as an executable test.
@@ -170,8 +172,18 @@ describe("API surface parity with original jsfeat (#45)", () => {
                 } else if (isFn(ov)) {
                     compareFn(path, ov, nm[f], problems, covered);
                 } else {
+                    // detector state (yape.tau, the yape06 thresholds, yape.level_tables):
+                    // primitives must match by value, objects by type
                     covered.add(path);
-                    if (!(f in nm)) problems.push(`${path}: state field missing on jsfeatNext`);
+                    const nv = nm[f];
+                    if (!(f in nm)) {
+                        problems.push(`${path}: state field missing on jsfeatNext`);
+                    } else if (typeof ov !== "object" || ov === null) {
+                        if (nv !== ov)
+                            problems.push(`${path}: default ${String(nv)} on jsfeatNext vs ${String(ov)} on jsfeat`);
+                    } else if (typeof nv !== typeof ov || Array.isArray(nv) !== Array.isArray(ov)) {
+                        problems.push(`${path}: ${typeof nv} on jsfeatNext vs ${typeof ov} on jsfeat`);
+                    }
                 }
             }
             continue;
@@ -211,5 +223,68 @@ describe("API surface parity with original jsfeat (#45)", () => {
         const top = Object.keys(orig).filter((k) => !(k in UNPORTED));
         const visited = new Set([...covered].map((p) => p.split(".")[0]));
         expect(top.filter((k) => !visited.has(k))).toEqual([]);
+    });
+});
+
+describe("default-state parity with original jsfeat (#45)", () => {
+    // Arity says nothing about what an OMITTED argument or an un-configured
+    // module does. These pin the defaults the other parity tests sidestep by
+    // always configuring both sides first.
+    const W = 64;
+    const H = 64;
+    const nextScene = () => cornerScene(W, H);
+    const origScene = () => {
+        const m = new jsfeat.matrix_t(W, H, jsfeat.U8C1_t);
+        m.data.set(nextScene().data);
+        return m;
+    };
+    const origPool = (n: number) => Array.from({ length: n }, () => new jsfeat.keypoint_t(0, 0, 0, 0, -1));
+
+    // Counts are compared within one implementation, never across: jsfeatNext
+    // deliberately finds the per-row last candidate jsfeat drops (#202, see
+    // tests/divergences.test.ts), so the two sides differ by design here.
+
+    it("a fresh fast_corners detects out of the box, like jsfeat's (threshold 20 by default)", () => {
+        // jsfeat's bundle calls `fast_corners.set_threshold(20)` at load; a
+        // fresh jsfeatNext instance used to have a zeroed lookup table until
+        // the caller set a threshold, and found nothing.
+        const fresh = new fast_corners();
+        expect(fresh._threshold).toBe(20);
+        expect(Array.from(fresh.threshold_tab).some((v) => v !== 0)).toBe(true);
+        const configured = jsfeatNext.fast_corners;
+        configured.set_threshold(20);
+        const n = fresh.detect(nextScene(), keypointPool(W * H), 3);
+        expect(n).toBeGreaterThan(0);
+        expect(n).toBe(configured.detect(nextScene(), keypointPool(W * H), 3));
+        // and the oracle, untouched in this file, detects at its load-time default too
+        expect(jsfeat.fast_corners.detect(origScene(), origPool(W * H), 3)).toBeGreaterThan(0);
+    });
+
+    it("fast_corners.detect defaults border to 3 on both sides", () => {
+        jsfeatNext.fast_corners.set_threshold(20);
+        const omitted = jsfeatNext.fast_corners.detect(
+            nextScene(),
+            keypointPool(W * H),
+            undefined as unknown as number
+        );
+        expect(omitted).toBe(jsfeatNext.fast_corners.detect(nextScene(), keypointPool(W * H), 3));
+        const oOmitted = jsfeat.fast_corners.detect(origScene(), origPool(W * H), undefined);
+        expect(oOmitted).toBe(jsfeat.fast_corners.detect(origScene(), origPool(W * H), 3));
+    });
+
+    it("yape06.detect defaults border to 5 on both sides", () => {
+        const omitted = jsfeatNext.yape06.detect(nextScene(), keypointPool(W * H), undefined as unknown as number);
+        expect(omitted).toBe(jsfeatNext.yape06.detect(nextScene(), keypointPool(W * H), 5));
+        const oOmitted = jsfeat.yape06.detect(origScene(), origPool(W * H), undefined);
+        expect(oOmitted).toBe(jsfeat.yape06.detect(origScene(), origPool(W * H), 5));
+    });
+
+    it("yape.detect defaults border to 4 on both sides", () => {
+        jsfeatNext.yape.init(W, H, 5, 1);
+        jsfeat.yape.init(W, H, 5, 1);
+        const omitted = jsfeatNext.yape.detect(nextScene(), keypointPool(W * H));
+        expect(omitted).toBe(jsfeatNext.yape.detect(nextScene(), keypointPool(W * H), 4));
+        const oOmitted = jsfeat.yape.detect(origScene(), origPool(W * H), undefined);
+        expect(oOmitted).toBe(jsfeat.yape.detect(origScene(), origPool(W * H), 4));
     });
 });
