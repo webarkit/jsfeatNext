@@ -59,6 +59,7 @@ import { affine2d, homography2d } from "./motion_model/motion_model";
 import { optical_flow_lk } from "./optical_flow_lk/optical_flow_lk";
 import { bfmatcher } from "./bfmatcher/bfmatcher";
 import { match_t } from "./bfmatcher/match_t";
+import { gms } from "./gms/gms";
 import { data_t } from "./node_utils/data_t";
 import { pose_estimator, pose_t } from "./pose_estimator/pose_estimator";
 
@@ -129,3 +130,5 @@ jsfeatNext.homography2d = new homography2d();
 jsfeatNext.optical_flow_lk = new optical_flow_lk();
 
 jsfeatNext.bfmatcher = new bfmatcher();
+
+jsfeatNext.gms = new gms();

@@ -52,6 +52,7 @@ python3 -m venv .venv
 .venv/bin/python -m pip install -r scripts/requirements-fixtures.txt
 .venv/bin/python scripts/gen-opencv-fixtures.py            # all fixtures
 .venv/bin/python scripts/gen-opencv-fixtures.py --only integral
+.venv/bin/python scripts/gen-opencv-fixtures.py --only gms # the five gms-*.json
 ```
 
 **Windows (PowerShell)**
@@ -61,6 +62,7 @@ python -m venv .venv
 .venv\Scripts\python -m pip install -r scripts\requirements-fixtures.txt
 .venv\Scripts\python scripts\gen-opencv-fixtures.py        # all fixtures
 .venv\Scripts\python scripts\gen-opencv-fixtures.py --only integral
+.venv\Scripts\python scripts\gen-opencv-fixtures.py --only gms # the five gms-*.json
 ```
 
 (Git Bash on Windows: the bash commands above, with `.venv/Scripts/python`.)
@@ -144,11 +146,85 @@ mismatch indicts the algorithm and not the detector in front of it.
 | file | OpenCV call | pinned by | test |
 | --- | --- | --- | --- |
 | `integral-scene.json` | `cv2.integral2(img, sdepth=CV_32S, sqdepth=CV_64F)` | sha256 of the little-endian `Int32` sum and `Float64` squared-sum tables, plus the first row and column | `tests/reference/opencv-integral.test.ts` |
+| `gms-default.json` | `cv2.xfeatures2d.matchGMS(…)`, both flags off | the indices of the kept matches | `tests/reference/gms.opencv.test.ts` |
+| `gms-rotation.json` | the same, `withRotation=True` | the same | the same |
+| `gms-scale.json` | the same, `withScale=True` | the same | the same |
+| `gms-rotation-scale.json` | the same, both flags on | the same | the same |
+| `gms-boundaries.json` | the same, both flags off, on hand-placed points | the same | the same |
 
 `integral` is the first fixture on purpose. It is pure integer arithmetic that
 must match bit-for-bit, so a mismatch indicts the harness (image dump, encoding,
 loader) rather than the algorithm; only once it is green can a fixture for
 something new be trusted. The tilted sum is not pinned.
+
+### GMS fixtures
+
+`gms.filter` ([#134](https://github.com/webarkit/jsfeatNext/issues/134)) is a
+port of `cv::xfeatures2d::matchGMS`, and jsfeat has no GMS, so these fixtures
+are its only ground truth. GMS reads keypoint positions, the two image sizes
+and the `(queryIdx, trainIdx)` pairs, nothing else, so each payload is pure
+geometry: `size1`, `size2` (`[width, height]`), the three parameters,
+`keypoints1`/`keypoints2` (`KeyPoint.pt`, float32-exact), `matches`
+(`[queryIdx, trainIdx, distance]`) and `kept`, the ascending indices into
+`matches` of what `matchGMS` returned. The test feeds the same keypoints and
+matches to `gms.filter` and expects the same indices.
+
+**Four search paths.** OpenCV's `getInlierMask` has four branches, and each
+fixture takes one: `gms-default` (no flag), `gms-rotation` (`withRotation`),
+`gms-scale` (`withScale`) and `gms-rotation-scale` (both, the nested
+scale × rotation loop). `thresholdFactor` is the default 6 in all of them.
+
+**Views.** View 1 is the committed scene. View 2 is built from it and not
+committed (the keypoints are the input, not the pixels):
+
+| fixture | view 2 | `size2` | kept / matches |
+| --- | --- | --- | --- |
+| `gms-default` | `warpAffine` translation dx = 18, dy = -11, same canvas | 640 × 480 | 27 / 199 |
+| `gms-rotation` | `warpAffine` rotation 38.5° about (320, 240), same canvas | 640 × 480 | 8 / 199 |
+| `gms-scale` | `resize` × 0.71, `INTER_AREA` | 454 × 341 | 6 / 199 |
+| `gms-rotation-scale` | rotation 40° about (320, 240), then `resize` × 0.72, `INTER_AREA` | 461 × 346 | 8 / 199 |
+
+On both views `cv2.ORB_create(nfeatures=500).detectAndCompute`, then
+`cv2.BFMatcher(cv2.NORM_HAMMING).match` (no cross-check). Then the `trainIdx` of
+30 % of the matches (`round(0.3 * len(matches))`, chosen with
+`numpy.random.default_rng(1234)`, a fresh generator per fixture) is replaced by
+a random valid index, so the filter has wrong matches to reject; their
+`distance` is left as it was, since GMS ignores it. The generator refuses to
+write a fixture whose `kept` is empty or complete, because `[]` or the identity
+would then pass.
+
+**Why these transforms.** The plan asked for a (17, -11) shift, a 40° rotation,
+a × 0.7 resize and 40° + × 0.7. On this scene `matchGMS` keeps **no** match for
+any of them. The scene is hostile to GMS: ORB finds only 199 keypoints on its 25
+small squares, and even under a pure shift only about a fifth of the
+brute-force matches are geometrically correct before any injection (44 of 199
+for (17, -11)), while GMS's threshold (6 × the square root of the mean
+neighbourhood count) is designed for thousands of features. Whether a cell
+clears it is then down to a handful of matches, so the outcome jumps with the
+exact transform. Each transform was therefore moved to the **nearest value that
+keeps a proper, non-empty subset**, searching integer shifts, 0.5° rotation
+steps, 0.01 scale steps and (1°, 0.02) steps for the combination; for the shift,
+(18, -11) and (17, -10) are equally near and the one keeping more matches won.
+Two consequences, both acceptable for a bit-exactness pin:
+
+- `gms-default` is a fair picture of GMS at work: 23 of its 27 kept matches lie
+  within 4 px of the true translation, against 56 of all 199 matches.
+- In the three other fixtures the kept matches are mostly coincidental
+  clusters, not correct correspondences (ORB under rotation or scale finds
+  very few correct matches here). They pin the arithmetic of the rotation
+  and scale searches, not GMS's invariance; the property test in
+  `tests/properties/gms.test.ts` is the place for behaviour.
+
+**`gms-boundaries`.** The ORB fixtures cannot tell a correct port from a
+subtly wrong one where it matters most. Checked with a literal port of
+`gms.cpp`: one that computes the grid in double instead of float, or breaks a
+tie between two right cells another way, reproduces all four of them, and one
+that rejects a score equal to the threshold fails only `gms-scale`.
+`gms-boundaries` is built from hand-placed points (no image, so no
+`meta.image`) in groups that flip under each of those readings: probes on cell
+borders where only float arithmetic gives OpenCV's cell, two tied cells (listed
+in both orders), and a cell whose score equals its threshold.
+`gms_boundaries()` in the generator documents each group.
 
 ## What is not pinned against OpenCV
 

@@ -19,9 +19,11 @@
 
     python scripts/gen-opencv-fixtures.py [--only integral|gms]
 
-With no ``--only`` every fixture is regenerated. Output is deterministic: the
-same pinned toolchain and the same committed scene always produce the same
-bytes, so ``git status`` after a re-run shows nothing.
+``--only integral`` writes ``integral-scene.json``; ``--only gms`` writes the
+five ``gms-*.json`` fixtures (#134). With no ``--only`` every fixture is
+regenerated. Output is deterministic: the same pinned toolchain and the same
+committed scene always produce the same bytes, so ``git status`` after a re-run
+shows nothing.
 
 Every fixture is a JSON envelope, ``{"meta": {...}, "payload": {...}}``. The
 ``meta`` block is common to all of them: the OpenCV version, the algorithm, its
@@ -197,10 +199,243 @@ def gen_integral(tc: Toolchain, scene: Scene) -> dict:
     return {"integral-scene": envelope(tc, "integral", params, payload, scene)}
 
 
-# `--only <key>` selects one entry; no `--only` runs them all. The GMS fixtures
-# (#134) add a `gms` function above and an entry here.
+# GMS (#134): one ORB fixture per branch of OpenCV's GMSMatcher::getInlierMask,
+# plus the hand-placed gms-boundaries.
+GMS_ORB_FEATURES = 500
+GMS_OUTLIER_FRACTION = 0.3
+GMS_SEED = 1234
+GMS_THRESHOLD_FACTOR = 6.0
+
+# The view-2 transform of each fixture. The plan asked for a (17, -11) shift, a
+# 40 deg rotation and a x0.7 resize; on the committed scene matchGMS keeps no
+# match at all for any of those, so each was moved to the nearest value that
+# keeps a proper, non-empty subset. tests/fixtures/opencv/README.md ("GMS
+# fixtures") records the search and why.
+GMS_SHIFT = (18, -11)  # (dx, dy) in pixels
+GMS_ROTATION_ANGLE = 38.5  # degrees, counter-clockwise, about the image centre
+GMS_SCALE = 0.71
+GMS_ROTATION_SCALE = (40.0, 0.72)  # rotate, then resize
+
+
+def gen_gms(tc: Toolchain, scene: Scene) -> dict:
+    """``gms.filter`` vs ``cv2.xfeatures2d.matchGMS``, one fixture per search path.
+
+    View 1 is the committed scene. View 2 is built from it with a known
+    transform; it is not committed, because GMS only reads keypoint positions,
+    the two image sizes and the (queryIdx, trainIdx) pairs, all of which are in
+    the payload. ORB + brute-force Hamming matching produce the matches; then a
+    fixed share of them gets a random train index, so the filter has wrong
+    matches to reject. ``kept`` lists the indices into ``matches`` of the
+    matches ``matchGMS`` returned, ascending.
+    """
+    cv2, np = tc.cv2, tc.np
+    view1 = scene.image
+    height, width = view1.shape
+    centre = (width / 2, height / 2)
+
+    def translated(img, dx, dy):
+        shift = np.float32([[1, 0, dx], [0, 1, dy]])
+        return cv2.warpAffine(img, shift, (width, height))
+
+    def rotated(img, angle):
+        return cv2.warpAffine(img, cv2.getRotationMatrix2D(centre, angle, 1.0), (width, height))
+
+    def scaled(img, factor):
+        size = (round(img.shape[1] * factor), round(img.shape[0] * factor))
+        return cv2.resize(img, size, interpolation=cv2.INTER_AREA)
+
+    rs_angle, rs_factor = GMS_ROTATION_SCALE
+    variants = {
+        # name: (view 2, withRotation, withScale, how view 2 was made)
+        "gms-default": (
+            translated(view1, *GMS_SHIFT),
+            False,
+            False,
+            f"warpAffine translation dx={GMS_SHIFT[0]} dy={GMS_SHIFT[1]}, same canvas",
+        ),
+        "gms-rotation": (
+            rotated(view1, GMS_ROTATION_ANGLE),
+            True,
+            False,
+            f"warpAffine rotation {GMS_ROTATION_ANGLE:g} deg about {centre}, same canvas",
+        ),
+        "gms-scale": (
+            scaled(view1, GMS_SCALE),
+            False,
+            True,
+            f"resize x{GMS_SCALE:g}, INTER_AREA",
+        ),
+        "gms-rotation-scale": (
+            scaled(rotated(view1, rs_angle), rs_factor),
+            True,
+            True,
+            f"warpAffine rotation {rs_angle:g} deg about {centre}, then resize x{rs_factor:g}, INTER_AREA",
+        ),
+    }
+
+    orb = cv2.ORB_create(nfeatures=GMS_ORB_FEATURES)
+    kp1, des1 = orb.detectAndCompute(view1, None)
+    out = {}
+    for name, (view2, with_rotation, with_scale, how) in variants.items():
+        kp2, des2 = orb.detectAndCompute(view2, None)
+        matches = list(cv2.BFMatcher(cv2.NORM_HAMMING).match(des1, des2))
+
+        # A fresh generator per fixture, so each one is reproducible on its own.
+        rng = np.random.default_rng(GMS_SEED)
+        n_wrong = round(GMS_OUTLIER_FRACTION * len(matches))
+        wrong = rng.choice(len(matches), size=n_wrong, replace=False)
+        train = rng.integers(0, len(kp2), size=n_wrong)
+        for i, t in zip(wrong.tolist(), train.tolist()):
+            m = matches[i]
+            matches[i] = cv2.DMatch(m.queryIdx, t, m.distance)
+
+        size2 = (view2.shape[1], view2.shape[0])
+        payload = gms_payload(tc, name, (width, height), size2, kp1, kp2, matches, with_rotation, with_scale)
+        params = {
+            "view2": how,
+            "detector": f"ORB_create(nfeatures={GMS_ORB_FEATURES}).detectAndCompute",
+            "matcher": "BFMatcher(NORM_HAMMING, crossCheck=False).match",
+            "outliers": f"trainIdx of round({GMS_OUTLIER_FRACTION:g} * len(matches)) matches replaced, "
+            f"numpy.random.default_rng({GMS_SEED})",
+            "withRotation": with_rotation,
+            "withScale": with_scale,
+            "thresholdFactor": GMS_THRESHOLD_FACTOR,
+        }
+        out[name] = envelope(tc, "matchGMS", params, payload, scene)
+
+    out["gms-boundaries"] = gms_boundaries(tc)
+    return out
+
+
+def gms_boundaries(tc: Toolchain) -> dict:
+    """The default path on hand-placed points, built to pin OpenCV's decision boundaries.
+
+    The ORB fixtures barely do: a port computing the grid in double, or
+    breaking a tie between two right cells another way, reproduces all four,
+    and one rejecting a score equal to the threshold fails only gms-scale.
+    Each group below flips under one of those readings (checked against a
+    literal port of gms.cpp):
+
+    - Probes A, B, C: the train point is at a right-grid border, x = 416 - ulp
+      (float cell 13, double 12), x = 224 (cell 7, but 6 if only the quotient
+      is rounded to float and the product is not) and y = 408 - ulp (float 17,
+      double 16), next to a 16-match cluster that supports the float cell.
+      The right cell is computed once and reused by the four grid types, so
+      one wrong cell drops the probe in all of them.
+    - Probe D: the query point is at a left-grid border, x = 416 - ulp. Four
+      decoy matches share its cell in the double reading and in the
+      half-shifted grids, so only the float reading of the unshifted grid
+      keeps it.
+    - Tie, twice: a left cell with 3 matches into right cell 274 and 3 into
+      275 (then 265 and 264, listed in the other order). verifyCellPairs'
+      strict ``>`` scan picks the lower index, which a neighbour cell
+      supports; the higher one would fail the threshold.
+    - Threshold: a 12-match corner cell plus 4 decoys next to it gives a
+      threshold of exactly 6 * sqrt(16 / 4) = 12 for a score of 12, kept
+      because the test is ``score < thresh``.
+
+    Every point of the last two groups sits in the top-left quarter of its
+    cell, so the half-shifted grid types see the same cells. Four scattered
+    matches without any support complete the set, so ``kept`` is a proper
+    subset. No image is involved: the points are the input.
+    """
+    cv2, np = tc.cv2, tc.np
+    below = lambda v: float(np.nextafter(np.float32(v), np.float32(0)))  # noqa: E731
+    kp1, kp2, matches = [], [], []
+
+    def add(p, q):
+        kp1.append(cv2.KeyPoint(float(p[0]), float(p[1]), 7))
+        kp2.append(cv2.KeyPoint(float(q[0]), float(q[1]), 7))
+        matches.append(cv2.DMatch(len(kp1) - 1, len(kp2) - 1, 0))
+
+    def cluster(xs, ys):
+        for y in ys:
+            for x in xs:
+                add((x, y), (x, y))
+
+    cluster([420, 425, 430, 435], [245, 250, 255, 260])
+    add((430, 252), (below(416), 252))  # probe A
+    cluster([228, 233, 238, 243], [245, 250, 255, 260])
+    add((238, 252), (224, 252))  # probe B
+    cluster([100, 105, 110, 115], [410, 415, 420, 425])
+    add((108, 418), (108, below(408)))  # probe C
+    cluster([436, 440, 444, 447], [170, 174, 178, 182])
+    for x in (402, 406, 410, 414):
+        add((x, 176), (100, 100))  # decoys
+    add((below(416), 176), (440, 176))  # probe D
+    for p in [(450, 314), (454, 318), (458, 322)]:
+        add(p, p)  # tie: left cell (14, 13) -> right cell 274 = (14, 13)
+    for p, q in [((452, 316), (482, 316)), ((456, 320), (486, 320)), ((460, 314), (490, 314))]:
+        add(p, q)  # tie: left cell (14, 13) -> right cell 275 = (15, 13)
+    cluster([482, 486, 490], [313, 319])  # supports 274 -> 274 from cell 275
+    # the same tie, its two halves listed in the other order (a port whose
+    # tie-break depends on the visiting order fails one of the two)
+    for p, q in [((130, 316), (162, 316)), ((134, 320), (166, 320)), ((138, 314), (170, 314))]:
+        add(p, q)  # tie: left cell (4, 13) -> right cell 265 = (5, 13)
+    for p in [(132, 314), (136, 318), (140, 322)]:
+        add(p, p)  # tie: left cell (4, 13) -> right cell 264 = (4, 13)
+    cluster([162, 166, 170], [313, 319])  # supports 264 -> 264 from cell 265
+    cluster([610, 613, 616, 619], [457, 461, 465])  # threshold: corner cell 399
+    for x in (578, 582, 586, 590):
+        add((x, 460), (200, 300))  # threshold: decoys in cell 398
+    for p, q in [((30, 30), (600, 400)), ((600, 30), (40, 300)), ((320, 100), (500, 50)), ((50, 200), (300, 450))]:
+        add(p, q)
+
+    size = (640, 480)
+    payload = gms_payload(tc, "gms-boundaries", size, size, kp1, kp2, matches, False, False)
+    params = {
+        "points": "hand-placed at float-sensitive cell borders, see gms_boundaries()",
+        "withRotation": False,
+        "withScale": False,
+        "thresholdFactor": GMS_THRESHOLD_FACTOR,
+    }
+    return envelope(tc, "matchGMS", params, payload)
+
+
+def gms_payload(tc: Toolchain, name, size1, size2, kp1, kp2, matches, with_rotation, with_scale) -> dict:
+    """Run matchGMS and build the payload ``tests/reference/gms.opencv.test.ts`` reads."""
+    gms = tc.cv2.xfeatures2d.matchGMS(
+        size1,
+        size2,
+        kp1,
+        kp2,
+        matches,
+        withRotation=with_rotation,
+        withScale=with_scale,
+        thresholdFactor=GMS_THRESHOLD_FACTOR,
+    )
+
+    # matchGMS returns a subsequence of its input, so walk it in order.
+    key = lambda m: (m.queryIdx, m.trainIdx, m.distance)  # noqa: E731
+    kept, j = [], 0
+    for g in gms:
+        while key(matches[j]) != key(g):
+            j += 1
+        kept.append(j)
+        j += 1
+    # A fixture that keeps nothing (or everything) would pass a filter that
+    # returns [] (or its input).
+    assert 0 < len(kept) < len(matches), f"{name}: kept {len(kept)} of {len(matches)}"
+    assert all(m.distance == int(m.distance) for m in matches)
+    print(f"{name}: kept {len(kept)} of {len(matches)} ({len(kp1)} / {len(kp2)} keypoints)")
+
+    return {
+        "size1": list(size1),
+        "size2": list(size2),
+        "with_rotation": with_rotation,
+        "with_scale": with_scale,
+        "threshold_factor": GMS_THRESHOLD_FACTOR,
+        "keypoints1": [list(k.pt) for k in kp1],
+        "keypoints2": [list(k.pt) for k in kp2],
+        "matches": [[m.queryIdx, m.trainIdx, int(m.distance)] for m in matches],
+        "kept": kept,
+    }
+
+
+# `--only <key>` selects one entry; no `--only` runs them all.
 GENERATORS = {
     "integral": gen_integral,
+    "gms": gen_gms,
 }
 
 
