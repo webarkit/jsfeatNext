@@ -104,7 +104,7 @@ export class orb extends jsfeatNext {
      * `angle`, must be followed by a pass through this method:
      *
      * ```ts
-     * const count = jsfeatNext.yape06.detect(img, corners, 17);
+     * const count = jsfeatNext.yape06.detect(img, corners, 20);
      * for (let i = 0; i < count; ++i) {
      *     corners[i].angle = jsfeatNext.orb.ic_angle(img, corners[i].x, corners[i].y);
      * }
