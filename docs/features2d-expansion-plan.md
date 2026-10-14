@@ -115,6 +115,11 @@ it had nothing to filter.
 #96 is still a draft in the issue body, never implemented. Any "wire the new
 descriptors into the adapter" work is therefore blocked on #96 itself.
 
+> Superseded 2026-08-27 by the #96 resolution: the `CvBackend` contract and the
+> jsfeatNext adapter live in `webarkit/webarkit` (`packages/cv-backend-spec`,
+> `packages/cv-backend-jsfeatnext`); there is no `cv_backend.ts` in this repo by
+> design.
+
 ### 3.4 Tree-shaking is already broken
 
 `package.json` exposes only `"."` in `exports`, declares no `"sideEffects"`, and
@@ -152,6 +157,7 @@ exists to prevent, in the opposite direction.
 | D9 | GMS implements the full OpenCV variant, with `withRotation` / `withScale` as parameters defaulting to `false` | the fast path only | As PureCV's oracle, a partial implementation yields a partial oracle: the rotation path would have to be debugged directly in Rust + WASM. Initial detection against a stored pattern has arbitrary rotation, unlike frame-to-frame tracking |
 | D10 | TEBLID ships both p256 and p512, p256 first behind a bundle measurement | p256 only | `TEBLID::create` exposes both widths; covering one leaves PureCV uncovered. The two-PR split means a bad measurement is discovered with half the tables in |
 | D11 | Issue set structured one-per-module with shared prerequisites extracted (approach A) | three phase-sized issues; end-to-end vertical slices | Small enabling issues close in an evening and unblock three downstream issues each. Phase issues become month-long PRs whose acceptance criteria stop being checkable |
+| D12 | 1.1.0 ships GMS only; #135 TEBLID, #80 FREAK, #137 tree-shaking and #168 imgproc benches move to 1.2.0 | keeping the full set in 1.1.0 | The first consumer is the webarkit/webarkit planar tracker, whose bottleneck is the inlier ratio; only GMS addresses it. Decided 2026-10-14, see docs/superpowers/specs/2026-10-14-milestone-1.1.0-design.md |
 
 ---
 
@@ -324,20 +330,20 @@ Extracted from #83, whose body already carries the full prototype.
 | | Issue | Milestone |
 |---|---|---|
 | #131 | `fix(imgproc)`: integral image first column | 1.0.0 |
-| #132 | `test(fixtures)`: OpenCV ground-truth harness | 1.0.0 |
-| #133 | `feat(bfmatcher)`: Hamming matcher + `match_t` | 1.0.0 |
-| #130 | `chore(license)`: third header variant | *none* |
+| #132 | `test(fixtures)`: OpenCV ground-truth harness | 1.1.0 (moved from 1.0.0) |
+| #133 | `feat(bfmatcher)`: Hamming matcher + `match_t` | 1.0.0 (closed) |
+| #130 | `chore(license)`: third header variant | 1.1.0 |
 | #134 | `feat(gms)`: grid-based motion statistics filter | 1.1.0 |
-| #135 | `feat(teblid)`: TEBLID p256 → p512 | 1.1.0 |
-| #80 | rescope to FREAK only | 1.1.0 |
-| #136 | `feat(cv_backend)`: adapter wiring | 1.1.0 |
-| #137 | `perf(build)`: tree-shakeable bundle | 1.1.0 |
+| #136 | `feat(cv_backend)`: adapter wiring, re-scoped to GMS | 1.1.0 (tracked here, built in `webarkit/webarkit`) |
+| #135 | `feat(teblid)`: TEBLID p256 → p512 | 1.2.0 |
+| #80 | rescope to FREAK only | 1.2.0 |
+| #137 | `perf(build)`: tree-shakeable bundle | 1.2.0 |
+| #168 | `bench`: imgproc coverage and `pyramid_t.build` | 1.2.0 |
 
 Eight new issues plus two re-scopes (#80 narrowed to FREAK, #83 narrowed to
 `pose_estimator`). Milestone
 [1.1.0](https://github.com/webarkit/jsfeatNext/milestone/3) was created on
-2026-08-17, without a due date. Everything added to 1.0.0 is correctness
-coverage on code that already ships.
+2026-08-17, without a due date. Revised 2026-10-14 by D12.
 
 ---
 
