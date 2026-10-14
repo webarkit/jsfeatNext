@@ -41,7 +41,8 @@ its `meta.opencv_version`.
 
 ## Regenerating
 
-From the repository root. Python 3 is all that is needed; the virtualenv lives
+From the repository root. Python 3.12 or newer is all that is needed (the pinned
+`numpy==2.5.4` declares `Requires-Python: >=3.12`); the virtualenv lives
 in `.venv/`, which is gitignored and never committed.
 
 **Linux / macOS (bash)**
@@ -167,8 +168,11 @@ Bit-exactness is only worth asserting where it is reachable. These are not:
   [`docs/implementation-notes.md`](../../../docs/implementation-notes.md)), so it
   has not been checked and should not be assumed pinnable.
 
-The policy for when bit-exactness proves unreachable is tracked in
-[#102](https://github.com/webarkit/jsfeatNext/issues/102).
+When bit-exactness proves unreachable, the divergence is registered, with its
+reason and tracking issue, in [`tests/divergences.test.ts`](../../divergences.test.ts)
+(the registry introduced by
+[#102](https://github.com/webarkit/jsfeatNext/issues/102)). Deliberate
+divergences from OpenCV go there too, next to the jsfeat ones.
 
 ## Adding a fixture
 

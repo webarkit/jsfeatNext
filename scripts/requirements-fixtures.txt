@@ -3,6 +3,8 @@
 # Developer-side only: this file is NOT read by `npm ci` or CI. CI runs against
 # the committed fixtures in tests/fixtures/opencv/ and never needs Python.
 #
+# Requires Python >= 3.12 (the numpy pin below declares Requires-Python: >=3.12).
+#
 # Install it into a gitignored virtualenv in the repository root:
 #   python -m venv .venv
 #   .venv/Scripts/python -m pip install -r scripts/requirements-fixtures.txt   (Windows)
