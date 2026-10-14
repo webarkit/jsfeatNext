@@ -17,11 +17,13 @@
 
 """Regenerate the OpenCV fixtures that the Vitest suite asserts against.
 
-    python scripts/gen-opencv-fixtures.py [--only integral|gms]
+    python scripts/gen-opencv-fixtures.py [--only integral|gms|gms-synthetic]
 
 ``--only integral`` writes ``integral-scene.json``; ``--only gms`` writes the
-five ``gms-*.json`` fixtures (#134). With no ``--only`` every fixture is
-regenerated. Output is deterministic: the same pinned toolchain and the same
+five ORB and hand-placed GMS fixtures (``gms-default``, ``gms-rotation``,
+``gms-scale``, ``gms-rotation-scale``, ``gms-boundaries``) and
+``--only gms-synthetic`` the four ``gms-synth-*.json`` (#134). With no
+``--only`` every fixture is regenerated. Output is deterministic: the same pinned toolchain and the same
 committed scene always produce the same bytes, so ``git status`` after a re-run
 shows nothing.
 
@@ -392,6 +394,139 @@ def gms_boundaries(tc: Toolchain) -> dict:
     return envelope(tc, "matchGMS", params, payload)
 
 
+# Synthetic GMS fixtures: random points under an exact transform, one per
+# search path. N points of view 1, the share of them that are inliers, and the
+# seed of each fixture's own numpy generator. The plan asked for a 60 % share
+# everywhere; with it gms-synth-rotation keeps 45 matches, under
+# GMS_SYNTH_MIN_KEPT, and gms-synth-rotation-scale 101, at the limit (a 40 deg
+# rotation spreads a cell's inliers over several right cells, so fewer cells
+# clear the threshold), so both rotation paths use 80 %. The README ("GMS
+# fixtures") records the numbers.
+GMS_SYNTH_SIZE = (640, 480)
+GMS_SYNTH_POINTS = 800
+GMS_SYNTH_MIN_KEPT = 100
+GMS_SYNTH_SHIFT = (18, -11)  # the same shift as gms-default
+GMS_SYNTH_ANGLE = 40.0  # degrees, counter-clockwise, about the image centre
+GMS_SYNTH_SCALE = 0.7
+GMS_SYNTH = {
+    # name: (seed, inlier share, withRotation, withScale)
+    "gms-synth-default": (1341, 0.6, False, False),
+    "gms-synth-rotation": (1342, 0.8, True, False),
+    "gms-synth-scale": (1343, 0.6, False, True),
+    "gms-synth-rotation-scale": (1344, 0.8, True, True),
+}
+
+
+def gen_gms_synthetic(tc: Toolchain, scene: Scene) -> dict:
+    """``gms.filter`` vs ``matchGMS`` on synthetic geometry, one fixture per search path.
+
+    The ORB fixtures above pin the rotation and scale searches only weakly:
+    the committed scene yields 199 keypoints, and under rotation or scale ORB
+    finds so few correct matches that the 6-8 kept ones are coincidences.
+    These fixtures make the geometry dense and exact instead.
+
+    View 1 is GMS_SYNTH_POINTS points, uniformly random in 640x480. A share
+    of them are inliers: their view-2 partner is the point under the path's
+    exact transform (a shift, a rotation about the image centre, a x0.7
+    resize, or the rotation then the resize), and the match is ``(i, i)``. An
+    inlier whose partner leaves view 2 gets no match at all. Every other
+    point is an outlier: its view-2 point is random, and its match goes to a
+    random train index, so some train points are claimed by several matches
+    (many-to-one, as brute-force matching without cross-check produces).
+    All coordinates are float32 and lie strictly inside their image, where
+    ``gms.filter`` and OpenCV agree. ``scene`` is unused: there is no image.
+    """
+    cv2, np = tc.cv2, tc.np
+    f32 = np.float32
+    width, height = GMS_SYNTH_SIZE
+    centre = (width / 2, height / 2)
+    rot = cv2.getRotationMatrix2D(centre, GMS_SYNTH_ANGLE, 1.0)
+    factor = GMS_SYNTH_SCALE
+    scaled_size = (round(width * factor), round(height * factor))
+
+    def rotate(x, y):
+        return rot[0, 0] * x + rot[0, 1] * y + rot[0, 2], rot[1, 0] * x + rot[1, 1] * y + rot[1, 2]
+
+    transforms = {
+        # name: (point map, size2, how)
+        "gms-synth-default": (
+            lambda x, y: (x + GMS_SYNTH_SHIFT[0], y + GMS_SYNTH_SHIFT[1]),
+            (width, height),
+            f"translation dx={GMS_SYNTH_SHIFT[0]} dy={GMS_SYNTH_SHIFT[1]}",
+        ),
+        "gms-synth-rotation": (
+            rotate,
+            (width, height),
+            f"rotation {GMS_SYNTH_ANGLE:g} deg about {centre} (getRotationMatrix2D)",
+        ),
+        "gms-synth-scale": (
+            lambda x, y: (x * factor, y * factor),
+            scaled_size,
+            f"resize x{factor:g}",
+        ),
+        "gms-synth-rotation-scale": (
+            lambda x, y: tuple(v * factor for v in rotate(x, y)),
+            scaled_size,
+            f"rotation {GMS_SYNTH_ANGLE:g} deg about {centre}, then resize x{factor:g}",
+        ),
+    }
+
+    def inside(v, limit):
+        """float32 ``v`` clamped below ``limit``: float32 rounding may reach the edge."""
+        x = f32(v)
+        return float(x if x < limit else np.nextafter(f32(limit), f32(0)))
+
+    out = {}
+    for name, (seed, share, with_rotation, with_scale) in GMS_SYNTH.items():
+        transform, (w2, h2), how = transforms[name]
+        rng = np.random.default_rng(seed)
+        n = GMS_SYNTH_POINTS
+        pts1 = [(inside(rng.random() * width, width), inside(rng.random() * height, height)) for _ in range(n)]
+        chosen = rng.random(n) < share
+
+        pts2, inlier = [], []
+        for i in range(n):
+            if chosen[i]:
+                x, y = (float(f32(v)) for v in transform(*pts1[i]))
+                if 0 <= x < w2 and 0 <= y < h2:
+                    pts2.append((x, y))
+                    inlier.append(True)
+                    continue
+            pts2.append((inside(rng.random() * w2, w2), inside(rng.random() * h2, h2)))
+            inlier.append(False)
+
+        matches = []
+        for i in range(n):
+            if inlier[i]:
+                matches.append(cv2.DMatch(i, i, 0))
+            elif not chosen[i]:
+                matches.append(cv2.DMatch(i, int(rng.integers(0, n)), 0))
+            # else: an inlier whose partner left view 2, no match
+
+        claimed = np.bincount([m.trainIdx for m in matches], minlength=n)
+        assert (claimed > 1).any(), f"{name}: no many-to-one match"
+        kp1 = [cv2.KeyPoint(x, y, 7) for x, y in pts1]
+        kp2 = [cv2.KeyPoint(x, y, 7) for x, y in pts2]
+        payload = gms_payload(tc, name, (width, height), (w2, h2), kp1, kp2, matches, with_rotation, with_scale)
+        assert len(payload["kept"]) >= GMS_SYNTH_MIN_KEPT, f"{name}: kept {len(payload['kept'])}"
+        print(
+            f"{name}: {sum(inlier)} inliers, {len(matches) - sum(inlier)} outliers, "
+            f"{int((claimed > 1).sum())} train points claimed more than once"
+        )
+
+        params = {
+            "view1": f"{n} points uniform in {width}x{height}, float32, numpy.random.default_rng({seed})",
+            "view2": how,
+            "inliers": f"share {share:g} of view 1, match (i, i); an inlier leaving view 2 gets no match",
+            "outliers": "random view-2 point, match to a random trainIdx (many-to-one allowed)",
+            "withRotation": with_rotation,
+            "withScale": with_scale,
+            "thresholdFactor": GMS_THRESHOLD_FACTOR,
+        }
+        out[name] = envelope(tc, "matchGMS", params, payload)
+    return out
+
+
 def gms_payload(tc: Toolchain, name, size1, size2, kp1, kp2, matches, with_rotation, with_scale) -> dict:
     """Run matchGMS and build the payload ``tests/reference/gms.opencv.test.ts`` reads."""
     gms = tc.cv2.xfeatures2d.matchGMS(
@@ -436,6 +571,7 @@ def gms_payload(tc: Toolchain, name, size1, size2, kp1, kp2, matches, with_rotat
 GENERATORS = {
     "integral": gen_integral,
     "gms": gen_gms,
+    "gms-synthetic": gen_gms_synthetic,
 }
 
 

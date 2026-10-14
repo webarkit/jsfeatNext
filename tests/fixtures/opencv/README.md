@@ -52,7 +52,8 @@ python3 -m venv .venv
 .venv/bin/python -m pip install -r scripts/requirements-fixtures.txt
 .venv/bin/python scripts/gen-opencv-fixtures.py            # all fixtures
 .venv/bin/python scripts/gen-opencv-fixtures.py --only integral
-.venv/bin/python scripts/gen-opencv-fixtures.py --only gms # the five gms-*.json
+.venv/bin/python scripts/gen-opencv-fixtures.py --only gms # the four ORB gms-*.json + gms-boundaries
+.venv/bin/python scripts/gen-opencv-fixtures.py --only gms-synthetic # the four gms-synth-*.json
 ```
 
 **Windows (PowerShell)**
@@ -62,7 +63,8 @@ python -m venv .venv
 .venv\Scripts\python -m pip install -r scripts\requirements-fixtures.txt
 .venv\Scripts\python scripts\gen-opencv-fixtures.py        # all fixtures
 .venv\Scripts\python scripts\gen-opencv-fixtures.py --only integral
-.venv\Scripts\python scripts\gen-opencv-fixtures.py --only gms # the five gms-*.json
+.venv\Scripts\python scripts\gen-opencv-fixtures.py --only gms # the four ORB gms-*.json + gms-boundaries
+.venv\Scripts\python scripts\gen-opencv-fixtures.py --only gms-synthetic # the four gms-synth-*.json
 ```
 
 (Git Bash on Windows: the bash commands above, with `.venv/Scripts/python`.)
@@ -151,6 +153,7 @@ mismatch indicts the algorithm and not the detector in front of it.
 | `gms-scale.json` | the same, `withScale=True` | the same | the same |
 | `gms-rotation-scale.json` | the same, both flags on | the same | the same |
 | `gms-boundaries.json` | the same, both flags off, on hand-placed points | the same | the same |
+| `gms-synth-default.json`, `gms-synth-rotation.json`, `gms-synth-scale.json`, `gms-synth-rotation-scale.json` | the same, one per search path, on synthetic geometry | the same | the same |
 
 `integral` is the first fixture on purpose. It is pure integer arithmetic that
 must match bit-for-bit, so a mismatch indicts the harness (image dump, encoding,
@@ -212,8 +215,9 @@ Two consequences, both acceptable for a bit-exactness pin:
 - In the three other fixtures the kept matches are mostly coincidental
   clusters, not correct correspondences (ORB under rotation or scale finds
   very few correct matches here). They pin the arithmetic of the rotation
-  and scale searches, not GMS's invariance; the property test in
-  `tests/properties/gms.test.ts` is the place for behaviour.
+  and scale searches, not GMS's invariance, and only weakly, which is why the
+  synthetic fixtures below exist; the property tests in
+  `tests/properties/gms.test.ts` are the place for behaviour.
 
 **`gms-boundaries`.** The ORB fixtures cannot tell a correct port from a
 subtly wrong one where it matters most. Checked with a literal port of
@@ -225,6 +229,42 @@ that rejects a score equal to the threshold fails only `gms-scale`.
 borders where only float arithmetic gives OpenCV's cell, two tied cells (listed
 in both orders), and a cell whose score equals its threshold.
 `gms_boundaries()` in the generator documents each group.
+
+**Synthetic fixtures (`gms-synth-*`).** One more fixture per search path, on
+dense, exact geometry instead of ORB, so that the rotation and scale searches
+are pinned by hundreds of kept matches rather than 6–8 coincidences.
+`--only gms-synthetic` (`gen_gms_synthetic()`) writes them; no image is
+involved, so there is no `meta.image`. In each, view 1 is 800 points uniformly
+random in 640 × 480 (float32, from `numpy.random.default_rng(seed)`). A share of
+them are inliers: the view-2 point is the view-1 point under the path's exact
+transform, and the match is `(i, i)`; an inlier whose point leaves view 2 gets
+no match. Every other point is an outlier, with a random view-2 point and a
+match to a random `trainIdx`, so some train points are claimed by several
+matches (many-to-one). `thresholdFactor` is 6. The generator refuses a fixture
+that keeps fewer than 100 matches, or all of them.
+
+| fixture | seed | inlier share | view 2 | `size2` | matches (inliers + outliers) | kept | winning pass |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `gms-synth-default` | 1341 | 60 % | translation (18, -11) | 640 × 480 | 780 (468 + 312) | 296 | the only one |
+| `gms-synth-rotation` | 1342 | 80 % | rotation 40° about (320, 240) | 640 × 480 | 679 (522 + 157) | 196 | rotation pattern 2 |
+| `gms-synth-scale` | 1343 | 60 % | × 0.7 | 448 × 336 | 800 (483 + 317) | 373 | scale 0 (20 × 20) |
+| `gms-synth-rotation-scale` | 1344 | 80 % | rotation 40°, then × 0.7 | 448 × 336 | 689 (513 + 176) | 265 | scale 2 (14 × 14), pattern 2 |
+
+The plan asked for a 60 % share everywhere. With it, `gms-synth-rotation` kept
+45 matches and `gms-synth-rotation-scale` 101 (70 %: 100 and 176), because a
+40° rotation spreads the inliers of a left cell over several right cells, so
+fewer cells clear the threshold. Both rotation paths therefore use 80 %.
+
+The "winning pass" column (which pattern and right grid produced the
+returned mask) comes from a literal, dense port of `gms.cpp` kept out of the
+repository, which reproduces all eight ORB and synthetic fixtures. It shows a
+limit of the scale fixtures: GMS normalises each view by its own size, so a
+whole-image resize is the identity in its coordinates, and in
+`gms-synth-scale` the unscaled 20 × 20 pass wins (373 matches, against 218 for
+the 14 × 14 grid). The 14 × 14 grid wins in `gms-synth-rotation-scale` and in
+`gms-scale`; the 10 × 10, 28 × 28 and 40 × 40 grids never win in any fixture,
+so for those the fixtures only pin that their passes keep no more matches than
+the winner's.
 
 ## What is not pinned against OpenCV
 
