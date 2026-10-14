@@ -13,3 +13,7 @@ types/
 # why a checked-in baseline invites the cross-machine comparison the whole
 # ratio-based design exists to avoid.
 bench-results/
+
+# OpenCV fixture generator (#132): local virtualenv and Python bytecode, never committed
+.venv/
+__pycache__/

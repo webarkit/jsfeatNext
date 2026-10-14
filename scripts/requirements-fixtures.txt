@@ -1,0 +1,23 @@
+# Pinned toolchain for the OpenCV fixture generator (#132).
+#
+# Developer-side only: this file is NOT read by `npm ci` or CI. CI runs against
+# the committed fixtures in tests/fixtures/opencv/ and never needs Python.
+#
+# Install it into a gitignored virtualenv in the repository root:
+#   python -m venv .venv
+#   .venv/Scripts/python -m pip install -r scripts/requirements-fixtures.txt   (Windows)
+#   .venv/bin/python -m pip install -r scripts/requirements-fixtures.txt       (Linux/macOS)
+#
+# scripts/gen-opencv-fixtures.py parses the opencv-contrib-python pin below and
+# refuses to run if cv2.__version__ differs from it, so a wrong version is an
+# explicit error rather than a silent drift between fixtures generated in
+# different sessions. Every fixture records the version in meta.opencv_version.
+#
+# opencv-contrib-python, not opencv-python: cv::xfeatures2d::matchGMS (used by
+# the GMS fixtures, #134) only ships in the contrib wheel. The wheel version
+# A.B.C.D reports cv2.__version__ == "A.B.C".
+#
+# To bump a pin: edit it, reinstall, regenerate every fixture and review the
+# fixture diffs -- a changed fixture is a change of ground truth.
+opencv-contrib-python==4.14.0.94
+numpy==2.5.4
