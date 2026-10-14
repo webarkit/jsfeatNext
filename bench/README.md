@@ -33,9 +33,12 @@ config does for you**: see
 | `yape.detect` | 1.11 / 1.02 / 1.05\* / 1.00 | **resolved** (#166) |
 | `matmath.invert_3x3` | 1.03 / 1.09 / 1.12 / 1.10 | **resolved** (#165) |
 | `linalg.svd_*`, `eigenVV` | all ≤ 1.17 | **resolved** (#159) |
+| `gms.filter` vs the matching step, default path — **not an A/B ratio** | 0.068 / 0.069 / 0.066 / 0.068 / 0.064 | **new** (#134): costs **0.07×** the `knnMatch` + `ratio_test` step it follows. Rotation 0.47×, scale 0.32×, rotation+scale 2.3× — see [GMS](#gms-what-it-costs-next-to-the-matching-step-134) |
 | everything else | within ±1.12 | noise |
 
 \* = jsfeatNext faster in that run.
+
+The `gms.filter` row is the one exception to everything above it: jsfeat has no GMS, so it is a cost in units of the matching step in the same process (as "`yape06` costs N× `fast_corners`"), measured on Vitest 5 — five runs of `bench/gms.bench.ts` after one discarded warm-up, not part of the four-run series above.
 
 **One caveat on `yape06`.** #166 measured it at 1.14–1.47 on its own branch and
 concluded the alias had *not* helped there. On merged `dev` it measures ~1.04.
@@ -228,6 +231,7 @@ What `scripts/bench-ratios.mjs` relies on:
   by prefix (`"jsfeatNext (matrix_t)"`, `"jsfeat (reference, raw array)"` and
   `` `jsfeatNext (${count} keypoints)` `` all pair up). A test that yields only
   one of the two is reported as an error row, never dropped.
+- **An intra-library group has neither name.** A test whose tasks are named after neither implementation (`bench/gms.bench.ts`: jsfeat has no GMS) is not an A/B pair and is not an error: the script prints each task's cost relative to the group's FIRST task, on its own, and never writes it to `history.jsonl`. A name starting with `jsfeat` (any case) still has to pair up, so a mistyped side keeps failing loudly.
 - **Two sequential `.run()` calls, not `bench.compare()`.** Sequential keeps the
   protocol the history was recorded with: jsfeatNext is warmed up and measured,
   then jsfeat is. `bench.compare()` warms every task up before measuring any of
@@ -845,11 +849,88 @@ compound: each `new matmath()` here is itself cheap, but `matmath`'s methods
 build `matrix_t` instances, which is where #159 bites. Measurement only here,
 per #86; the fix belongs in its own PR against `src/`.
 
+## GMS: what it costs next to the matching step (#134)
+
+`gms.filter` has no jsfeat counterpart, so `bench/gms.bench.ts` has no
+`"jsfeat (reference)"` case and there is no jsfeatNext-vs-jsfeat ratio. It
+follows the precedent of "`yape06` costs N× `fast_corners`" instead: five
+cases on the same inputs in one process, reported as "`gms: <path>` costs N×
+matching". The question it answers is the one the milestone asks: does a GMS
+pass cost more than the matching step it follows?
+
+**Workload: the tracker's.** The 300 strongest FAST corners (threshold 20,
+border 20) of each of two 640×480 views, ORB-described (with `ic_angle`),
+matched with `bfmatcher.knnMatch` (k = 2) and `ratio_test` 0.75. The second
+view is the first translated by (16, 8). The GMS cases filter the baseline's own
+output. Detection, description and that output are all built at collection
+time, outside the timed region; only `knnMatch` + `ratio_test` and
+`gms.filter` run inside a `bench` callback.
+
+**Noise, not `cornerScene` (ruling R12).** The workload was first tried on
+`cornerScene(640, 480)` and its translated copy, as the property tests use. It
+yields **36** FAST corners per view and **24** ratio-tested matches: nowhere
+near the 300 keypoints and ~100+ matches a tracker frame produces, so GMS would
+have looked trivially cheap because it had nothing to do. The bench therefore
+uses two crops of one seeded noise canvas (`noiseImage`), 16 and 8 pixels apart,
+which is an exact translation with real content at the edges of both views. It
+gives **300 + 300** keypoints and **289** ratio-tested matches, and GMS keeps
+219 of them on every path. Collection throws if either view falls below 300
+keypoints, the matching below 100 matches, or a path keeps nothing.
+
+**Result.** Five runs of `npx vitest bench --run bench/gms.bench.ts` after one
+discarded warm-up run. "N× matching" is the mean latency of the path divided by
+that of `match: knnMatch k=2 + ratio_test 0.75` in the same run; the ms are the
+median of the five runs.
+
+| case | ms / call | N× matching, 5 runs | median |
+| --- | --- | --- | --- |
+| `match: knnMatch k=2 + ratio_test 0.75` (the baseline) | 2.56 | 1 | 1 |
+| `gms: default` | 0.174 | 0.068 / 0.069 / 0.066 / 0.068 / 0.064 | **0.068×** |
+| `gms: rotation` | 1.21 | 0.487 / 0.472 / 0.453 / 0.472 / 0.448 | **0.47×** |
+| `gms: scale` | 0.83 | 0.324 / 0.318 / 0.324 / 0.326 / 0.303 | **0.32×** |
+| `gms: rotation+scale` | 5.97 | 2.288 / 2.392 / 2.250 / 2.381 / 2.195 | **2.29×** |
+
+Reading it:
+
+- **The default path, the one the tracker calls today, costs about one fifteenth
+  of the matching step.** The milestone's condition for raising it before release
+  (a default path that costs more than the matching step) does not hold, by a
+  factor of 15.
+- Rotation (8 passes) and scale (5 passes) each cost less than the matching.
+- **Rotation + scale (40 passes) costs about 2.3× the matching step**, 6.0 ms a
+  call on this machine. It is the one path where GMS outweighs what it follows,
+  and it is linear in passes × matches by construction. The choice of flags stays
+  the caller's; it is not the default.
+- The absolute milliseconds are this machine's. The ratios are intra-process, and
+  the five runs spread by up to about ±5% on a path, which is inside the noise floor
+  above: read them to one significant figure. Cost is linear in the number of
+  matches (289 here); a poorer frame has fewer.
+
+**Conditions, honestly.** Intel Core i7-9700 (8 cores, a desktop with no
+battery), Windows 11, Node v24.21.0, Vitest 5.0.4. **The machine was not
+idle**: a browser, Docker Desktop's backend and the Claude desktop app were
+running, and the CPU load read 9–34% before and after each run. The tight
+spread above suggests the load moved the ratios little (both sides of every ratio
+share the conditions, which is the point of using one), but this is not the
+idle-machine measurement the rest of this file asks for. The same file against
+the built bundle (`npm run bench:dist`, three runs after a warm-up) agrees:
+0.065–0.068, 0.46–0.48, 0.31–0.32 and 2.24–2.34. An earlier five-run series on the
+same source, taken before two collection-time-only edits to the file, gave the
+same picture (0.064–0.072, 0.46–0.50, 0.31–0.33, 2.24–2.41).
+
+Reproduce:
+
+```bash
+npx vitest bench --run bench/gms.bench.ts --reporter=default --reporter=json --outputFile.json=bench-results/gms.json
+node scripts/bench-ratios.mjs bench-results/gms.json     # "gms: default costs 0.068x match: ..."
+```
+
 ## Notes on the inputs
 
 - All inputs come from the deterministic generators in `tests/properties/helpers.ts` (seeded PRNG), so runs are reproducible.
 - Both sides get **identical** data — the oracle matrix is filled from the same buffer, never regenerated.
 - ORB detects its keypoints **once, outside** the timed function, so the measurement is `describe()` alone rather than `detect()` + `describe()`. Keypoints use border 20 so no sampling pattern crosses the image edge ([#110](https://github.com/webarkit/jsfeatNext/issues/110)) and both implementations do identical work.
+- GMS also uses noise rather than `cornerScene` (36 corners and 24 matches: too little for GMS to have anything to do), cropped twice from one canvas for the translated view; see the GMS section above.
 - ORB uses noise rather than `cornerScene`: the latter is built for the correctness tests and yields only ~27 keypoints at border 20, which would time call overhead rather than the algorithm. Noise yields tens of thousands, capped at 500 to match a realistic AR frame.
 
 ## What CI does, and what it deliberately does not
@@ -946,6 +1027,8 @@ the environment whose measurements are not worth keeping forever; and appending
 from CI would need write permissions on a workflow anyone can dispatch. The
 record is built from idle-machine local runs, because those are the ones worth
 recording.
+
+Intra-library groups (`bench/gms.bench.ts`) are **never recorded here**: the history is jsfeatNext-vs-jsfeat speedups, and a cost relative to the matching step is a different quantity.
 
 **Raw `hz` are never committed** — see the section below.
 
