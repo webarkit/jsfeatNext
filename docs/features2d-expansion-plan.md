@@ -157,11 +157,20 @@ exists to prevent, in the opposite direction.
 | D9 | GMS implements the full OpenCV variant, with `withRotation` / `withScale` as parameters defaulting to `false` | the fast path only | As PureCV's oracle, a partial implementation yields a partial oracle: the rotation path would have to be debugged directly in Rust + WASM. Initial detection against a stored pattern has arbitrary rotation, unlike frame-to-frame tracking |
 | D10 | TEBLID ships both p256 and p512, p256 first behind a bundle measurement | p256 only | `TEBLID::create` exposes both widths; covering one leaves PureCV uncovered. The two-PR split means a bad measurement is discovered with half the tables in |
 | D11 | Issue set structured one-per-module with shared prerequisites extracted (approach A) | three phase-sized issues; end-to-end vertical slices | Small enabling issues close in an evening and unblock three downstream issues each. Phase issues become month-long PRs whose acceptance criteria stop being checkable |
-| D12 | 1.1.0 ships GMS only; #135 TEBLID, #80 FREAK, #137 tree-shaking and #168 imgproc benches move to 1.2.0 | keeping the full set in 1.1.0 | The first consumer is the webarkit/webarkit planar tracker, whose bottleneck is the inlier ratio; only GMS addresses it. Decided 2026-10-14, see docs/superpowers/specs/2026-10-14-milestone-1.1.0-design.md |
+| D12 | 1.1.0 ships GMS only; #135 TEBLID, #80 FREAK, #137 tree-shaking and #168 imgproc benches move to 1.2.0 | keeping the full set in 1.1.0 | The first consumer is the webarkit/webarkit planar tracker, whose bottleneck is the inlier ratio; only GMS addresses it. Decided 2026-10-14, see docs/superpowers/specs/2026-10-14-milestone-1.1.0-design.md. The milestone lines in D3/D3a, §5 and §9 record the 2026-08-17 plan and are superseded by this decision and by §7 |
 
 ---
 
 ## 5. The issue set
+
+> **Superseded in part by D12 (2026-10-14).** The milestone lines in this section, in D3/D3a
+> and in §9 record the 2026-08-17 plan; the current allocation is the §7 table. In
+> particular #132 and #130 are now on 1.1.0, and #135, #80 and #137 are on 1.2.0
+> (as is #168, which has no entry here). The #136 entry below is also stale: it is re-scoped to GMS only and tracked here
+> while the adapter code lands in `webarkit/webarkit` (see the §3.3 note and the
+> [1.1.0 design](superpowers/specs/2026-10-14-milestone-1.1.0-design.md), §7 and §8); the
+> `describe()` / `DescriptorKind` half moves to a new 1.2.0 issue, and its "Blocked by
+> #96" no longer applies. The entries themselves are left as written.
 
 ### #131 — `fix(imgproc): compute_integral_image leaves the first column unwritten`
 
@@ -387,5 +396,6 @@ plus the ORB pyramid is the established path here.
   into P2 when it is written, rather than applied to existing work.
 - The base64 table format needs to be fixed before the first TEBLID PR, since
   the generator script and the runtime decoder must agree.
-- Whether #130 stays milestone-less depends on whether the repo wants every
-  issue triaged into a milestone.
+- ~~Whether #130 stays milestone-less depends on whether the repo wants every
+  issue triaged into a milestone.~~ Resolved 2026-10-14 by D12: #130 moves to
+  1.1.0, since GMS is ported from OpenCV and needs the third header variant.
