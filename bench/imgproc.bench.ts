@@ -36,7 +36,7 @@
  *
  */
 
-import { bench, describe } from "vitest";
+import { describe, test } from "vitest";
 import jsfeatNext from "../src/jsfeatNext";
 import jsfeat from "../tests/vendor/oracle.cjs";
 import { noiseImage, keypointPool } from "../tests/properties/helpers";
@@ -105,12 +105,14 @@ describe("imgproc.gaussian_blur — U8 fast path", () => {
     const dstN = new jsfeatNext.matrix_t(W, H, U8C1);
     const dstO = new jsfeat.matrix_t(W, H, OU8C1);
 
-    bench("jsfeatNext", () => {
-        jsfeatNext.imgproc.gaussian_blur(next, dstN, 5, 0);
-    });
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.imgproc.gaussian_blur(next, dstN, 5, 0);
+        }).run();
 
-    bench("jsfeat (reference)", () => {
-        jsfeat.imgproc.gaussian_blur(orig, dstO, 5, 0);
+        await bench("jsfeat (reference)", () => {
+            jsfeat.imgproc.gaussian_blur(orig, dstO, 5, 0);
+        }).run();
     });
 });
 
@@ -122,12 +124,14 @@ describe("imgproc.gaussian_blur — F32 path (_convol)", () => {
     const dstN = new jsfeatNext.matrix_t(W, H, F32C1);
     const dstO = new jsfeat.matrix_t(W, H, OF32C1);
 
-    bench("jsfeatNext", () => {
-        jsfeatNext.imgproc.gaussian_blur(next, dstN, 5, 0);
-    });
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.imgproc.gaussian_blur(next, dstN, 5, 0);
+        }).run();
 
-    bench("jsfeat (reference)", () => {
-        jsfeat.imgproc.gaussian_blur(orig, dstO, 5, 0);
+        await bench("jsfeat (reference)", () => {
+            jsfeat.imgproc.gaussian_blur(orig, dstO, 5, 0);
+        }).run();
     });
 });
 
@@ -138,12 +142,14 @@ describe("imgproc.resample — U8 fixed-point fast path", () => {
     const dstN = new jsfeatNext.matrix_t(W >> 1, H >> 1, U8C1);
     const dstO = new jsfeat.matrix_t(W >> 1, H >> 1, OU8C1);
 
-    bench("jsfeatNext", () => {
-        jsfeatNext.imgproc.resample(next, dstN, W >> 1, H >> 1);
-    });
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.imgproc.resample(next, dstN, W >> 1, H >> 1);
+        }).run();
 
-    bench("jsfeat (reference)", () => {
-        jsfeat.imgproc.resample(orig, dstO, W >> 1, H >> 1);
+        await bench("jsfeat (reference)", () => {
+            jsfeat.imgproc.resample(orig, dstO, W >> 1, H >> 1);
+        }).run();
     });
 });
 
@@ -153,12 +159,14 @@ describe("imgproc.resample — float path", () => {
     const dstN = new jsfeatNext.matrix_t(W >> 1, H >> 1, F32C1);
     const dstO = new jsfeat.matrix_t(W >> 1, H >> 1, OF32C1);
 
-    bench("jsfeatNext", () => {
-        jsfeatNext.imgproc.resample(next, dstN, W >> 1, H >> 1);
-    });
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.imgproc.resample(next, dstN, W >> 1, H >> 1);
+        }).run();
 
-    bench("jsfeat (reference)", () => {
-        jsfeat.imgproc.resample(orig, dstO, W >> 1, H >> 1);
+        await bench("jsfeat (reference)", () => {
+            jsfeat.imgproc.resample(orig, dstO, W >> 1, H >> 1);
+        }).run();
     });
 });
 
@@ -210,11 +218,13 @@ describe("orb.describe — 256-bit descriptors per keypoint", () => {
     const descN = new jsfeatNext.matrix_t(32, count, U8C1);
     const descO = new jsfeat.matrix_t(32, count, OU8C1);
 
-    bench(`jsfeatNext (${count} keypoints)`, () => {
-        jsfeatNext.orb.describe(src, cornersN, count, descN);
-    });
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench(`jsfeatNext (${count} keypoints)`, () => {
+            jsfeatNext.orb.describe(src, cornersN, count, descN);
+        }).run();
 
-    bench("jsfeat (reference)", () => {
-        jsfeat.orb.describe(orig, cornersO, count, descO);
+        await bench("jsfeat (reference)", () => {
+            jsfeat.orb.describe(orig, cornersO, count, descO);
+        }).run();
     });
 });

@@ -36,7 +36,7 @@
  *
  */
 
-import { bench, describe } from "vitest";
+import { describe, test } from "vitest";
 import jsfeatNext from "../src/jsfeatNext";
 import jsfeat from "../tests/vendor/oracle.cjs";
 import { point_t } from "../src/point_t/point_t";
@@ -74,12 +74,12 @@ import { rng } from "../tests/properties/helpers";
  * `tests/parity/motion_estimator.test.ts` solves this by re-seeding
  * `Math.random` with the same deterministic generator on both sides
  * immediately before each of its two calls (one per implementation). This
- * file reuses the same seeds via `bench()`'s `setup` option instead, which
- * only runs once per mode (warmup, then run) — NOT before every timed
+ * file reuses the same seeds via the case's `beforeAll` option instead, which
+ * only runs once per phase (warmup, then run) — NOT before every timed
  * iteration, unlike the parity test's per-call reset.
  *
  * That is still enough to keep both sides doing the same work, by induction:
- * `run` mode's first timed call starts from an identical freshly-seeded
+ * `run` phase's first timed call starts from an identical freshly-seeded
  * generator on both sides. Given identical inputs and an identical RNG
  * state, a faithful port produces identical output (the parity test already
  * proves this to 5 decimal places) and therefore consumes an identical
@@ -87,19 +87,16 @@ import { rng } from "../tests/properties/helpers";
  * matching state on both sides, and so on for the whole run. The two streams
  * never need to be re-synchronized because they never have a chance to drift
  * apart in the first place. (A plain reassignment is used rather than
- * `vi.spyOn` so the once-per-mode reset stays cheap and outside the timed
+ * `vi.spyOn` so the once-per-phase reset stays cheap and outside the timed
  * region either way.)
  *
- * The original `Math.random` is restored via each `bench()` call's own
- * `teardown` option, NOT a Vitest suite hook (`afterAll`/`afterEach`):
- * Vitest's bench mode does not run standard test hooks at all (see
- * `bench/detectors.bench.ts`'s docstring on why `beforeAll` doesn't work for
- * `set_threshold`) — an earlier version of this file relied on `afterAll`
- * for this exact cleanup and it silently never ran, leaving `Math.random`
- * stubbed for any bench file sharing this worker afterwards (caught in
- * review). `teardown` is tinybench's own option, symmetric to `setup` and
- * verified to fire the same way: once per mode, after that mode's
- * iterations finish.
+ * The original `Math.random` is restored via each case's own `afterAll`
+ * option -- the per-case hook, symmetric to `beforeAll`: it fires once per
+ * phase, after that phase's iterations finish -- so the stub's lifetime is
+ * exactly the case it was installed for. (Under Vitest 4's top-level
+ * `bench()` the suite hooks never ran at all, which is how an earlier
+ * version of this file leaked a stubbed `Math.random` into any bench file
+ * sharing the worker afterwards -- caught in review.)
  *
  * ## Input: the parity suite's own fixture, not a new one
  *
@@ -172,35 +169,37 @@ describe("motion_estimator.ransac (homography2d, 40 points, 6 outliers)", () => 
     const modelO = new jsfeat.matrix_t(3, 3, OF32C1);
     const maskO = new jsfeat.matrix_t(N, 1, OU8C1);
 
-    bench(
-        "jsfeatNext",
-        () => {
-            jsfeatNext.motion_estimator.ransac(params, jsfeatNext.homography2d, from, to, N, model, mask, 1000);
-        },
-        {
-            setup: () => {
-                Math.random = rng(2024);
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench(
+            "jsfeatNext",
+            {
+                beforeAll: () => {
+                    Math.random = rng(2024);
+                },
+                afterAll: () => {
+                    Math.random = originalRandom;
+                },
             },
-            teardown: () => {
-                Math.random = originalRandom;
-            },
-        }
-    );
+            () => {
+                jsfeatNext.motion_estimator.ransac(params, jsfeatNext.homography2d, from, to, N, model, mask, 1000);
+            }
+        ).run();
 
-    bench(
-        "jsfeat (reference)",
-        () => {
-            jsfeat.motion_estimator.ransac(paramsO, kernelO, from, to, N, modelO, maskO, 1000);
-        },
-        {
-            setup: () => {
-                Math.random = rng(2024);
+        await bench(
+            "jsfeat (reference)",
+            {
+                beforeAll: () => {
+                    Math.random = rng(2024);
+                },
+                afterAll: () => {
+                    Math.random = originalRandom;
+                },
             },
-            teardown: () => {
-                Math.random = originalRandom;
-            },
-        }
-    );
+            () => {
+                jsfeat.motion_estimator.ransac(paramsO, kernelO, from, to, N, modelO, maskO, 1000);
+            }
+        ).run();
+    });
 });
 
 describe("motion_estimator.lmeds (homography2d, 40 points, 6 outliers)", () => {
@@ -215,33 +214,35 @@ describe("motion_estimator.lmeds (homography2d, 40 points, 6 outliers)", () => {
     const modelO = new jsfeat.matrix_t(3, 3, OF32C1);
     const maskO = new jsfeat.matrix_t(N, 1, OU8C1);
 
-    bench(
-        "jsfeatNext",
-        () => {
-            jsfeatNext.motion_estimator.lmeds(params, jsfeatNext.homography2d, from, to, N, model, mask, 1000);
-        },
-        {
-            setup: () => {
-                Math.random = rng(777);
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench(
+            "jsfeatNext",
+            {
+                beforeAll: () => {
+                    Math.random = rng(777);
+                },
+                afterAll: () => {
+                    Math.random = originalRandom;
+                },
             },
-            teardown: () => {
-                Math.random = originalRandom;
-            },
-        }
-    );
+            () => {
+                jsfeatNext.motion_estimator.lmeds(params, jsfeatNext.homography2d, from, to, N, model, mask, 1000);
+            }
+        ).run();
 
-    bench(
-        "jsfeat (reference)",
-        () => {
-            jsfeat.motion_estimator.lmeds(paramsO, kernelO, from, to, N, modelO, maskO, 1000);
-        },
-        {
-            setup: () => {
-                Math.random = rng(777);
+        await bench(
+            "jsfeat (reference)",
+            {
+                beforeAll: () => {
+                    Math.random = rng(777);
+                },
+                afterAll: () => {
+                    Math.random = originalRandom;
+                },
             },
-            teardown: () => {
-                Math.random = originalRandom;
-            },
-        }
-    );
+            () => {
+                jsfeat.motion_estimator.lmeds(paramsO, kernelO, from, to, N, modelO, maskO, 1000);
+            }
+        ).run();
+    });
 });

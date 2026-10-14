@@ -36,7 +36,7 @@
  *
  */
 
-import { bench, describe } from "vitest";
+import { describe, test } from "vitest";
 import jsfeatNext from "../src/jsfeatNext";
 import jsfeat from "../tests/vendor/oracle.cjs";
 import { rng } from "../tests/properties/helpers";
@@ -75,12 +75,12 @@ import { rng } from "../tests/properties/helpers";
  * Both sort/partition the array they are given, so a naive bench would
  * measure "sort an already-sorted array" from the second iteration onward —
  * a different (and much easier) workload than the first call. Both cases
- * below restore fresh unsorted input via `bench()`'s `setup` option, which
- * runs once per mode (warmup, then run) rather than per iteration, so the
+ * below restore fresh unsorted input via the case's `beforeAll` option, which
+ * runs once per phase (warmup, then run) rather than per iteration, so the
  * restore cost stays outside the timed region.
  *
  * This is not a complete fix and the numbers should be read with it in mind:
- * within a single mode, iterations 2..N still operate on already-processed
+ * within a single phase, iterations 2..N still operate on already-processed
  * data. It applies identically to both sides, so the ratio stays fair, but
  * the absolute `hz` for these two cases reflects the sorted-input case far
  * more than the unsorted one.
@@ -144,12 +144,14 @@ describe("math.get_gaussian_kernel — size 7, sigma 0 (hardcoded table)", () =>
     const kernelN = new Float32Array(7);
     const kernelO = new Float32Array(7);
 
-    bench("jsfeatNext", () => {
-        jsfeatNext.math.get_gaussian_kernel(7, 0, kernelN, F32C1);
-    });
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.math.get_gaussian_kernel(7, 0, kernelN, F32C1);
+        }).run();
 
-    bench("jsfeat (reference)", () => {
-        jsfeat.math.get_gaussian_kernel(7, 0, kernelO, OF32C1);
+        await bench("jsfeat (reference)", () => {
+            jsfeat.math.get_gaussian_kernel(7, 0, kernelO, OF32C1);
+        }).run();
     });
 });
 
@@ -159,12 +161,14 @@ describe("math.get_gaussian_kernel — size 9, sigma 0 (computed, Math.exp)", ()
     const kernelN = new Float32Array(9);
     const kernelO = new Float32Array(9);
 
-    bench("jsfeatNext", () => {
-        jsfeatNext.math.get_gaussian_kernel(9, 0, kernelN, F32C1);
-    });
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.math.get_gaussian_kernel(9, 0, kernelN, F32C1);
+        }).run();
 
-    bench("jsfeat (reference)", () => {
-        jsfeat.math.get_gaussian_kernel(9, 0, kernelO, OF32C1);
+        await bench("jsfeat (reference)", () => {
+            jsfeat.math.get_gaussian_kernel(9, 0, kernelO, OF32C1);
+        }).run();
     });
 });
 
@@ -182,29 +186,31 @@ describe("math.qsort — 2048 floats", () => {
     // predicate shape as tests/parity/math.test.ts.
     const cmp = (a: number, b: number) => (a < b ? 1 : 0);
 
-    bench(
-        "jsfeatNext",
-        () => {
-            jsfeatNext.math.qsort(arrN, 0, N - 1, cmp);
-        },
-        {
-            setup: () => {
-                for (let i = 0; i < N; i++) arrN[i] = pristine[i];
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench(
+            "jsfeatNext",
+            {
+                beforeAll: () => {
+                    for (let i = 0; i < N; i++) arrN[i] = pristine[i];
+                },
             },
-        }
-    );
+            () => {
+                jsfeatNext.math.qsort(arrN, 0, N - 1, cmp);
+            }
+        ).run();
 
-    bench(
-        "jsfeat (reference)",
-        () => {
-            jsfeat.math.qsort(arrO, 0, N - 1, cmp);
-        },
-        {
-            setup: () => {
-                for (let i = 0; i < N; i++) arrO[i] = pristine[i];
+        await bench(
+            "jsfeat (reference)",
+            {
+                beforeAll: () => {
+                    for (let i = 0; i < N; i++) arrO[i] = pristine[i];
+                },
             },
-        }
-    );
+            () => {
+                jsfeat.math.qsort(arrO, 0, N - 1, cmp);
+            }
+        ).run();
+    });
 });
 
 describe("math.median — 512 floats (lmeds inlier residuals)", () => {
@@ -215,29 +221,31 @@ describe("math.median — 512 floats (lmeds inlier residuals)", () => {
     const arrN = new Float32Array(N);
     const arrO = new Float32Array(N);
 
-    bench(
-        "jsfeatNext",
-        () => {
-            jsfeatNext.math.median(arrN, 0, N - 1);
-        },
-        {
-            setup: () => {
-                arrN.set(pristine);
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench(
+            "jsfeatNext",
+            {
+                beforeAll: () => {
+                    arrN.set(pristine);
+                },
             },
-        }
-    );
+            () => {
+                jsfeatNext.math.median(arrN, 0, N - 1);
+            }
+        ).run();
 
-    bench(
-        "jsfeat (reference)",
-        () => {
-            jsfeat.math.median(arrO, 0, N - 1);
-        },
-        {
-            setup: () => {
-                arrO.set(pristine);
+        await bench(
+            "jsfeat (reference)",
+            {
+                beforeAll: () => {
+                    arrO.set(pristine);
+                },
             },
-        }
-    );
+            () => {
+                jsfeat.math.median(arrO, 0, N - 1);
+            }
+        ).run();
+    });
 });
 
 // ------------------------------------------------------------- matmath
@@ -252,12 +260,14 @@ describe("matmath.transpose — 9x9 (linalg SVD's own size)", () => {
     const At = new jsfeatNext.matrix_t(9, 9, F32C1);
     const Ato = new jsfeat.matrix_t(9, 9, OF32C1);
 
-    bench("jsfeatNext", () => {
-        jsfeatNext.matmath.transpose(At, A);
-    });
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.matmath.transpose(At, A);
+        }).run();
 
-    bench("jsfeat (reference)", () => {
-        jsfeat.matmath.transpose(Ato, Ao);
+        await bench("jsfeat (reference)", () => {
+            jsfeat.matmath.transpose(Ato, Ao);
+        }).run();
     });
 });
 
@@ -266,12 +276,14 @@ describe("matmath.invert_3x3", () => {
     const inv = new jsfeatNext.matrix_t(3, 3, F32C1);
     const invO = new jsfeat.matrix_t(3, 3, OF32C1);
 
-    bench("jsfeatNext", () => {
-        jsfeatNext.matmath.invert_3x3(A, inv);
-    });
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.matmath.invert_3x3(A, inv);
+        }).run();
 
-    bench("jsfeat (reference)", () => {
-        jsfeat.matmath.invert_3x3(Ao, invO);
+        await bench("jsfeat (reference)", () => {
+            jsfeat.matmath.invert_3x3(Ao, invO);
+        }).run();
     });
 });
 
@@ -282,12 +294,14 @@ describe("matmath.multiply_3x3", () => {
     const C = new jsfeatNext.matrix_t(3, 3, F32C1);
     const Co = new jsfeat.matrix_t(3, 3, OF32C1);
 
-    bench("jsfeatNext", () => {
-        jsfeatNext.matmath.multiply_3x3(C, A, B);
-    });
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.matmath.multiply_3x3(C, A, B);
+        }).run();
 
-    bench("jsfeat (reference)", () => {
-        jsfeat.matmath.multiply_3x3(Co, Ao, Bo);
+        await bench("jsfeat (reference)", () => {
+            jsfeat.matmath.multiply_3x3(Co, Ao, Bo);
+        }).run();
     });
 });
 
@@ -307,12 +321,14 @@ describe("transform.invert_affine_transform (matrix_t vs raw array)", () => {
     const srcRaw = Float32Array.from(src.data);
     const dstRaw = new Float32Array(6);
 
-    bench("jsfeatNext (matrix_t)", () => {
-        jsfeatNext.transform.invert_affine_transform(src, dst);
-    });
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext (matrix_t)", () => {
+            jsfeatNext.transform.invert_affine_transform(src, dst);
+        }).run();
 
-    bench("jsfeat (reference, raw array)", () => {
-        jsfeat.transform.invert_affine_transform(srcRaw, dstRaw);
+        await bench("jsfeat (reference, raw array)", () => {
+            jsfeat.transform.invert_affine_transform(srcRaw, dstRaw);
+        }).run();
     });
 });
 
@@ -322,11 +338,13 @@ describe("transform.invert_perspective_transform (matrix_t vs raw array)", () =>
     const srcRaw = Float32Array.from(src.data);
     const dstRaw = new Float32Array(9);
 
-    bench("jsfeatNext (matrix_t)", () => {
-        jsfeatNext.transform.invert_perspective_transform(src, dst);
-    });
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext (matrix_t)", () => {
+            jsfeatNext.transform.invert_perspective_transform(src, dst);
+        }).run();
 
-    bench("jsfeat (reference, raw array)", () => {
-        jsfeat.transform.invert_perspective_transform(srcRaw, dstRaw);
+        await bench("jsfeat (reference, raw array)", () => {
+            jsfeat.transform.invert_perspective_transform(srcRaw, dstRaw);
+        }).run();
     });
 });

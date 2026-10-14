@@ -6,15 +6,27 @@ export default defineConfig({
         environment: "node",
         include: ["tests/**/*.test.ts"],
         // Wraps every test with the shared buffer-pool leak check (#87).
-        // Applies to `vitest run` only — `benchmark` below opts out, since the
-        // check would add work inside the measurement.
+        // Vitest 5 runs the benchmarks as ordinary tests in a dedicated project
+        // that inherits this config, so the check wraps them too. That is
+        // harmless: its hooks run once per test, outside every timed callback.
         setupFiles: ["./tests/setup/pool-balance.ts"],
         benchmark: {
             // Throughput benchmarks live in bench/ and run via `npm run bench`
             // (issue #86). Kept out of `include` above so the test suite never
-            // pays for them, and out of setupFiles so nothing instruments the
-            // timed region.
+            // pays for them.
             include: ["bench/**/*.bench.ts"],
+            // NOT just noise suppression, and do not remove it. While a
+            // benchmark runs, Vitest 5 instruments every export of every
+            // module it transforms (a Map lookup and write per access) to be
+            // able to warn about "excessive getter calls" -- unless this flag
+            // is set, in which case the instrumentation is not installed at
+            // all. That bookkeeping lands inside the timed region and only on
+            // the jsfeatNext side (the vendored jsfeat oracle is CommonJS, so
+            // its exports are plain properties and never instrumented): on
+            // the 100 ns `cache` steady-state case it turned a 1.01x ratio
+            // into 2.5x. The residual cost of the plain getters is the
+            // module-runner artefact documented in bench/README.md (#169).
+            suppressExportGetterWarnings: true,
         },
         coverage: {
             // A GAP DETECTOR, not a quality score (#123). It answers "which code

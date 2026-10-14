@@ -3,15 +3,24 @@
 Throughput measurement for the hot paths, per [#86](https://github.com/webarkit/jsfeatNext/issues/86).
 
 ```bash
-npm run bench
+npm run bench:ratios
 ```
+
+That is one full pass followed by the A/B ratios — see
+[How to take a measurement](#how-to-take-a-measurement) for the other commands
+and for what each of them prints.
 
 ## Current status
 
 Measured on `dev` after #159, #165 and #166 landed — four full-suite runs on an
-idle machine, warm-up discarded. **This table is the current picture; the
-sections below are the historical record of how each finding was found and
-diagnosed, and their numbers are deliberately not updated.**
+idle machine, warm-up discarded, **on Vitest 4**. **This table is the current
+picture; the sections below are the historical record of how each finding was
+found and diagnosed, and their numbers are deliberately not updated.** The
+suite now runs on Vitest 5 (#219). The ratio is defined exactly as before, and
+a Vitest 5 pass reproduces the same picture within the run-to-run noise
+described below — **provided Vitest's getter instrumentation is off, which the
+config does for you**: see
+[The module-runner artefact under Vitest 5](#the-module-runner-artefact-under-vitest-5).
 
 | case | 4 runs | status |
 | --- | --- | --- |
@@ -76,16 +85,46 @@ with `bench:dist` runs. Case names are the keys of that file, so they are
 kept verbatim even where their parenthetical is now historical (the
 `check_subset` case no longer allocates a `matmath`).
 
+### The module-runner artefact under Vitest 5
+
+Vitest 5 replaced vite-node with Vite's module runner, and the artefact above
+came with it — plus one new, larger source of the same distortion that is worth
+knowing about because it is **silent**:
+
+- While a benchmark runs, Vitest 5 wraps every export of every module it
+  transforms in a call counter (a `Map` read and write per access), so that it
+  can print a "Benchmark Warning: accessed module export getters too many
+  times". That bookkeeping sits inside the timed region and only on the
+  jsfeatNext side — the vendored jsfeat is CommonJS, its exports are plain
+  properties, nothing wraps them.
+- `benchmark.suppressExportGetterWarnings: true` (set in `vitest.config.mts`)
+  switches the counter off entirely, not just the message. **Do not remove it.**
+  One full pass each way on the same machine: `cache` steady state 2.49x
+  instead of 1.07x, `linalg.lu_solve` 2.85x instead of 1.51x,
+  `math.get_gaussian_kernel` size 7 2.98x instead of 1.58x,
+  `matmath.invert_3x3` 1.75x instead of 1.03x. Every case that crosses a module
+  boundary inside the timed region moves like that; the millisecond-scale
+  detector and imgproc cases do not.
+- With the counter off, what remains is the original #169 effect (plain getters
+  instead of vite-node's property loads), so the rule above stands unchanged:
+  the default `npm run bench` ratios are upper bounds for anything that crosses
+  a module boundary, and `npm run bench:dist` is the one to read as a statement
+  about shipped code. It still works under Vitest 5 and shows the same
+  signature as before (`linalg.lu_solve` at 1.00x on the built bundle).
+
 ## Read the ratio, not the absolute numbers
 
-Every case runs **twice in the same process**: once through jsfeatNext, once through the vendored original jsfeat (`tests/vendor/oracle.cjs`). What matters is the **ratio** Vitest prints in the `BENCH Summary` block, which reads like this (shape only — see the noise floor below before reading any single number as a result):
+Every case runs **twice in the same process**: once through jsfeatNext, once through the vendored original jsfeat (`tests/vendor/oracle.cjs`). What matters is the **ratio** between the two. Vitest 5's console prints one single-row table per side and no cross-side summary, so the ratio is computed by `scripts/bench-ratios.mjs` from the JSON reporter's output (`npm run bench:ratios`, or see [How to take a measurement](#how-to-take-a-measurement)). It prints one line per case — the ratio is always ≥ 1, the next column says who won, and `*` marks anything above the ~1.15x noise floor (shape only — see the noise floor below before reading any single number as a result):
 
 ```
-<winner> - imgproc.gaussian_blur — U8 fast path
-  1.0Nx faster than <loser>
+1.01x jsfeatNext   imgproc.resample — float path
+1.04x jsfeat       imgproc.gaussian_blur — F32 path (_convol)
+1.51x jsfeat     * linalg.lu_solve (6x6)
 ```
 
-The `hz` / `mean` columns above it are **not** comparable across machines, and largely not comparable across runs on the same machine either.
+**The definition is unchanged from Vitest 4**: jsfeatNext's `hz` divided by jsfeat's `hz`, where `hz` is operations per second from the mean latency. On Vitest 5 that is `1000 / period` in the JSON — **not** the `hz` column of the console table, which Vitest 5 fills from `throughput.mean`, a mean of per-sample throughputs. The two diverge once a call is fast enough for the timer to quantise it (on the ~100 ns `cache` case they differ by tens of percent), so read ratios from the script, not from the table. `bench/history.jsonl` keys and values therefore keep their meaning.
+
+The `hz` / `mean` columns in the console table are **not** comparable across machines, and largely not comparable across runs on the same machine either.
 
 ### Why
 
@@ -124,6 +163,89 @@ So, in practice:
 
 Always re-run a few times before believing a number. A single run is a sample
 of one.
+
+## How to take a measurement
+
+| Command | What it does |
+| --- | --- |
+| `npm run bench:ratios` | One full pass on the source, then the A/B ratios, **appended to `bench/history.jsonl`** (see below). Raw JSON lands in `bench-results/` (git-ignored). |
+| `npx vitest bench --run` | One full pass, console tables only: one single-row table per side, no ratios. |
+| `npx vitest bench --run bench/linalg.bench.ts` | One file. Add `-t "lu_solve"` to narrow to one case (a name filter, matched against `describe > test`). |
+| `npm run bench:dist` | The same pass against the **built** bundle (`npm run build-ts` first), the one to read as a statement about shipped code. Add the JSON reporter flags below to get ratios from it. |
+| `npm run bench:smoke` | Collection only, nothing measured — what CI runs. See [What CI does](#what-ci-does-and-what-it-deliberately-does-not). |
+| `npm run bench` | Watch mode. Rarely what you want. |
+
+To see the ratios of a run **without** touching the history, run the pass with
+the JSON reporter alongside the default one, then reduce the file:
+
+```bash
+npx vitest bench --run --reporter=default --reporter=json --outputFile.json=bench-results/raw.json
+node scripts/bench-ratios.mjs bench-results/raw.json          # one line per case
+node scripts/bench-ratios.mjs bench-results/raw.json --markdown
+```
+
+`--append bench/history.jsonl` is what `bench:ratios` adds, and the only thing
+that writes to the history. **The ratio definition did not change with the
+Vitest 5 migration** (jsfeatNext `hz` ÷ jsfeat `hz`, see above), so existing
+records stay comparable with new ones — subject, as always, to their `env`
+block, and to the module-runner caveat above for anything recorded without
+`suppressExportGetterWarnings`.
+
+A full pass takes roughly four minutes: Vitest 5 gives every case a 1 s
+measurement and a 250 ms warm-up by default, and computing percentiles over the
+millions of samples a 100 ns case produces dominates the rest.
+
+### The shape of a bench file
+
+One `describe` per case, holding the setup and **one `test`** whose `bench`
+fixture runs the two sides back to back:
+
+```ts
+describe("imgproc.resample — float path", () => {
+    // setup: fixtures, pools, count assertions. Runs at COLLECTION time.
+    const { next, orig } = f32Pair();
+    const dstN = new jsfeatNext.matrix_t(W >> 1, H >> 1, F32C1);
+    const dstO = new jsfeat.matrix_t(W >> 1, H >> 1, OF32C1);
+
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.imgproc.resample(next, dstN, W >> 1, H >> 1);
+        }).run();
+
+        await bench("jsfeat (reference)", () => {
+            jsfeat.imgproc.resample(orig, dstO, W >> 1, H >> 1);
+        }).run();
+    });
+});
+```
+
+What `scripts/bench-ratios.mjs` relies on:
+
+- **The describe's name is the case key** in `history.jsonl`. The test title is
+  incidental. Rename a describe and its entries in `history.jsonl` stop lining
+  up with the earlier ones.
+- **The two tasks are named `"jsfeatNext"` and `"jsfeat (reference)"`**, matched
+  by prefix (`"jsfeatNext (matrix_t)"`, `"jsfeat (reference, raw array)"` and
+  `` `jsfeatNext (${count} keypoints)` `` all pair up). A test that yields only
+  one of the two is reported as an error row, never dropped.
+- **Two sequential `.run()` calls, not `bench.compare()`.** Sequential keeps the
+  protocol the history was recorded with: jsfeatNext is warmed up and measured,
+  then jsfeat is. `bench.compare()` warms every task up before measuring any of
+  them, which is a different protocol from the one the history was recorded
+  with.
+
+Per-case lifecycle hooks go in the options argument, `bench(name, options, fn)`;
+they are the Vitest 4 `setup` / `teardown` options under their tinybench names,
+and they fire once per phase (warmup, then run), never per iteration:
+
+| Vitest 4 `bench(name, fn, { … })` | Vitest 5 `bench(name, { … }, fn)` |
+| --- | --- |
+| `setup: (task, mode) => …` | `beforeAll: (mode) => …` |
+| `teardown: (task, mode) => …` | `afterAll: (mode) => …` |
+
+Keep the setup in the `describe` body, not in the test body. That is not style:
+`npm run bench:smoke` skips every test body, so anything that lives in one is
+invisible to it. See below.
 
 ## How to get a clean measurement
 
@@ -368,8 +490,8 @@ Inputs are deterministic well-conditioned SPD matrices (`MᵀM + nI`), built
 locally so both sides get identical bytes — see the module docstring for why
 a poorly conditioned system would make the bench measure numerical luck
 instead of throughput. `lu_solve` and `cholesky_solve` overwrite their operands
-in place, so those two cases re-copy fresh input via `bench()`'s `setup` option
-every call; the SVD/eigen functions are documented and verified not to mutate
+in place, so those two cases re-copy fresh input via the case's `beforeAll`
+option once per phase (formerly `bench()`'s `setup`); the SVD/eigen functions are documented and verified not to mutate
 their input, so they need no such copy.
 
 Four runs on an idle machine, discarding a warm-up:
@@ -429,8 +551,8 @@ shape invented for this bench.
 
 RANSAC/LMEDS draw a random subset every iteration via `Math.random`, so both
 sides need to draw the *same* subsets or the ratio compares different amounts
-of work. `bench()`'s `setup` option reseeds a deterministic generator once
-per mode (not per call, unlike the parity test) — enough by induction, since
+of work. The case's `beforeAll` option (formerly `bench()`'s `setup`) reseeds a
+deterministic generator once per phase (not per call, unlike the parity test) — enough by induction, since
 identical inputs and identical RNG state make a faithful port consume an
 identical number of random draws, keeping both streams in lockstep for the
 whole run. See the file's docstring for the full argument.
@@ -517,7 +639,7 @@ the surprise, not its absence.
 | `transform.invert_affine_transform` / `invert_perspective_transform` | Public API, no in-tree caller — see the calling-convention note below |
 
 `qsort` and `median` rewrite the array they are given, so both restore fresh
-input via `setup` (once per mode). That is not a complete fix — within a mode,
+input via `beforeAll` (once per phase). That is not a complete fix — within a phase,
 iterations 2..N still work on already-processed data — but it applies equally
 to both sides, so the ratio stays fair even though the absolute `hz` reflects
 the sorted-input case.
@@ -738,7 +860,9 @@ Two different things, split on purpose.
 
 `CI.yml` runs `npm run bench:smoke` on every push and PR. It loads every bench
 file and executes its module-level and `describe` bodies, then **skips the
-timed callbacks**. It answers *"do the benchmarks still work?"*, never *"how
+timed callbacks** (every `test` body, i.e. the `bench(...).run()` calls —
+the run passes `--testNamePattern="__collect_only__"`, which matches nothing).
+It answers *"do the benchmarks still work?"*, never *"how
 fast are they"* — nothing is measured, so runner noise is irrelevant and it can
 safely fail the build.
 
@@ -747,6 +871,11 @@ includes only `tests/**`, so a `src/` refactor can rot a bench file in silence.
 That is not hypothetical — every real breakage this suite has had lived in
 collection-time code: undersized keypoint pools, a failed count assertion, a
 leaked `Math.random` stub, a comparator that made `qsort` not sort.
+
+That is also why the Vitest 5 shape keeps each case's setup in the `describe`
+body and puts nothing but the two `bench(...).run()` calls in the `test`.
+Moved into the test body, the same setup would be skipped by the name filter
+and the smoke check would pass without having checked anything.
 
 `CI.yml` also runs `npm run typecheck`, which uses `tsconfig.check.json` to
 cover `bench/` as well as `src/`. The project's own `tsconfig.json` includes
@@ -827,7 +956,7 @@ problem of benchmarking on managed runtimes and on CI:
 
 - **[`benchmark-action/github-action-benchmark`](https://github.com/benchmark-action/github-action-benchmark)** — the reference project for running benchmarks in CI. Worth noting that its default regression alert threshold is **200%** (a 2× slowdown): a default that conservative is itself a statement about how noisy hosted runners are.
 - **[tinybench](https://github.com/tinylibs/tinybench)** — what `vitest bench` uses underneath. Explains the `rme` and `samples` columns. Note `rme` is the error *within* one measurement (ours runs ~1–3%, comfortably low); the variance *between* runs is a different and much larger thing — that is what the noise floor above measures.
-- **[Vitest benchmarking docs](https://vitest.dev/guide/features.html#benchmarking)** — the `bench()` API and its options.
+- **[Vitest benchmarking docs](https://vitest.dev/guide/benchmarking)** — the `bench` test-context fixture, its options, and the module-runner overhead section behind [the Vitest 5 artefact above](#the-module-runner-artefact-under-vitest-5).
 - **Georges, Buytaert & Eeckhout, _"Statistically Rigorous Java Performance Evaluation"_ (OOPSLA 2007)** — the classic treatment of why single runs on a JIT runtime mislead: warm-up, non-deterministic GC, the need for repeated measurements. Written for the JVM, but every problem it describes applies to V8.
 
 GitHub does not guarantee reproducible performance on hosted runners — it
