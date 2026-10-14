@@ -38,17 +38,50 @@
 
 import { describe, it, expect } from "vitest";
 import jsfeatNext from "../../src/jsfeatNext";
+import { gms as GmsFilter } from "../../src/gms/gms";
 import type { keypoint_t } from "../../src/keypoint_t/keypoint_t";
 import type { match_t } from "../../src/bfmatcher/match_t";
-import { rng } from "./helpers";
+import type { matrix_t } from "../../src/matrix_t/matrix_t";
+import { loadFixture } from "../fixtures/opencv/loader";
+import { cornerScene, keypointPool, rng, U8C1 } from "./helpers";
 
 /**
- * `gms.filter` edge cases (#134): degenerate inputs, robustness, and the
- * shape of its output. Bit-exactness against OpenCV is pinned separately, in
- * `tests/reference/gms.opencv.test.ts`.
+ * `gms.filter` edge cases and properties (#134): degenerate and malformed
+ * inputs, robustness, the shape of its output, independence between calls,
+ * and the inlier-ratio gain on a translated scene. Bit-exactness against
+ * OpenCV is pinned separately, in `tests/reference/gms.opencv.test.ts`.
  */
 
 const VGA = { width: 640, height: 480 };
+
+/** The part of a GMS fixture's payload these tests read (see the reference test). */
+interface GmsPayload {
+    size1: [number, number];
+    size2: [number, number];
+    with_rotation: boolean;
+    with_scale: boolean;
+    threshold_factor: number;
+    keypoints1: [number, number][];
+    keypoints2: [number, number][];
+    matches: [number, number, number][];
+    kept: number[];
+}
+
+/** Runs `filter` on a fixture's payload and returns the kept indices. */
+function runFixture(filter: GmsFilter, p: GmsPayload): number[] {
+    const matches = p.matches.map(([q, t, d]) => new jsfeatNext.match_t(q, t, d));
+    const out = filter.filter(
+        { width: p.size1[0], height: p.size1[1] },
+        { width: p.size2[0], height: p.size2[1] },
+        p.keypoints1.map(([x, y]) => new jsfeatNext.keypoint_t(x, y)),
+        p.keypoints2.map(([x, y]) => new jsfeatNext.keypoint_t(x, y)),
+        matches,
+        p.with_rotation,
+        p.with_scale,
+        p.threshold_factor
+    );
+    return out.map((m) => matches.indexOf(m));
+}
 
 /** One match per pair of points, `kp1[i]` <-> `kp2[i]`. */
 function build(pairs: [number, number, number, number][]) {
@@ -94,6 +127,23 @@ describe("gms.filter edge cases (#134)", () => {
         // Its cell scores 1, below the threshold 6 * sqrt(1 / 9) = 2.
         const { kp1, kp2, matches } = build([[330, 250, 330, 250]]);
         expect(gms.filter(VGA, VGA, kp1, kp2, matches)).toEqual([]);
+    });
+
+    it("returns [] when no pass keeps a match, on every path", () => {
+        // getInlierMask replaces its (empty) result only with a pass that
+        // keeps strictly more than the best so far, from 0. The cluster call
+        // first leaves kept-match flags in the pool's recycled buffers.
+        const cluster = build(clusterPairs());
+        const single = build([[330, 250, 330, 250]]);
+        for (const [rot, scale] of [
+            [false, false],
+            [true, false],
+            [false, true],
+            [true, true],
+        ]) {
+            expect(gms.filter(VGA, VGA, cluster.kp1, cluster.kp2, cluster.matches, rot, scale).length).toBe(16);
+            expect(gms.filter(VGA, VGA, single.kp1, single.kp2, single.matches, rot, scale)).toEqual([]);
+        }
     });
 
     it("keeps a dense consistent cluster", () => {
@@ -183,6 +233,115 @@ describe("gms.filter edge cases (#134)", () => {
         const pos = positions(out, input);
         expect(pos.every((p, i) => p < input.length && (i === 0 || p > pos[i - 1]))).toBe(true);
         expect(out.filter((m) => m === matches[3]).length).toBe(2);
+    });
+
+    it("throws on a hole in a keypoint array before borrowing any buffer", () => {
+        // tests/setup/pool-balance.ts fails this test if a throw leaves the
+        // shared pool unbalanced, so expecting the throw is the whole check.
+        for (const side of [1, 2]) {
+            const { kp1, kp2, matches } = build(clusterPairs());
+            delete (side === 1 ? kp1 : kp2)[5]; // a hole at an index match 5 references
+            expect(() => gms.filter(VGA, VGA, kp1, kp2, matches)).toThrow(TypeError);
+            expect(() => gms.filter(VGA, VGA, kp1, kp2, matches, true, true)).toThrow(
+                "gms.filter: match 5 references keypoint 5, which is undefined"
+            );
+        }
+    });
+
+    it("throws on a malformed size before borrowing any buffer", () => {
+        const { kp1, kp2, matches } = build(clusterPairs());
+        const bad: unknown[] = [
+            undefined,
+            {},
+            { width: 640 },
+            { width: 0, height: 480 },
+            { width: 640, height: -1 },
+            { width: Number.NaN, height: 480 },
+            { width: Number.POSITIVE_INFINITY, height: 480 },
+            { width: "640", height: 480 },
+        ];
+        for (const size of bad) {
+            const s = size as { width: number; height: number };
+            expect(() => gms.filter(s, VGA, kp1, kp2, matches)).toThrow(RangeError);
+            expect(() => gms.filter(VGA, s, kp1, kp2, matches, true, true)).toThrow(RangeError);
+            expect(() => gms.filter(s, VGA, [], [], [])).toThrow(RangeError);
+        }
+        expect(() => gms.filter(VGA, { width: 0, height: 480 }, kp1, kp2, matches)).toThrow(
+            "gms.filter: size2 must have a finite width and height > 0, got 0 x 480"
+        );
+    });
+
+    it("reads a keypoint coordinate as float32 first, as cv::KeyPoint stores it", () => {
+        // x is not float32-exact, and the cell depends on the order of the
+        // roundings: read as float32 first (OpenCV's KeyPoint::pt is a
+        // Point2f) it is 320, column 10 of the right grid; divided as a
+        // double, 319.999988 / 640 rounds below 0.5, column 9.
+        const x = 319.999988;
+        expect(Math.fround(x)).not.toBe(x);
+        expect(Math.floor(Math.fround(Math.fround(Math.fround(x) / 640) * 20))).toBe(10);
+        expect(Math.floor(Math.fround(Math.fround(x / 640) * 20))).toBe(9);
+
+        // The cluster's left cell pairs with right cell (10, 10). The probe
+        // shares the left cell and agrees with it only in the float32 reading.
+        const { kp1, kp2, matches } = build([...clusterPairs(), [330, 250, x, 250]]);
+        const probe = matches[16];
+        for (const [rot, scale] of [
+            [false, false],
+            [true, true],
+        ]) {
+            expect(gms.filter(VGA, VGA, kp1, kp2, matches, rot, scale)).toContain(probe);
+        }
+    });
+
+    it("a call does not depend on the previous call's scale or rotation", () => {
+        // The combined path ends on the 40x40 right grid with rotation
+        // pattern 8, and leaves the pool's recycled scratch buffers dirty.
+        // The default path that follows must see neither: the result equals
+        // a fresh instance's (it shares the pool, like the singleton) and
+        // OpenCV's.
+        for (const [before, name] of [
+            ["gms-rotation-scale", "gms-default"],
+            ["gms-synth-rotation-scale", "gms-synth-default"],
+        ]) {
+            runFixture(gms, loadFixture<GmsPayload>(before).payload);
+            const p = loadFixture<GmsPayload>(name).payload;
+            const after = runFixture(gms, p);
+            expect(after).toEqual(runFixture(new GmsFilter(), p));
+            expect(after).toEqual(p.kept);
+        }
+    });
+
+    it("raises the inlier ratio on a translated cornerScene", () => {
+        // Two exact views of the scene, the second shifted by (16, 8): FAST
+        // corners, upright ORB descriptors (the detectors test's pattern),
+        // brute-force matches. A match is an inlier when its train point is
+        // within 2 px of the query point moved by the shift.
+        const W = 640,
+            H = 480,
+            DX = 16,
+            DY = 8;
+        const features = (img: matrix_t) => {
+            jsfeatNext.fast_corners.set_threshold(20);
+            const kps = keypointPool(W * H);
+            const n = jsfeatNext.fast_corners.detect(img, kps, 20);
+            for (let i = 0; i < n; i++) kps[i].angle = 0;
+            const descriptors = new jsfeatNext.matrix_t(32, n, U8C1);
+            jsfeatNext.orb.describe(img, kps, n, descriptors);
+            return { kps, descriptors };
+        };
+        const a = features(cornerScene(W, H));
+        const b = features(cornerScene(W, H, { dx: DX, dy: DY }));
+        const matches = jsfeatNext.bfmatcher.match(a.descriptors, b.descriptors);
+        const out = gms.filter({ width: W, height: H }, { width: W, height: H }, a.kps, b.kps, matches);
+
+        const inlier = (m: match_t) => {
+            const p = a.kps[m.queryIdx],
+                q = b.kps[m.trainIdx];
+            return Math.hypot(q.x - (p.x + DX), q.y - (p.y + DY)) <= 2;
+        };
+        const ratio = (ms: match_t[]) => ms.filter(inlier).length / ms.length;
+        expect(out.length).toBeGreaterThan(0);
+        expect(ratio(out)).toBeGreaterThanOrEqual(ratio(matches));
     });
 
     it("works on images smaller than the grid", () => {

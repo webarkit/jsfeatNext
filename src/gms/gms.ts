@@ -60,10 +60,29 @@ const GRID_LEFT = 20;
 const CELLS_LEFT = GRID_LEFT * GRID_LEFT;
 
 /**
- * `mRotationPatterns[0]`, the identity: position `j` of the left cell's 3x3
- * neighbourhood is paired with position `pattern[j] - 1` of the right cell's.
+ * `mRotationPatterns`, copied verbatim from gms.cpp: the 3x3 neighbourhood
+ * turned in 8 steps of 45 degrees. Under pattern `p`, position `j` of the left
+ * cell's neighbourhood is paired with position `p[j] - 1` of the right cell's.
+ * Pattern 1 is the identity, and the only one searched without `with_rotation`.
  */
-const PATTERN_IDENTITY: readonly number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+const ROTATION_PATTERNS: readonly (readonly number[])[] = [
+    [1, 2, 3, 4, 5, 6, 7, 8, 9],
+    [4, 1, 2, 7, 5, 3, 8, 9, 6],
+    [7, 4, 1, 8, 5, 2, 9, 6, 3],
+    [8, 7, 4, 9, 5, 1, 6, 3, 2],
+    [9, 8, 7, 6, 5, 4, 3, 2, 1],
+    [6, 9, 8, 3, 5, 7, 2, 1, 4],
+    [3, 6, 9, 2, 5, 8, 1, 4, 7],
+    [2, 3, 6, 1, 5, 9, 4, 7, 8],
+];
+
+/**
+ * Cells per side of the right (train) grid, per scale index: `setScale`'s
+ * `cvRound(20 * mScaleRatios[scale])`, with `mScaleRatios = {1, 1/2,
+ * 1/sqrt(2), sqrt(2), 2}`, so 20, 10, 14 (14.14), 28 (28.28) and 40. Index 0,
+ * the left grid's size, is the only one searched without `with_scale`.
+ */
+const GRID_RIGHT: readonly number[] = [20, 10, 14, 28, 40];
 
 /**
  * Column and row offset of each position of a 3x3 neighbourhood, in
@@ -102,6 +121,8 @@ interface gms_scratch_t {
     rc: Int32Array;
     /** Per match: 1 when some grid type of the current run kept it. */
     mask: Uint8Array;
+    /** Per match: the mask of the best run so far (swapped with `mask`, never copied). */
+    best: Uint8Array;
 }
 
 /**
@@ -131,10 +152,17 @@ export class gms extends jsfeatNext {
      * `queryIdx` and `trainIdx`: the descriptor distance plays no part.
      * Coordinates are rounded to float32 first, as `cv::KeyPoint` stores them.
      *
-     * The cost is proportional to the number of matches, not to the grid:
-     * each pass counts and visits only the occupied cells, where OpenCV
-     * clears and scans a `400 x N` matrix. Only a 400-cell table and one row
-     * of `N` counters are cleared, once per call.
+     * The search runs one pass per rotation pattern and right grid size
+     * tried: 1 by default, 8 with `with_rotation`, 5 with `with_scale` and
+     * 40 with both. It returns the matches kept by the pass that keeps the
+     * most, the first one on a tie, as OpenCV does; when no pass keeps any,
+     * the result is empty.
+     *
+     * The cost of a pass is proportional to the number of matches, not to
+     * the grid: it counts and visits only the occupied cells, where OpenCV
+     * clears and scans a `400 x N` matrix (`N` up to 40 x 40 on the scale
+     * path). Only a 400-cell table and one row of `N` counters are cleared,
+     * once per call.
      *
      * Differences from OpenCV, only where OpenCV computes a wrong cell or reads
      * out of bounds: a match whose keypoint lies outside `[0, width) x [0,
@@ -179,17 +207,20 @@ export class gms extends jsfeatNext {
      * @param keypoints2       Train keypoints; `match.trainIdx` indexes this array.
      * @param matches          Nearest-neighbour matches, query to train.
      * @param with_rotation    Also search the 8 in-plane rotations of the
-     *                         neighbourhood. Default `false`, as in OpenCV.
-     *                         Not implemented yet: `true` throws.
-     * @param with_scale       Also search 5 grid scales of the train image.
-     *                         Default `false`, as in OpenCV. Not implemented
-     *                         yet: `true` throws.
+     *                         neighbourhood, in 45 degree steps. Default
+     *                         `false`, as in OpenCV.
+     * @param with_scale       Also search 5 scales of the train image, as
+     *                         right grids of 20, 10, 14, 28 and 40 cells per
+     *                         side. Default `false`, as in OpenCV.
      * @param threshold_factor The higher, the fewer matches kept. Default 6, as in OpenCV.
      * @returns The kept matches: a subset of `matches`, the same objects, in
      *          input order (a match present twice in the input is kept or
      *          dropped twice).
-     * @throws {RangeError} if a match's `queryIdx` or `trainIdx` is not an
+     * @throws {RangeError} if `size1` or `size2` lacks a finite width and
+     *         height above 0, or a match's `queryIdx` or `trainIdx` is not an
      *         index of its keypoint array.
+     * @throws {TypeError} if a match references a keypoint array slot that
+     *         holds `undefined` or `null`.
      */
     filter(
         size1: IGmsSize,
@@ -201,21 +232,28 @@ export class gms extends jsfeatNext {
         with_scale = false,
         threshold_factor = 6
     ): match_t[] {
-        if (with_rotation || with_scale) {
-            throw new Error("gms.filter: with_rotation and with_scale are not implemented yet (#134)");
-        }
-
+        // Everything that can reject the input is checked before the first
+        // buffer is borrowed, so a malformed size, an index out of range or a
+        // hole at a referenced index throws with the shared pool balanced.
+        // Past this point only a keypoint whose x or y accessor throws could
+        // still escape with buffers borrowed.
+        gms.check_size("size1", size1);
+        gms.check_size("size2", size2);
         const count = matches.length;
-        // Every index is checked before any buffer is borrowed, so a throw
-        // cannot leave the shared pool unbalanced.
         for (let i = 0; i < count; ++i) {
-            gms.check_index(i, matches[i].queryIdx, keypoints1.length);
-            gms.check_index(i, matches[i].trainIdx, keypoints2.length);
+            gms.check_keypoint(i, matches[i].queryIdx, keypoints1);
+            gms.check_keypoint(i, matches[i].trainIdx, keypoints2);
         }
         if (count === 0) return [];
 
-        const grid_right = GRID_LEFT; // setScale(0): cvRound(20 * mScaleRatios[0])
-        const cells_right = grid_right * grid_right;
+        // getInlierMask's branches: which scales (right grid sizes) and which
+        // rotation patterns are tried.
+        const scales = with_scale ? GRID_RIGHT.length : 1;
+        const rotations = with_rotation ? ROTATION_PATTERNS.length : 1;
+        let cells_right = 0;
+        for (let scale = 0; scale < scales; ++scale) {
+            cells_right = Math.max(cells_right, GRID_RIGHT[scale] * GRID_RIGHT[scale]);
+        }
 
         const pts_node = this.cache.get_buffer(count << 4);
         const rcell_node = this.cache.get_buffer(count << 2);
@@ -224,6 +262,7 @@ export class gms extends jsfeatNext {
         const cells_node = this.cache.get_buffer(CELLS_LEFT << 4);
         const rc_node = this.cache.get_buffer(cells_right << 2);
         const mask_node = this.cache.get_buffer(count);
+        const best_node = this.cache.get_buffer(count);
         const s: gms_scratch_t = {
             pts: pts_node.f32,
             rcell: rcell_node.i32,
@@ -232,6 +271,7 @@ export class gms extends jsfeatNext {
             cells: cells_node.i32,
             rc: rc_node.i32,
             mask: mask_node.u8,
+            best: best_node.u8,
         };
 
         // Pool buffers are recycled, not zeroed. Only these need a clean
@@ -241,13 +281,35 @@ export class gms extends jsfeatNext {
         s.rc.fill(0, 0, cells_right);
 
         gms.normalize(size1, size2, keypoints1, keypoints2, matches, s.pts);
-        this.run(count, PATTERN_IDENTITY, grid_right, threshold_factor, s);
 
-        const out: match_t[] = [];
-        for (let i = 0; i < count; ++i) {
-            if (s.mask[i]) out.push(matches[i]);
+        // getInlierMask: scale outer, rotation inner. A run replaces the best
+        // mask only when it keeps strictly more matches, starting from 0, so
+        // the first of tied runs wins and, if every run keeps nothing, the
+        // result is empty (the default path's single run agrees: its mask is
+        // then all false).
+        let max_inlier = 0;
+        for (let scale = 0; scale < scales; ++scale) {
+            const grid_right = GRID_RIGHT[scale];
+            gms.right_cells(count, grid_right, s);
+            for (let rotation = 0; rotation < rotations; ++rotation) {
+                const kept = this.run(count, ROTATION_PATTERNS[rotation], grid_right, threshold_factor, s);
+                if (kept > max_inlier) {
+                    max_inlier = kept;
+                    const t = s.best;
+                    s.best = s.mask;
+                    s.mask = t;
+                }
+            }
         }
 
+        const out: match_t[] = [];
+        if (max_inlier > 0) {
+            for (let i = 0; i < count; ++i) {
+                if (s.best[i]) out.push(matches[i]);
+            }
+        }
+
+        this.cache.put_buffer(best_node);
         this.cache.put_buffer(mask_node);
         this.cache.put_buffer(rc_node);
         this.cache.put_buffer(cells_node);
@@ -258,10 +320,24 @@ export class gms extends jsfeatNext {
         return out;
     }
 
-    /** Throws unless `idx` is an index of an array of length `len`. */
-    private static check_index(match: number, idx: number, len: number): void {
+    /** Throws unless `size` has a finite width and height above 0. */
+    private static check_size(name: string, size: IGmsSize): void {
+        const w = size == null ? undefined : size.width;
+        const h = size == null ? undefined : size.height;
+        if (!(Number.isFinite(w) && w > 0 && Number.isFinite(h) && h > 0)) {
+            throw new RangeError(`gms.filter: ${name} must have a finite width and height > 0, got ${w} x ${h}`);
+        }
+    }
+
+    /** Throws unless `idx` is an index of `keypoints` whose slot holds a keypoint. */
+    private static check_keypoint(match: number, idx: number, keypoints: keypoint_t[]): void {
+        const len = keypoints.length;
         if (!Number.isInteger(idx) || idx < 0 || idx >= len) {
             throw new RangeError(`gms.filter: match ${match} references keypoint ${idx} of ${len}`);
+        }
+        const kp = keypoints[idx];
+        if (kp == null) {
+            throw new TypeError(`gms.filter: match ${match} references keypoint ${idx}, which is ${kp}`);
         }
     }
 
@@ -311,9 +387,35 @@ export class gms extends jsfeatNext {
     }
 
     /**
-     * `GMSMatcher::run` for one rotation pattern and one right grid size:
-     * four passes, one per grid type (the left grid shifted by half a cell in
-     * x, y, both or neither), whose kept matches are OR-ed into `s.mask`.
+     * `getGridIndexRight` for every match, into `s.rcell`, for a right grid
+     * of `grid_right` cells per side. OpenCV computes it in grid type 1 of
+     * every run and reuses it in types 2-4 (`assignMatchPairs`); it depends
+     * on the grid size only, so here it is computed once per scale and shared
+     * by the rotations. The product is a float, as on the left.
+     *
+     * OpenCV has no bound test here. For an integer image size none can
+     * trigger (a coordinate below the size normalises to at most 1 - 2^-24,
+     * whose product with any of the grid sizes rounds below the size), but a
+     * fractional size could round up to the edge and wrap into the next row.
+     */
+    private static right_cells(count: number, grid_right: number, s: gms_scratch_t): void {
+        const { pts, rcell } = s;
+        for (let i = 0, k = 0; i < count; ++i, k += 4) {
+            if (pts[k] < 0) {
+                rcell[i] = -1;
+                continue;
+            }
+            const x = Math.floor(Math.fround(pts[k + 2] * grid_right));
+            const y = Math.floor(Math.fround(pts[k + 3] * grid_right));
+            rcell[i] = x < grid_right && y < grid_right ? x + y * grid_right : -1;
+        }
+    }
+
+    /**
+     * `GMSMatcher::run` for one rotation pattern and one right grid size,
+     * whose right cells {@link gms.right_cells} has put in `s.rcell`: four
+     * passes, one per grid type (the left grid shifted by half a cell in x,
+     * y, both or neither), whose kept matches are OR-ed into `s.mask`.
      *
      * OpenCV fills and scans a dense `400 x N` motion-statistics matrix on
      * every pass. Here each left cell keeps a linked list of its matches, and
@@ -332,23 +434,6 @@ export class gms extends jsfeatNext {
         s: gms_scratch_t
     ): number {
         const { pts, rcell, lcell, next, cells, rc, mask } = s;
-
-        // getGridIndexRight, computed in grid type 1 and reused by types 2-4
-        // (assignMatchPairs), with the same float product as on the left.
-        // OpenCV has no bound test here. For an integer image size none can
-        // trigger (a coordinate below the size normalises to at most
-        // 1 - 2^-24, whose product with any of the grid sizes rounds below
-        // the size), but a fractional size could round up to the edge and
-        // wrap into the next row.
-        for (let i = 0, k = 0; i < count; ++i, k += 4) {
-            if (pts[k] < 0) {
-                rcell[i] = -1;
-                continue;
-            }
-            const x = Math.floor(Math.fround(pts[k + 2] * grid_right));
-            const y = Math.floor(Math.fround(pts[k + 3] * grid_right));
-            rcell[i] = x < grid_right && y < grid_right ? x + y * grid_right : -1;
-        }
         mask.fill(0, 0, count);
 
         for (let type = 1; type <= 4; ++type) {
