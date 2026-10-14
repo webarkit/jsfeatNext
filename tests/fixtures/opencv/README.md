@@ -54,6 +54,7 @@ python3 -m venv .venv
 .venv/bin/python scripts/gen-opencv-fixtures.py --only integral
 .venv/bin/python scripts/gen-opencv-fixtures.py --only gms # the four ORB gms-*.json + gms-boundaries
 .venv/bin/python scripts/gen-opencv-fixtures.py --only gms-synthetic # the four gms-synth-*.json
+.venv/bin/python scripts/gen-opencv-fixtures.py --only gms-coverage # gms-coverage.json
 ```
 
 **Windows (PowerShell)**
@@ -65,6 +66,7 @@ python -m venv .venv
 .venv\Scripts\python scripts\gen-opencv-fixtures.py --only integral
 .venv\Scripts\python scripts\gen-opencv-fixtures.py --only gms # the four ORB gms-*.json + gms-boundaries
 .venv\Scripts\python scripts\gen-opencv-fixtures.py --only gms-synthetic # the four gms-synth-*.json
+.venv\Scripts\python scripts\gen-opencv-fixtures.py --only gms-coverage # gms-coverage.json
 ```
 
 (Git Bash on Windows: the bash commands above, with `.venv/Scripts/python`.)
@@ -108,8 +110,11 @@ them), so **regenerate all of them** afterwards.
 ## Fixture format
 
 One JSON file per fixture, `<algorithm>-<variant>.json`, keys sorted and
-indented by one space so the diffs read well. Every file is an envelope: a
-common `meta` block plus an algorithm-specific `payload`.
+indented by one space so the diffs read well. The synthetic GMS fixtures
+(`gms-synth-*`, `gms-coverage`), which hold thousands of coordinates, write
+each array of numbers (or of number pairs and triples) on one line instead of
+one number per line. Every file is an envelope: a common `meta` block plus an
+algorithm-specific `payload`.
 
 ```jsonc
 {
@@ -154,6 +159,7 @@ mismatch indicts the algorithm and not the detector in front of it.
 | `gms-rotation-scale.json` | the same, both flags on | the same | the same |
 | `gms-boundaries.json` | the same, both flags off, on hand-placed points | the same | the same |
 | `gms-synth-default.json`, `gms-synth-rotation.json`, `gms-synth-scale.json`, `gms-synth-rotation-scale.json` | the same, one per search path, on synthetic geometry | the same | the same |
+| `gms-coverage.json` | the same, 33 small cases with their own flags and `thresholdFactor` | the same, per case | the same |
 
 `integral` is the first fixture on purpose. It is pure integer arithmetic that
 must match bit-for-bit, so a mismatch indicts the harness (image dump, encoding,
@@ -230,41 +236,80 @@ borders where only float arithmetic gives OpenCV's cell, two tied cells (listed
 in both orders), and a cell whose score equals its threshold.
 `gms_boundaries()` in the generator documents each group.
 
-**Synthetic fixtures (`gms-synth-*`).** One more fixture per search path, on
-dense, exact geometry instead of ORB, so that the rotation and scale searches
-are pinned by hundreds of kept matches rather than 6–8 coincidences.
-`--only gms-synthetic` (`gen_gms_synthetic()`) writes them; no image is
-involved, so there is no `meta.image`. In each, view 1 is 800 points uniformly
-random in 640 × 480 (float32, from `numpy.random.default_rng(seed)`). A share of
-them are inliers: the view-2 point is the view-1 point under the path's exact
-transform, and the match is `(i, i)`; an inlier whose point leaves view 2 gets
-no match. Every other point is an outlier, with a random view-2 point and a
-match to a random `trainIdx`, so some train points are claimed by several
-matches (many-to-one). `thresholdFactor` is 6. The generator refuses a fixture
-that keeps fewer than 100 matches, or all of them.
+**Synthetic geometry.** The `gms-synth-*` and `gms-coverage` fixtures are
+built from points, not from the scene, so there is no `meta.image`. Every
+coordinate is a quarter pixel (exact in float32, and short in JSON) strictly
+inside its image, where `gms.filter` and OpenCV agree. In a random case, view 1
+is uniform random points (`numpy.random.default_rng`). A share of them are
+inliers: the view-2 point is the view-1 point under the case's exact transform,
+and the match is `(i, i)`; an inlier whose point leaves view 2 gets no match.
+Every other point is an outlier, with a random view-2 point and a match to a
+random `trainIdx`, so some train points are claimed by several matches
+(many-to-one). Rotations are `cv2.getRotationMatrix2D` (counter-clockwise)
+about the image centre.
 
-| fixture | seed | inlier share | view 2 | `size2` | matches (inliers + outliers) | kept | winning pass |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| `gms-synth-default` | 1341 | 60 % | translation (18, -11) | 640 × 480 | 780 (468 + 312) | 296 | the only one |
-| `gms-synth-rotation` | 1342 | 80 % | rotation 40° about (320, 240) | 640 × 480 | 679 (522 + 157) | 196 | rotation pattern 2 |
-| `gms-synth-scale` | 1343 | 60 % | × 0.7 | 448 × 336 | 800 (483 + 317) | 373 | scale 0 (20 × 20) |
-| `gms-synth-rotation-scale` | 1344 | 80 % | rotation 40°, then × 0.7 | 448 × 336 | 689 (513 + 176) | 265 | scale 2 (14 × 14), pattern 2 |
+**Zooms, not resizes.** GMS normalises each view by its own size, so resizing
+the whole of view 2 is the identity to it: the first version of
+`gms-synth-scale` (× 0.7 into 448 × 336) was won by the unscaled 20 × 20 pass.
+Every scale case is therefore a **zoom about the image centre on the same
+canvas** (`size2 = size1`): the content shrinks (zoom < 1) or grows (zoom > 1)
+while the image keeps its size. A zoom by `z` maps a left cell onto a
+`1/z`-times-finer right grid, so roughly zoom 2 → 10 × 10, √2 → 14 × 14,
+1 → 20 × 20, 1/√2 → 28 × 28 and 1/2 → 40 × 40.
 
-The plan asked for a 60 % share everywhere. With it, `gms-synth-rotation` kept
-45 matches and `gms-synth-rotation-scale` 101 (70 %: 100 and 176), because a
-40° rotation spreads the inliers of a left cell over several right cells, so
-fewer cells clear the threshold. Both rotation paths therefore use 80 %.
+**`gms-synth-*`** (`--only gms-synthetic`). One dense fixture per search path,
+so that the rotation and scale searches are pinned by hundreds of kept matches
+rather than 6–8 coincidences: 800 points uniform in 640 × 480, `thresholdFactor`
+6, and the generator refuses a fixture that keeps fewer than 100 matches, or
+all of them.
 
-The "winning pass" column (which pattern and right grid produced the
-returned mask) comes from a literal, dense port of `gms.cpp` kept out of the
-repository, which reproduces all eight ORB and synthetic fixtures. It shows a
-limit of the scale fixtures: GMS normalises each view by its own size, so a
-whole-image resize is the identity in its coordinates, and in
-`gms-synth-scale` the unscaled 20 × 20 pass wins (373 matches, against 218 for
-the 14 × 14 grid). The 14 × 14 grid wins in `gms-synth-rotation-scale` and in
-`gms-scale`; the 10 × 10, 28 × 28 and 40 × 40 grids never win in any fixture,
-so for those the fixtures only pin that their passes keep no more matches than
-the winner's.
+| fixture | seed | inlier share | view 2 (640 × 480) | matches (inliers + outliers) | kept | winning pass |
+| --- | --- | --- | --- | --- | --- | --- |
+| `gms-synth-default` | 1341 | 60 % | translation (18, -11) | 780 (468 + 312) | 303 | the only one |
+| `gms-synth-rotation` | 1342 | 80 % | rotation 40° | 679 (522 + 157) | 205 | pattern 2 |
+| `gms-synth-scale` | 1343 | 60 % | zoom × 0.7 | 800 (483 + 317) | 248 | 28 × 28 grid |
+| `gms-synth-rotation-scale` | 1344 | 80 % | rotation 40°, then zoom × √2 | 477 (301 + 176) | 137 | 10 × 10 grid, pattern 2 |
+
+The plan asked for a 60 % share everywhere. With it, `gms-synth-rotation` keeps
+46 matches and `gms-synth-rotation-scale` 47 (70 %: 107 and 99), because a 40°
+rotation spreads the inliers of a left cell over several right cells, so fewer
+cells clear the threshold. Both rotation paths therefore use 80 %. The zooms
+were chosen so that a grid other than 20 × 20 wins: × 0.7 alone picks the
+28 × 28 grid; after the 40° rotation, × 0.7 still lets 20 × 20 win, while × √2
+picks 10 × 10 (137 against 85 for 14 × 14).
+
+**`gms-coverage`** (`--only gms-coverage`). Even so, each fixture above returns
+the mask of one winning pass, so most of the 40 (scale, rotation) passes would
+be pinned only by "keeps no more than the winner". `gms-coverage` is a list of
+33 small cases (72–199 matches each, 4668 in all, with their own flags and
+`thresholdFactor`), built so that every branch of the search **wins** somewhere.
+Its payload is an array of the usual GMS payloads, each with a `label`; the
+test runs one `it` per case. Each case keeps at least one match and fewer than
+all of them.
+
+| cases | flags | view 2 | winning pass |
+| --- | --- | --- | --- |
+| 0–7 | rotation | 480 × 480, rotation 0°, 45°, …, 315° about the centre | patterns 1, 2, …, 8 in turn |
+| 8–12 | scale | 640 × 480, zoom × 2, √2, 1, 1/√2, 1/2 | grids 10, 14, 20, 28, 40 in turn |
+| 13, 14 | both | rotation 90° + zoom × 1/2 (480 × 480); rotation 180° + zoom × √2 (640 × 480) | 40 × 40 with pattern 3; 14 × 14 with pattern 5 |
+| 15 | rotation | hand-placed tie: a 3 × 3 block of cells kept by pattern 1 and another, turned 90°, kept by pattern 3, 36 matches each | pattern 1 (the first to reach 36) |
+| 16 | both | hand-placed tie: a block turned 90° (kept at scale 0 by pattern 3) and a block zoomed × 2 (kept by the 10 × 10 grid, pattern 1), 36 each | scale 0 with pattern 3, the first in scale-outer order |
+| 17–32 | random | image size drawn from a list (here 200 × 600 to 641 × 479; five cases have a view 2 of another size), flags (all four combinations occur), `thresholdFactor` in [2, 8], rotation, zoom, inlier share in [0.3, 0.95] and region | 7 different passes, on the 10, 14, 20 and 28 grids |
+
+The two ties pin how OpenCV picks among passes that keep the same number of
+matches: it keeps the first, in scale-outer, rotation-inner order. A port that
+replaces the best on `>=`, or that loops over the rotations outside the scales,
+returns the other block. The hand-placed points sit in the top-left quarter of
+their cells, so the four half-cell-shifted grid types see the same blocks.
+
+The "winning pass" columns come from a literal, dense port of `gms.cpp` kept
+out of the repository, which reports the count of every pass and reproduces
+the four `gms-synth-*` fixtures, the 33 coverage cases and the four ORB
+fixtures. With the coverage
+fixture in place, each of these deliberately wrong ports fails at least one
+fixture: two entries swapped in any one of the eight rotation patterns (one
+or two swaps tried per pattern), any of the five right grid sizes moved by one
+either way, `>=` for the best pass, and rotation-outer loop order.
 
 ## What is not pinned against OpenCV
 

@@ -17,13 +17,14 @@
 
 """Regenerate the OpenCV fixtures that the Vitest suite asserts against.
 
-    python scripts/gen-opencv-fixtures.py [--only integral|gms|gms-synthetic]
+    python scripts/gen-opencv-fixtures.py [--only integral|gms|gms-synthetic|gms-coverage]
 
 ``--only integral`` writes ``integral-scene.json``; ``--only gms`` writes the
 five ORB and hand-placed GMS fixtures (``gms-default``, ``gms-rotation``,
 ``gms-scale``, ``gms-rotation-scale``, ``gms-boundaries``) and
-``--only gms-synthetic`` the four ``gms-synth-*.json`` (#134). With no
-``--only`` every fixture is regenerated. Output is deterministic: the same pinned toolchain and the same
+``--only gms-synthetic`` the four ``gms-synth-*.json`` and ``--only
+gms-coverage`` ``gms-coverage.json`` (#134). With no ``--only`` every fixture
+is regenerated. Output is deterministic: the same pinned toolchain and the same
 committed scene always produce the same bytes, so ``git status`` after a re-run
 shows nothing.
 
@@ -42,6 +43,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import re
 import sys
 from collections import namedtuple
@@ -145,7 +147,7 @@ def load_scene(tc: Toolchain) -> Scene:
     return Scene(SCENE_NAME, path, image, hashlib.sha256(path.read_bytes()).hexdigest())
 
 
-def envelope(tc: Toolchain, algorithm: str, params: dict, payload: dict, scene: Scene | None = None) -> dict:
+def envelope(tc: Toolchain, algorithm: str, params: dict, payload: dict | list, scene: Scene | None = None) -> dict:
     """Wrap ``payload`` in the common ``meta`` block."""
     meta = {
         "opencv_version": tc.cv2.__version__,
@@ -163,9 +165,39 @@ def digest(array, dtype: str) -> str:
     return hashlib.sha256(array.astype(dtype).tobytes()).hexdigest()
 
 
+# Fixtures written with compact_json(): the synthetic GMS ones hold thousands of
+# coordinates, which indent=1 would put one number per line.
+COMPACT_FIXTURES = ("gms-synth-", "gms-coverage")
+
+
+def compact_json(value, level: int = 0) -> str:
+    """JSON with sorted keys and indent 1, except that an array of numbers, or of
+    arrays of numbers, is written on one line."""
+
+    def number(v):
+        return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+    pad = " " * (level + 1)
+    if isinstance(value, dict) and value:
+        items = [f"{pad}{json.dumps(k)}: {compact_json(value[k], level + 1)}" for k in sorted(value)]
+        return "{\n" + ",\n".join(items) + "\n" + " " * level + "}"
+    if isinstance(value, list) and all(number(v) or (isinstance(v, list) and all(map(number, v))) for v in value):
+        return json.dumps(value, separators=(",", ":"))
+    if isinstance(value, list):
+        items = [pad + compact_json(v, level + 1) for v in value]
+        return "[\n" + ",\n".join(items) + "\n" + " " * level + "]"
+    return json.dumps(value)
+
+
 def write_fixture(name: str, data: dict) -> None:
-    """Write ``<name>.json``: sorted keys, indent 1, LF, so the diffs read well."""
-    text = json.dumps(data, sort_keys=True, indent=1) + "\n"
+    """Write ``<name>.json``: sorted keys, indent 1, LF, so the diffs read well.
+
+    The fixtures named in COMPACT_FIXTURES put each numeric array on one line.
+    """
+    if name.startswith(COMPACT_FIXTURES):
+        text = compact_json(data) + "\n"
+    else:
+        text = json.dumps(data, sort_keys=True, indent=1) + "\n"
     path = FIXTURE_DIR / f"{name}.json"
     with open(path, "w", encoding="utf-8", newline="\n") as handle:
         handle.write(text)
@@ -394,20 +426,116 @@ def gms_boundaries(tc: Toolchain) -> dict:
     return envelope(tc, "matchGMS", params, payload)
 
 
-# Synthetic GMS fixtures: random points under an exact transform, one per
-# search path. N points of view 1, the share of them that are inliers, and the
-# seed of each fixture's own numpy generator. The plan asked for a 60 % share
-# everywhere; with it gms-synth-rotation keeps 45 matches, under
-# GMS_SYNTH_MIN_KEPT, and gms-synth-rotation-scale 101, at the limit (a 40 deg
-# rotation spreads a cell's inliers over several right cells, so fewer cells
-# clear the threshold), so both rotation paths use 80 %. The README ("GMS
-# fixtures") records the numbers.
+# ---------------------------------------------------------------------------
+# Synthetic GMS geometry: gms-synth-* and gms-coverage
+# ---------------------------------------------------------------------------
+#
+# Random or hand-placed points under an exact transform, instead of ORB on
+# the scene. Every coordinate is a quarter pixel (exact in float32, short in
+# JSON) strictly inside its image, where gms.filter and OpenCV agree. Zooms
+# are about the image centre on the same canvas: GMS normalises each view by
+# its own size, so resizing the whole image would be the identity to it.
+
+
+def quarter(v: float) -> float:
+    """``v`` rounded to a quarter pixel."""
+    return round(v * 4) / 4
+
+
+def quarter_inside(v: float, limit: int) -> float:
+    """``v`` rounded to a quarter pixel and kept inside ``[0, limit)``."""
+    return min(max(quarter(v), 0.0), limit - 0.25)
+
+
+def rotation_about(tc: Toolchain, centre, angle: float):
+    """Rotation by ``angle`` degrees about ``centre``, as ``cv2.getRotationMatrix2D`` (counter-clockwise)."""
+    m = tc.cv2.getRotationMatrix2D(centre, angle, 1.0)
+    return lambda x, y: (m[0, 0] * x + m[0, 1] * y + m[0, 2], m[1, 0] * x + m[1, 1] * y + m[1, 2])
+
+
+def zoom_about(centre, factor: float):
+    """Zoom by ``factor`` about ``centre``: content grows (> 1) or shrinks (< 1) on the same canvas."""
+    return lambda x, y: (centre[0] + (x - centre[0]) * factor, centre[1] + (y - centre[1]) * factor)
+
+
+def synthetic_pairs(rng, n: int, share: float, sample, transform, size2):
+    """View-1 points, view-2 points and matches of one random synthetic case.
+
+    ``sample(rng)`` draws a view-1 point. A ``share`` of the points are
+    inliers: the view-2 point is ``transform`` of the view-1 point and the
+    match is ``(i, i)``. An inlier whose point leaves view 2 gets no match.
+    Every other point is an outlier: a random view-2 point, and a match to a
+    random train index, so a train point may be claimed by several matches
+    (many-to-one, as brute-force matching without cross-check produces).
+    Returns the two point lists, the ``(queryIdx, trainIdx)`` pairs in query
+    order, and the number of inliers.
+    """
+    w2, h2 = size2
+    pts1 = [sample(rng) for _ in range(n)]
+    chosen = rng.random(n) < share
+    pts2, pairs = [], []
+    for i in range(n):
+        if chosen[i]:
+            x, y = (quarter(v) for v in transform(*pts1[i]))
+            if 0 <= x < w2 and 0 <= y < h2:
+                pts2.append((x, y))
+                pairs.append((i, i))
+                continue
+        pts2.append((quarter_inside(rng.random() * w2, w2), quarter_inside(rng.random() * h2, h2)))
+    inliers = len(pairs)
+    train = rng.integers(0, n, size=n)
+    for i in range(n):
+        if not chosen[i]:
+            pairs.append((i, int(train[i])))
+    pairs.sort()  # query order
+    return pts1, pts2, pairs, inliers
+
+
+def to_cv(tc: Toolchain, pts1, pts2, pairs):
+    """cv2 KeyPoints and DMatches (distance 0, which GMS ignores) for points and index pairs."""
+    cv2 = tc.cv2
+    kp1 = [cv2.KeyPoint(x, y, 7) for x, y in pts1]
+    kp2 = [cv2.KeyPoint(x, y, 7) for x, y in pts2]
+    return kp1, kp2, [cv2.DMatch(q, t, 0) for q, t in pairs]
+
+
+def uniform_in(lo, hi, size):
+    """A sampler of quarter-pixel points uniform in the box ``[lo, hi)`` of an image of ``size``."""
+    return lambda rng: (
+        quarter_inside(lo[0] + rng.random() * (hi[0] - lo[0]), size[0]),
+        quarter_inside(lo[1] + rng.random() * (hi[1] - lo[1]), size[1]),
+    )
+
+
+def disc_about(centre, radius: float):
+    """A sampler of quarter-pixel points uniform in a disc."""
+
+    def sample(rng):
+        r, t = radius * math.sqrt(rng.random()), 2 * math.pi * rng.random()
+        return quarter(centre[0] + r * math.cos(t)), quarter(centre[1] + r * math.sin(t))
+
+    return sample
+
+
+def gms_case(tc: Toolchain, name, size1, size2, pts1, pts2, pairs, with_rotation, with_scale, threshold_factor):
+    """Run matchGMS on quarter-pixel points and ``(queryIdx, trainIdx)`` pairs; return the payload."""
+    kp1, kp2, matches = to_cv(tc, pts1, pts2, pairs)
+    return gms_payload(tc, name, size1, size2, kp1, kp2, matches, with_rotation, with_scale, threshold_factor)
+
+
+# gms-synth-*: one dense fixture per search path, N points of view 1, each with
+# its own seed and inlier share. The plan asked for a 60 % share everywhere;
+# with it the rotation paths keep too few matches (a 40 deg rotation spreads a
+# cell's inliers over several right cells, so fewer cells clear the
+# threshold), so they use 80 %. Each zoom is chosen so that a right grid other
+# than 20x20 wins. The README ("GMS fixtures") records the numbers.
 GMS_SYNTH_SIZE = (640, 480)
 GMS_SYNTH_POINTS = 800
 GMS_SYNTH_MIN_KEPT = 100
 GMS_SYNTH_SHIFT = (18, -11)  # the same shift as gms-default
 GMS_SYNTH_ANGLE = 40.0  # degrees, counter-clockwise, about the image centre
-GMS_SYNTH_SCALE = 0.7
+GMS_SYNTH_ZOOM = 0.7  # gms-synth-scale, about the centre, same canvas: the 28x28 grid wins
+GMS_SYNTH_ROTATION_ZOOM = math.sqrt(2)  # gms-synth-rotation-scale, after the rotation: the 10x10 grid wins
 GMS_SYNTH = {
     # name: (seed, inlier share, withRotation, withScale)
     "gms-synth-default": (1341, 0.6, False, False),
@@ -423,99 +551,52 @@ def gen_gms_synthetic(tc: Toolchain, scene: Scene) -> dict:
     The ORB fixtures above pin the rotation and scale searches only weakly:
     the committed scene yields 199 keypoints, and under rotation or scale ORB
     finds so few correct matches that the 6-8 kept ones are coincidences.
-    These fixtures make the geometry dense and exact instead.
-
-    View 1 is GMS_SYNTH_POINTS points, uniformly random in 640x480. A share
-    of them are inliers: their view-2 partner is the point under the path's
-    exact transform (a shift, a rotation about the image centre, a x0.7
-    resize, or the rotation then the resize), and the match is ``(i, i)``. An
-    inlier whose partner leaves view 2 gets no match at all. Every other
-    point is an outlier: its view-2 point is random, and its match goes to a
-    random train index, so some train points are claimed by several matches
-    (many-to-one, as brute-force matching without cross-check produces).
-    All coordinates are float32 and lie strictly inside their image, where
-    ``gms.filter`` and OpenCV agree. ``scene`` is unused: there is no image.
+    These fixtures make the geometry dense and exact instead: view 1 is
+    GMS_SYNTH_POINTS points uniform in 640x480, and view 2, on the same
+    canvas, is a shift, a rotation about the centre, a zoom about the centre,
+    or the rotation then the zoom (see ``synthetic_pairs`` for the inliers and
+    outliers). ``scene`` is unused: there is no image.
     """
-    cv2, np = tc.cv2, tc.np
-    f32 = np.float32
+    np = tc.np
     width, height = GMS_SYNTH_SIZE
     centre = (width / 2, height / 2)
-    rot = cv2.getRotationMatrix2D(centre, GMS_SYNTH_ANGLE, 1.0)
-    factor = GMS_SYNTH_SCALE
-    scaled_size = (round(width * factor), round(height * factor))
-
-    def rotate(x, y):
-        return rot[0, 0] * x + rot[0, 1] * y + rot[0, 2], rot[1, 0] * x + rot[1, 1] * y + rot[1, 2]
-
+    rotate = rotation_about(tc, centre, GMS_SYNTH_ANGLE)
+    zoom = zoom_about(centre, GMS_SYNTH_ZOOM)
+    rotation_zoom = zoom_about(centre, GMS_SYNTH_ROTATION_ZOOM)
     transforms = {
-        # name: (point map, size2, how)
+        # name: (point map, how)
         "gms-synth-default": (
             lambda x, y: (x + GMS_SYNTH_SHIFT[0], y + GMS_SYNTH_SHIFT[1]),
-            (width, height),
             f"translation dx={GMS_SYNTH_SHIFT[0]} dy={GMS_SYNTH_SHIFT[1]}",
         ),
-        "gms-synth-rotation": (
-            rotate,
-            (width, height),
-            f"rotation {GMS_SYNTH_ANGLE:g} deg about {centre} (getRotationMatrix2D)",
-        ),
-        "gms-synth-scale": (
-            lambda x, y: (x * factor, y * factor),
-            scaled_size,
-            f"resize x{factor:g}",
-        ),
+        "gms-synth-rotation": (rotate, f"rotation {GMS_SYNTH_ANGLE:g} deg about {centre} (getRotationMatrix2D)"),
+        "gms-synth-scale": (zoom, f"zoom x{GMS_SYNTH_ZOOM:g} about {centre}, same canvas"),
         "gms-synth-rotation-scale": (
-            lambda x, y: tuple(v * factor for v in rotate(x, y)),
-            scaled_size,
-            f"rotation {GMS_SYNTH_ANGLE:g} deg about {centre}, then resize x{factor:g}",
+            lambda x, y: rotation_zoom(*rotate(x, y)),
+            f"rotation {GMS_SYNTH_ANGLE:g} deg, then zoom x{GMS_SYNTH_ROTATION_ZOOM:g}, about {centre}, same canvas",
         ),
     }
 
-    def inside(v, limit):
-        """float32 ``v`` clamped below ``limit``: float32 rounding may reach the edge."""
-        x = f32(v)
-        return float(x if x < limit else np.nextafter(f32(limit), f32(0)))
-
     out = {}
     for name, (seed, share, with_rotation, with_scale) in GMS_SYNTH.items():
-        transform, (w2, h2), how = transforms[name]
+        transform, how = transforms[name]
         rng = np.random.default_rng(seed)
         n = GMS_SYNTH_POINTS
-        pts1 = [(inside(rng.random() * width, width), inside(rng.random() * height, height)) for _ in range(n)]
-        chosen = rng.random(n) < share
-
-        pts2, inlier = [], []
-        for i in range(n):
-            if chosen[i]:
-                x, y = (float(f32(v)) for v in transform(*pts1[i]))
-                if 0 <= x < w2 and 0 <= y < h2:
-                    pts2.append((x, y))
-                    inlier.append(True)
-                    continue
-            pts2.append((inside(rng.random() * w2, w2), inside(rng.random() * h2, h2)))
-            inlier.append(False)
-
-        matches = []
-        for i in range(n):
-            if inlier[i]:
-                matches.append(cv2.DMatch(i, i, 0))
-            elif not chosen[i]:
-                matches.append(cv2.DMatch(i, int(rng.integers(0, n)), 0))
-            # else: an inlier whose partner left view 2, no match
-
-        claimed = np.bincount([m.trainIdx for m in matches], minlength=n)
+        sample = uniform_in((0, 0), (width, height), (width, height))
+        size = (width, height)
+        pts1, pts2, pairs, inliers = synthetic_pairs(rng, n, share, sample, transform, size)
+        claimed = np.bincount([t for _, t in pairs], minlength=n)
         assert (claimed > 1).any(), f"{name}: no many-to-one match"
-        kp1 = [cv2.KeyPoint(x, y, 7) for x, y in pts1]
-        kp2 = [cv2.KeyPoint(x, y, 7) for x, y in pts2]
-        payload = gms_payload(tc, name, (width, height), (w2, h2), kp1, kp2, matches, with_rotation, with_scale)
+
+        payload = gms_case(tc, name, size, size, pts1, pts2, pairs, with_rotation, with_scale, GMS_THRESHOLD_FACTOR)
         assert len(payload["kept"]) >= GMS_SYNTH_MIN_KEPT, f"{name}: kept {len(payload['kept'])}"
         print(
-            f"{name}: {sum(inlier)} inliers, {len(matches) - sum(inlier)} outliers, "
+            f"{name}: {inliers} inliers, {len(pairs) - inliers} outliers, "
             f"{int((claimed > 1).sum())} train points claimed more than once"
         )
 
         params = {
-            "view1": f"{n} points uniform in {width}x{height}, float32, numpy.random.default_rng({seed})",
+            "view1": f"{n} points uniform in {width}x{height}, quarter pixels, numpy.random.default_rng({seed})",
             "view2": how,
             "inliers": f"share {share:g} of view 1, match (i, i); an inlier leaving view 2 gets no match",
             "outliers": "random view-2 point, match to a random trainIdx (many-to-one allowed)",
@@ -527,8 +608,160 @@ def gen_gms_synthetic(tc: Toolchain, scene: Scene) -> dict:
     return out
 
 
-def gms_payload(tc: Toolchain, name, size1, size2, kp1, kp2, matches, with_rotation, with_scale) -> dict:
-    """Run matchGMS and build the payload ``tests/reference/gms.opencv.test.ts`` reads."""
+# gms-coverage: many small cases, so that the oracle sees every branch of the
+# search win at least once. Each case has its own generator,
+# default_rng([GMS_COVERAGE_SEED, case number]).
+GMS_COVERAGE_SEED = 1345
+GMS_COVERAGE_POINTS = 150  # per rotation, scale and combined case
+GMS_COVERAGE_SHARE = 0.8  # their inlier share
+GMS_COVERAGE_RANDOM_CASES = 16
+
+
+def block(cells_x, cells_y, cell):
+    """Four points in the top-left quarter of each cell of a block of left cells.
+
+    In the top-left quarter, the half-cell shifts of grid types 2-4 leave a
+    point in the same cell, so all four grid types see the same block.
+    """
+    offsets = ((3, 3), (7, 3), (3, 7), (7, 7))  # pixels, for 24-pixel cells
+    return [(cx * cell + dx, cy * cell + dy) for cy in cells_y for cx in cells_x for dx, dy in offsets]
+
+
+def gen_gms_coverage(tc: Toolchain, scene: Scene) -> dict:
+    """``gms.filter`` vs ``matchGMS`` on small cases that cover every branch of the search.
+
+    The other fixtures exercise few of the 40 (scale, rotation) passes as a
+    winner. Here, each in its own case:
+
+    - rotation (withRotation): view 2 rotated about the centre of a square
+      canvas in 45 deg steps, so each of the 8 rotation patterns wins once;
+    - scale (withScale): view 2 zoomed about the centre by 2, sqrt 2, 1,
+      1/sqrt 2 and 1/2, so each right grid (10, 14, 20, 28, 40) wins once;
+    - combined (both flags): a rotation with a zoom, twice;
+    - two hand-placed ties: a 3x3 block of cells kept by pattern 1 against
+      one kept by the 90 deg pattern, and (both flags) one kept at scale 0
+      under the 90 deg pattern against one kept by the 10x10 grid under
+      pattern 1. OpenCV keeps the first pass that reaches the best count,
+      in scale-outer, rotation-inner order, so these pin both the strict
+      ``>`` and the loop order;
+    - random: GMS_COVERAGE_RANDOM_CASES cases with random image sizes, flags,
+      thresholdFactor in [2, 8], transforms and inlier shares.
+
+    Which pass wins was checked with a literal port of gms.cpp outside the
+    repository; the README lists it. The payload is a list of cases, each the
+    usual GMS payload plus a ``label``.
+    """
+    np = tc.np
+    cases = []
+
+    def add(label, size1, size2, pts1, pts2, pairs, with_rotation, with_scale, threshold_factor=GMS_THRESHOLD_FACTOR):
+        name = f"gms-coverage[{len(cases)}] {label}"
+        case = gms_case(tc, name, size1, size2, pts1, pts2, pairs, with_rotation, with_scale, threshold_factor)
+        case["label"] = label
+        cases.append(case)
+
+    def rng():
+        return np.random.default_rng([GMS_COVERAGE_SEED, len(cases)])
+
+    def random_case(label, size, sample, transform, with_rotation, with_scale):
+        pts1, pts2, pairs, _ = synthetic_pairs(rng(), GMS_COVERAGE_POINTS, GMS_COVERAGE_SHARE, sample, transform, size)
+        add(label, size, size, pts1, pts2, pairs, with_rotation, with_scale)
+
+    # rotation: 8 cases, square canvas so 90 deg steps map cells onto cells
+    square = (480, 480)
+    sc = (240.0, 240.0)
+    for k in range(8):
+        angle = 45 * k
+        random_case(f"rotation {angle} deg", square, disc_about(sc, 104), rotation_about(tc, sc, angle), True, False)
+
+    # scale: 5 cases, a zoom about the centre on the same canvas
+    vga = (640, 480)
+    vc = (320.0, 240.0)
+    box = uniform_in((190, 145), (450, 335), vga)  # stays inside under a zoom by 2
+    zooms = (("2", 2.0), ("sqrt 2", math.sqrt(2)), ("1", 1.0), ("1/sqrt 2", 1 / math.sqrt(2)), ("1/2", 0.5))
+    for label, factor in zooms:
+        random_case(f"zoom x{label}", vga, box, zoom_about(vc, factor), False, True)
+
+    # combined: rotation and zoom, both flags
+    for angle, label, factor, size, sample in (
+        (90, "1/2", 0.5, square, disc_about(sc, 104)),
+        (180, "sqrt 2", math.sqrt(2), vga, box),
+    ):
+        centre = (size[0] / 2, size[1] / 2)
+        rotate, zoom = rotation_about(tc, centre, angle), zoom_about(centre, factor)
+        both = lambda x, y, r=rotate, z=zoom: z(*r(x, y))  # noqa: E731
+        random_case(f"rotation {angle} deg, zoom x{label}", size, sample, both, True, True)
+
+    # tie, withRotation: block A (identity) against block B (90 deg about its centre)
+    cell = 24  # 480 / 20
+    a = block(range(3, 6), range(3, 6), cell)
+    b = block(range(13, 16), range(13, 16), cell)
+    turn = rotation_about(tc, (14.5 * cell, 14.5 * cell), 90)
+    pts1 = a + b
+    pts2 = a + [tuple(quarter(v) for v in turn(*p)) for p in b]
+    pairs = [(i, i) for i in range(len(pts1))]
+    add("tie: pattern 1 against the 90 deg pattern, 36 matches each", square, square, pts1, pts2, pairs, True, False)
+
+    # tie, both flags: block A (90 deg, scale 0) against block B (zoom x2 about the centre, 10x10 grid)
+    a = block(range(2, 5), range(2, 5), cell)
+    b = block(range(10, 13), range(10, 13), cell)
+    turn = rotation_about(tc, (3.5 * cell, 3.5 * cell), 90)
+    grow = zoom_about(sc, 2.0)
+    pts1 = a + b
+    pts2 = [tuple(quarter(v) for v in turn(*p)) for p in a] + [tuple(quarter(v) for v in grow(*p)) for p in b]
+    pairs = [(i, i) for i in range(len(pts1))]
+    add("tie: scale 0 x 90 deg pattern against scale 1 x pattern 1", square, square, pts1, pts2, pairs, True, True)
+
+    # random configurations
+    sizes = [(640, 480), (320, 240), (480, 480), (1000, 300), (200, 600), (1920, 1080), (641, 479), (37, 23)]
+    for k in range(GMS_COVERAGE_RANDOM_CASES):
+        r = rng()
+        while True:  # redraw until the case keeps a proper, non-empty subset
+            w1, h1 = sizes[int(r.integers(len(sizes)))]
+            if r.random() < 0.3:  # view 2 of another size
+                resize = float(r.uniform(0.5, 2.0))
+                w2, h2 = max(1, round(w1 * resize)), max(1, round(h1 * resize))
+            else:
+                w2, h2 = w1, h1
+            with_rotation, with_scale = bool(r.random() < 0.5), bool(r.random() < 0.5)
+            threshold_factor = round(float(r.uniform(2, 8)), 2)
+            angle = round(float(r.uniform(-180, 180)), 1) if r.random() < 0.7 else 0.0
+            factor = float(r.choice([1.0, 0.5, 0.7071, 1.4142, 2.0, round(float(r.uniform(0.5, 2.0)), 3)]))
+            share = round(float(r.uniform(0.3, 0.95)), 2)
+            n = int(r.integers(100, 201))
+            centre = (w1 / 2, h1 / 2)
+            rotate, zoom = rotation_about(tc, centre, angle), zoom_about(centre, factor)
+            # a random box of view 1, at least a third of each side
+            bw, bh = float(r.uniform(w1 / 3, w1)), float(r.uniform(h1 / 3, h1))
+            x0, y0 = float(r.uniform(0, w1 - bw)), float(r.uniform(0, h1 - bh))
+            sample = uniform_in((x0, y0), (x0 + bw, y0 + bh), (w1, h1))
+
+            def transform(x, y, rotate=rotate, zoom=zoom, sx=w2 / w1, sy=h2 / h1):
+                u, v = zoom(*rotate(x, y))
+                return u * sx, v * sy
+
+            pts1, pts2, pairs, _ = synthetic_pairs(r, n, share, sample, transform, (w2, h2))
+            kp1, kp2, matches = to_cv(tc, pts1, pts2, pairs)
+            kept = match_gms(tc, (w1, h1), (w2, h2), kp1, kp2, matches, with_rotation, with_scale, threshold_factor)
+            if 0 < len(kept) < len(pairs):
+                break
+        flags = "+".join(f for f, on in (("rotation", with_rotation), ("scale", with_scale)) if on) or "default"
+        label = (
+            f"random {k}: {w1}x{h1} -> {w2}x{h2}, {flags}, rotate {angle:g} deg, zoom x{factor:g}, "
+            f"share {share:g}, thresholdFactor {threshold_factor:g}"
+        )
+        add(label, (w1, h1), (w2, h2), pts1, pts2, pairs, with_rotation, with_scale, threshold_factor)
+
+    params = {
+        "cases": len(cases),
+        "points": "quarter pixels; see gen_gms_coverage() and each case's label",
+        "seeds": f"numpy.random.default_rng([{GMS_COVERAGE_SEED}, case number])",
+    }
+    return {"gms-coverage": envelope(tc, "matchGMS", params, cases)}
+
+
+def match_gms(tc: Toolchain, size1, size2, kp1, kp2, matches, with_rotation, with_scale, threshold_factor) -> list:
+    """Run matchGMS; return the indices into ``matches`` of what it kept, ascending."""
     gms = tc.cv2.xfeatures2d.matchGMS(
         size1,
         size2,
@@ -537,9 +770,8 @@ def gms_payload(tc: Toolchain, name, size1, size2, kp1, kp2, matches, with_rotat
         matches,
         withRotation=with_rotation,
         withScale=with_scale,
-        thresholdFactor=GMS_THRESHOLD_FACTOR,
+        thresholdFactor=threshold_factor,
     )
-
     # matchGMS returns a subsequence of its input, so walk it in order.
     key = lambda m: (m.queryIdx, m.trainIdx, m.distance)  # noqa: E731
     kept, j = [], 0
@@ -548,6 +780,23 @@ def gms_payload(tc: Toolchain, name, size1, size2, kp1, kp2, matches, with_rotat
             j += 1
         kept.append(j)
         j += 1
+    return kept
+
+
+def gms_payload(
+    tc: Toolchain,
+    name,
+    size1,
+    size2,
+    kp1,
+    kp2,
+    matches,
+    with_rotation,
+    with_scale,
+    threshold_factor=GMS_THRESHOLD_FACTOR,
+) -> dict:
+    """Run matchGMS and build the payload ``tests/reference/gms.opencv.test.ts`` reads."""
+    kept = match_gms(tc, size1, size2, kp1, kp2, matches, with_rotation, with_scale, threshold_factor)
     # A fixture that keeps nothing (or everything) would pass a filter that
     # returns [] (or its input).
     assert 0 < len(kept) < len(matches), f"{name}: kept {len(kept)} of {len(matches)}"
@@ -559,7 +808,7 @@ def gms_payload(tc: Toolchain, name, size1, size2, kp1, kp2, matches, with_rotat
         "size2": list(size2),
         "with_rotation": with_rotation,
         "with_scale": with_scale,
-        "threshold_factor": GMS_THRESHOLD_FACTOR,
+        "threshold_factor": threshold_factor,
         "keypoints1": [list(k.pt) for k in kp1],
         "keypoints2": [list(k.pt) for k in kp2],
         "matches": [[m.queryIdx, m.trainIdx, int(m.distance)] for m in matches],
@@ -572,6 +821,7 @@ GENERATORS = {
     "integral": gen_integral,
     "gms": gen_gms,
     "gms-synthetic": gen_gms_synthetic,
+    "gms-coverage": gen_gms_coverage,
 }
 
 
