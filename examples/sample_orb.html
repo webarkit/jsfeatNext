@@ -308,7 +308,8 @@
 
             function detect_keypoints(img, corners, max_allowed) {
                 // detect features
-                var count = yape06.detect(img, corners, 17);
+                // 20 px: describe()'s edge margin (see orb.describe TSDoc, #110/#146)
+                var count = yape06.detect(img, corners, 20);
 
                 // sort by score and reduce the count if needed
                 if (count > max_allowed) {
