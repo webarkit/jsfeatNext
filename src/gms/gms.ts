@@ -47,6 +47,7 @@
 import jsfeatNext from "../core/core";
 import type { keypoint_t } from "../keypoint_t/keypoint_t";
 import type { match_t } from "../bfmatcher/match_t";
+import type _pool_node_t from "../node_utils/_pool_node_t";
 
 /** An image size in pixels, the equivalent of OpenCV's `cv::Size`. */
 export interface IGmsSize {
@@ -171,34 +172,49 @@ export class gms extends jsfeatNext {
      *
      * @example
      * ```ts
-     * // two U8C1 frames: detect, orient and describe ORB features in each
-     * const kp1 = Array.from({ length: 500 }, () => new jsfeatNext.keypoint_t());
-     * const kp2 = Array.from({ length: 500 }, () => new jsfeatNext.keypoint_t());
-     * const n1 = jsfeatNext.fast_corners.detect(img1, kp1, 20);
-     * const n2 = jsfeatNext.fast_corners.detect(img2, kp2, 20);
-     * for (let i = 0; i < n1; i++) kp1[i].angle = jsfeatNext.orb.ic_angle(img1, kp1[i].x, kp1[i].y);
-     * for (let i = 0; i < n2; i++) kp2[i].angle = jsfeatNext.orb.ic_angle(img2, kp2[i].x, kp2[i].y);
-     * const d1 = new jsfeatNext.matrix_t(32, n1, jsfeatNext.U8C1_t);
-     * const d2 = new jsfeatNext.matrix_t(32, n2, jsfeatNext.U8C1_t);
-     * jsfeatNext.orb.describe(img1, kp1, n1, d1);
-     * jsfeatNext.orb.describe(img2, kp2, n2, d2);
+     * import jsfeatNext, { type matrix_t } from "@webarkit/jsfeat-next";
+     *
+     * // img1, img2: two U8C1 frames. Per frame: detect FAST corners, keep the
+     * // strongest, orient them, then describe them with ORB.
+     * function features(img: matrix_t) {
+     *     // detect() throws when the pool is smaller than the number of corners it
+     *     // finds, and a textured frame easily gives over a thousand: size the pool
+     *     // to the image, as examples/sample_orb.html does.
+     *     const pool = Array.from({ length: img.cols * img.rows }, () => new jsfeatNext.keypoint_t());
+     *     // border 20 keeps every ORB sampling pattern inside the image
+     *     const found = jsfeatNext.fast_corners.detect(img, pool, 20);
+     *     // strongest first, then keep the 300 strongest, as the tracker does
+     *     const kps = pool
+     *         .slice(0, found)
+     *         .sort((a, b) => b.score - a.score)
+     *         .slice(0, 300);
+     *     for (const kp of kps) kp.angle = jsfeatNext.orb.ic_angle(img, kp.x, kp.y);
+     *     const descriptors = new jsfeatNext.matrix_t(32, kps.length, jsfeatNext.U8C1_t);
+     *     jsfeatNext.orb.describe(img, kps, kps.length, descriptors);
+     *     return { kps, descriptors };
+     * }
+     * const f1 = features(img1);
+     * const f2 = features(img2);
      *
      * // match, then let GMS drop the matches without neighbourhood support
-     * const good = jsfeatNext.bfmatcher.ratio_test(jsfeatNext.bfmatcher.knnMatch(d1, d2, 2), 0.75);
+     * const knn = jsfeatNext.bfmatcher.knnMatch(f1.descriptors, f2.descriptors, 2);
+     * const good = jsfeatNext.bfmatcher.ratio_test(knn, 0.75);
      * const kept = jsfeatNext.gms.filter(
      *     { width: img1.cols, height: img1.rows },
      *     { width: img2.cols, height: img2.rows },
-     *     kp1,
-     *     kp2,
+     *     f1.kps,
+     *     f2.kps,
      *     good
      * );
      *
      * // a higher inlier ratio means fewer RANSAC iterations for the same confidence
-     * const from = kept.map((m) => kp1[m.queryIdx]);
-     * const to = kept.map((m) => kp2[m.trainIdx]);
-     * const H = new jsfeatNext.matrix_t(3, 3, jsfeatNext.F32C1_t);
-     * const params = new jsfeatNext.ransac_params_t(4, 3, 0.5, 0.99);
-     * jsfeatNext.motion_estimator.find_homography(params, jsfeatNext.homography2d, from, to, kept.length, H);
+     * if (kept.length >= 4) {
+     *     const from = kept.map((m) => f1.kps[m.queryIdx]);
+     *     const to = kept.map((m) => f2.kps[m.trainIdx]);
+     *     const H = new jsfeatNext.matrix_t(3, 3, jsfeatNext.F32C1_t);
+     *     const params = new jsfeatNext.ransac_params_t(4, 3, 0.5, 0.99);
+     *     jsfeatNext.motion_estimator.find_homography(params, jsfeatNext.homography2d, from, to, kept.length, H);
+     * }
      * ```
      *
      * @param size1            Size of the query image, the one `keypoints1` come from.
@@ -234,9 +250,9 @@ export class gms extends jsfeatNext {
     ): match_t[] {
         // Everything that can reject the input is checked before the first
         // buffer is borrowed, so a malformed size, an index out of range or a
-        // hole at a referenced index throws with the shared pool balanced.
-        // Past this point only a keypoint whose x or y accessor throws could
-        // still escape with buffers borrowed.
+        // hole at a referenced index throws before the pool is touched.
+        // Anything that still throws after the borrows is covered by the
+        // try/finally further down, which returns every buffer.
         gms.check_size("size1", size1);
         gms.check_size("size2", size2);
         const count = matches.length;
@@ -255,69 +271,77 @@ export class gms extends jsfeatNext {
             cells_right = Math.max(cells_right, GRID_RIGHT[scale] * GRID_RIGHT[scale]);
         }
 
-        const pts_node = this.cache.get_buffer(count << 4);
-        const rcell_node = this.cache.get_buffer(count << 2);
-        const lcell_node = this.cache.get_buffer(count << 2);
-        const next_node = this.cache.get_buffer(count << 2);
-        const cells_node = this.cache.get_buffer(CELLS_LEFT << 4);
-        const rc_node = this.cache.get_buffer(cells_right << 2);
-        const mask_node = this.cache.get_buffer(count);
-        const best_node = this.cache.get_buffer(count);
-        const s: gms_scratch_t = {
-            pts: pts_node.f32,
-            rcell: rcell_node.i32,
-            lcell: lcell_node.i32,
-            next: next_node.i32,
-            cells: cells_node.i32,
-            rc: rc_node.i32,
-            mask: mask_node.u8,
-            best: best_node.u8,
+        // Every borrow is recorded the moment it is made, and the `finally`
+        // below returns them all, in reverse order, on any exit: a normal
+        // return, or a throw from anywhere past this point (a keypoint
+        // accessor that throws, a `threshold_factor` that cannot be
+        // multiplied, a pool that fails to grow a buffer). A leak here would
+        // drain the pool every module shares.
+        const borrowed: _pool_node_t[] = [];
+        const borrow = (size_in_bytes: number): _pool_node_t => {
+            const node = this.cache.get_buffer(size_in_bytes);
+            borrowed.push(node);
+            return node;
         };
+        try {
+            const pts_node = borrow(count << 4);
+            const rcell_node = borrow(count << 2);
+            const lcell_node = borrow(count << 2);
+            const next_node = borrow(count << 2);
+            const cells_node = borrow(CELLS_LEFT << 4);
+            const rc_node = borrow(cells_right << 2);
+            const mask_node = borrow(count);
+            const best_node = borrow(count);
+            const s: gms_scratch_t = {
+                pts: pts_node.f32,
+                rcell: rcell_node.i32,
+                lcell: lcell_node.i32,
+                next: next_node.i32,
+                cells: cells_node.i32,
+                rc: rc_node.i32,
+                mask: mask_node.u8,
+                best: best_node.u8,
+            };
 
-        // Pool buffers are recycled, not zeroed. Only these need a clean
-        // start; run() leaves them clean again on return.
-        s.cells.fill(-1, HEAD, HEAD + CELLS_LEFT);
-        s.cells.fill(0, SIZE, SIZE + CELLS_LEFT);
-        s.rc.fill(0, 0, cells_right);
+            // Pool buffers are recycled, not zeroed. Only these need a clean
+            // start; run() leaves them clean again on return.
+            s.cells.fill(-1, HEAD, HEAD + CELLS_LEFT);
+            s.cells.fill(0, SIZE, SIZE + CELLS_LEFT);
+            s.rc.fill(0, 0, cells_right);
 
-        gms.normalize(size1, size2, keypoints1, keypoints2, matches, s.pts);
+            gms.normalize(size1, size2, keypoints1, keypoints2, matches, s.pts);
 
-        // getInlierMask: scale outer, rotation inner. A run replaces the best
-        // mask only when it keeps strictly more matches, starting from 0, so
-        // the first of tied runs wins and, if every run keeps nothing, the
-        // result is empty (the default path's single run agrees: its mask is
-        // then all false).
-        let max_inlier = 0;
-        for (let scale = 0; scale < scales; ++scale) {
-            const grid_right = GRID_RIGHT[scale];
-            gms.right_cells(count, grid_right, s);
-            for (let rotation = 0; rotation < rotations; ++rotation) {
-                const kept = this.run(count, ROTATION_PATTERNS[rotation], grid_right, threshold_factor, s);
-                if (kept > max_inlier) {
-                    max_inlier = kept;
-                    const t = s.best;
-                    s.best = s.mask;
-                    s.mask = t;
+            // getInlierMask: scale outer, rotation inner. A run replaces the best
+            // mask only when it keeps strictly more matches, starting from 0, so
+            // the first of tied runs wins and, if every run keeps nothing, the
+            // result is empty (the default path's single run agrees: its mask is
+            // then all false).
+            let max_inlier = 0;
+            for (let scale = 0; scale < scales; ++scale) {
+                const grid_right = GRID_RIGHT[scale];
+                gms.right_cells(count, grid_right, s);
+                for (let rotation = 0; rotation < rotations; ++rotation) {
+                    const kept = this.run(count, ROTATION_PATTERNS[rotation], grid_right, threshold_factor, s);
+                    if (kept > max_inlier) {
+                        max_inlier = kept;
+                        const t = s.best;
+                        s.best = s.mask;
+                        s.mask = t;
+                    }
                 }
             }
-        }
 
-        const out: match_t[] = [];
-        if (max_inlier > 0) {
-            for (let i = 0; i < count; ++i) {
-                if (s.best[i]) out.push(matches[i]);
+            const out: match_t[] = [];
+            if (max_inlier > 0) {
+                for (let i = 0; i < count; ++i) {
+                    if (s.best[i]) out.push(matches[i]);
+                }
             }
-        }
 
-        this.cache.put_buffer(best_node);
-        this.cache.put_buffer(mask_node);
-        this.cache.put_buffer(rc_node);
-        this.cache.put_buffer(cells_node);
-        this.cache.put_buffer(next_node);
-        this.cache.put_buffer(lcell_node);
-        this.cache.put_buffer(rcell_node);
-        this.cache.put_buffer(pts_node);
-        return out;
+            return out;
+        } finally {
+            for (let i = borrowed.length - 1; i >= 0; --i) this.cache.put_buffer(borrowed[i]);
+        }
     }
 
     /** Throws unless `size` has a finite width and height above 0. */

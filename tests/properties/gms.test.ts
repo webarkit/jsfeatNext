@@ -248,6 +248,34 @@ describe("gms.filter edge cases (#134)", () => {
         }
     });
 
+    it("returns every borrowed buffer when it throws after borrowing", () => {
+        // The input checks above run before the first get_buffer. These two
+        // throw past it, so only the try/finally keeps the shared pool whole;
+        // tests/setup/pool-balance.ts fails this test if either leaks a node.
+        const { kp1, kp2, matches } = build(clusterPairs());
+
+        // normalize() reads x on a keypoint whose accessor throws.
+        const hostile = build(clusterPairs());
+        Object.defineProperty(hostile.kp1[3], "x", {
+            get(): number {
+                throw new Error("hostile keypoint accessor");
+            },
+        });
+        expect(() => gms.filter(VGA, VGA, hostile.kp1, hostile.kp2, hostile.matches)).toThrow(
+            "hostile keypoint accessor"
+        );
+
+        // run() multiplies threshold_factor by a number at the first occupied
+        // cell, which a BigInt cannot do. The cast stands in for a caller that
+        // slipped a non-number past the type system.
+        const not_a_number = BigInt(6) as unknown as number;
+        expect(() => gms.filter(VGA, VGA, kp1, kp2, matches, false, false, not_a_number)).toThrow(TypeError);
+        expect(() => gms.filter(VGA, VGA, kp1, kp2, matches, true, true, not_a_number)).toThrow(TypeError);
+
+        // and the pool still serves a normal call afterwards
+        expect(gms.filter(VGA, VGA, kp1, kp2, matches).length).toBe(16);
+    });
+
     it("throws on a malformed size before borrowing any buffer", () => {
         const { kp1, kp2, matches } = build(clusterPairs());
         const bad: unknown[] = [
