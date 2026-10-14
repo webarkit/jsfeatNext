@@ -49,10 +49,11 @@ node scripts/check-license-headers.mjs        # verify
 node scripts/check-license-headers.mjs --fix  # apply to anything missing it
 ```
 
-The header has **two variants**, composed from one template in `.agents/skills/license-header-adder/resources/` (`HEADER.txt` plus the `ATTRIBUTION-jsfeat.txt` snippet, so the licence wording can't drift between them). Picking the right variant matters legally:
+The header has **three variants**, composed from one template in `.agents/skills/license-header-adder/resources/` (`HEADER.txt` plus an `ATTRIBUTION-*.txt` snippet, so the licence wording can't drift between them). Picking the right variant matters legally:
 
 - **derived** — for code ported or derived from jsfeat. Includes the upstream **MIT attribution to Eugene Zatepyakin**. jsfeatNext is a port of MIT-licensed jsfeat; relicensing under LGPL is fine, but MIT *requires* its notice be retained, so ported files must carry it.
 - **original** — for code original to jsfeatNext (the test suite, `src/types.ts`, `src/index.ts`, the ESM example helpers). LGPL notice only — adding the jsfeat attribution here would be a false credit, and licence scanners would report MIT content in files that have none.
+- **opencv** — for code ported from OpenCV (today: everything under `src/gms/`, from opencv_contrib's `gms.cpp`, Apache-2.0). Carries the per-file **Apache-2.0 attribution** from `ATTRIBUTION-opencv-gms.txt` *instead of* the jsfeat one, since jsfeat never contained that code. The licence text ships as `LICENSES/Apache-2.0.txt` (listed in `package.json` `files`) and the bundle banner names it. Mapped by path prefix in the script's `OPENCV_SRC`.
 
 The script decides from the file's path; the check verifies the applied header matches its variant byte-for-byte, so a wrong variant or an edited notice fails CI rather than passing silently.
 

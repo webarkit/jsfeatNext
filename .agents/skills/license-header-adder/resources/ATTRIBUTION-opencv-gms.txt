@@ -1,0 +1,8 @@
+ *  Portions of this file are ported to TypeScript from OpenCV,
+ *  opencv_contrib/modules/xfeatures2d/src/gms.cpp
+ *  (https://github.com/opencv/opencv_contrib), Copyright (c) OpenCV
+ *  contributors, licensed under the Apache License, Version 2.0; a copy is
+ *  included in LICENSES/Apache-2.0.txt. This file is a modified version of
+ *  that source. GMS: J. Bian et al., "GMS: Grid-based Motion Statistics for
+ *  Fast, Ultra-robust Feature Correspondence", CVPR 2017.
+ *
