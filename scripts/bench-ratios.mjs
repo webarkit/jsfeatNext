@@ -198,10 +198,14 @@ if (rows.length === 0 && intra.length === 0) {
     console.error(`${input}: no benchmark results found (did the run execute any bench tests?)`);
     process.exit(2);
 }
-// The history is A/B speedups only. A run of nothing but intra-library groups
-// has nothing to put in it and must not append an empty record.
-if (appendTo && rows.length === 0) {
-    console.error(`${input}: no A/B results to append to ${appendTo} (only intra-library groups ran)`);
+// The history is A/B speedups only. A run with no successful A/B row (only
+// intra-library groups, or only error rows from failed or unpaired tests) has
+// nothing to put in it and must not append an empty record.
+if (appendTo && !rows.some((r) => !r.error)) {
+    console.error(
+        `${input}: no successful A/B results to append to ${appendTo} ` +
+            `(${rows.length} error row(s), ${intra.length} intra-library group(s))`
+    );
     process.exit(2);
 }
 
