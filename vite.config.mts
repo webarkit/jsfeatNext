@@ -19,6 +19,10 @@ const banner = `/*!
  * Derived from jsfeat (https://github.com/inspirit/jsfeat),
  * Copyright (c) Eugene Zatepyakin, released under the MIT License.
  *
+ * Portions ported from OpenCV (https://github.com/opencv/opencv_contrib),
+ * Copyright (c) OpenCV contributors, licensed under the Apache License 2.0;
+ * see LICENSES/Apache-2.0.txt in this package.
+ *
  * This library is distributed WITHOUT ANY WARRANTY, without even the implied
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Lesser General Public License for details: http://www.gnu.org/licenses/

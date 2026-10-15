@@ -17,7 +17,8 @@
   },
   "files": [
     "dist",
-    "types"
+    "types",
+    "LICENSES"
   ],
   "scripts": {
     "prepare": "npm run build-ts",
