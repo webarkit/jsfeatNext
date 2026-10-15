@@ -30,6 +30,19 @@
  * The case key is the enclosing describe's name -- exactly the key the Vitest 4
  * reader derived -- so `bench/history.jsonl` stays comparable.
  *
+ * INTRA-LIBRARY GROUPS (#134). A test none of whose tasks is named after either
+ * implementation (no "jsfeatNext*" and no "jsfeat*") is not an A/B group and
+ * is not an error: it times several things of this library against each other
+ * because there is nothing to compare them with -- `bench/gms.bench.ts`, where
+ * jsfeat has no GMS. Such a group is reported on its own, as the cost of each
+ * task relative to the group's FIRST task ("gms: default costs 0.07x match:
+ * ..."), and is never written to `bench/history.jsonl`: the history is A/B
+ * speedups, and an intra-library ratio is a different quantity. A test with
+ * only ONE of the two implementation names is still an error row, and so is a
+ * name that looks like a mistyped implementation name (anything starting with
+ * "jsfeat", any case): only a group that visibly does not claim to be A/B
+ * escapes the check.
+ *
  * HZ DEFINITION. `hz` is `1000 / period` (operations per second from the mean
  * latency), which is what Vitest 4 / tinybench 4 reported as `hz`. It is NOT the
  * `throughput.mean` that Vitest 5's console table prints under the same "hz"
@@ -99,6 +112,8 @@ function hzOf(task) {
 }
 
 const rows = [];
+/** Groups with no A/B side by design: reported apart, never recorded. */
+const intra = [];
 
 for (const file of raw.testResults) {
     for (const test of file.assertionResults ?? []) {
@@ -111,12 +126,39 @@ for (const file of raw.testResults) {
 
         let next = null;
         let oracle = null;
+        const tasks = [];
         for (const bm of test.benchmarks ?? []) {
             for (const task of bm.tasks ?? []) {
+                tasks.push(task);
                 const s = side(task.name);
                 if (s === "next") next = task;
                 else if (s === "oracle") oracle = task;
             }
+        }
+        // No A/B side at all and no name claiming to be one: an intra-library
+        // group, by design (see the header). It needs a usable mean for every
+        // task to be worth reporting; otherwise it falls through to the error
+        // row below like any other group that cannot produce its numbers.
+        if (
+            test.status === "passed" &&
+            !next &&
+            !oracle &&
+            tasks.length > 0 &&
+            !tasks.some((t) => /^jsfeat/i.test(t.name)) &&
+            tasks.every((t) => t.period > 0)
+        ) {
+            intra.push({
+                case: caseName,
+                baseline: tasks[0].name,
+                tasks: tasks.map((t) => ({
+                    name: t.name,
+                    ms: Number(t.period.toFixed(4)),
+                    // Mean latency relative to the first task: 1 for the baseline itself.
+                    cost: Number((t.period / tasks[0].period).toFixed(4)),
+                    rme: Number(t.latency.rme.toFixed(2)),
+                })),
+            });
+            continue;
         }
         // A test missing either side cannot produce a ratio. Report it rather
         // than dropping it silently — a case that stopped pairing up is a bug
@@ -152,13 +194,25 @@ for (const file of raw.testResults) {
     }
 }
 
-if (rows.length === 0) {
+if (rows.length === 0 && intra.length === 0) {
     console.error(`${input}: no benchmark results found (did the run execute any bench tests?)`);
+    process.exit(2);
+}
+// The history is A/B speedups only. A run with no successful A/B row (only
+// intra-library groups, or only error rows from failed or unpaired tests) has
+// nothing to put in it and must not append an empty record.
+if (appendTo && !rows.some((r) => !r.error)) {
+    console.error(
+        `${input}: no successful A/B results to append to ${appendTo} ` +
+            `(${rows.length} error row(s), ${intra.length} intra-library group(s))`
+    );
     process.exit(2);
 }
 
 if (jsonOut) {
-    writeFileSync(jsonOut, JSON.stringify({ noiseFloor: NOISE_FLOOR, rows }, null, 2) + "\n");
+    const out = { noiseFloor: NOISE_FLOOR, rows };
+    if (intra.length) out.intraLibrary = intra;
+    writeFileSync(jsonOut, JSON.stringify(out, null, 2) + "\n");
 }
 
 /**
@@ -229,15 +283,30 @@ if (appendTo) {
     console.error(`appended 1 record to ${appendTo} (geomean ${record.geomean})`);
 }
 
+/** Two decimals, three below 0.1: a cost of 0.066 reads "0.066x", not a rounded-off "0.07x". */
+function costText(cost) {
+    return `${cost.toFixed(cost < 0.1 ? 3 : 2)}x`;
+}
+
 if (markdown) {
-    console.log("| case | faster | ratio | above floor? |");
-    console.log("| --- | --- | --- | --- |");
-    for (const r of rows) {
-        if (r.error) {
-            console.log(`| \`${r.case}\` | — | — | ⚠️ ${r.error} |`);
-            continue;
+    if (rows.length) {
+        console.log("| case | faster | ratio | above floor? |");
+        console.log("| --- | --- | --- | --- |");
+        for (const r of rows) {
+            if (r.error) {
+                console.log(`| \`${r.case}\` | — | — | ⚠️ ${r.error} |`);
+                continue;
+            }
+            console.log(`| ${r.case} | ${r.faster} | ${r.ratio.toFixed(2)}x | ${r.aboveFloor ? "yes" : "no"} |`);
         }
-        console.log(`| ${r.case} | ${r.faster} | ${r.ratio.toFixed(2)}x | ${r.aboveFloor ? "yes" : "no"} |`);
+    }
+    for (const g of intra) {
+        console.log("");
+        console.log(`Intra-library (not A/B, not recorded): \`${g.case}\``);
+        console.log("");
+        console.log(`| task | mean (ms) | cost vs \`${g.baseline}\` |`);
+        console.log("| --- | --- | --- |");
+        for (const t of g.tasks) console.log(`| ${t.name} | ${t.ms} | ${costText(t.cost)} |`);
     }
 } else {
     for (const r of rows) {
@@ -246,6 +315,13 @@ if (markdown) {
             continue;
         }
         console.log(`${r.ratio.toFixed(2)}x ${r.faster.padEnd(10)} ${r.aboveFloor ? "*" : " "} ${r.case}`);
+    }
+    for (const g of intra) {
+        console.log("");
+        console.log(`intra-library (not A/B, not recorded): ${g.case}`);
+        for (const t of g.tasks.slice(1)) {
+            console.log(`  ${t.name} costs ${costText(t.cost)} ${g.baseline} (${t.ms} ms vs ${g.tasks[0].ms} ms)`);
+        }
     }
 }
 

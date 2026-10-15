@@ -109,8 +109,9 @@ How it is wired:
   the repository `LICENSE` rather than carrying the licence text, so record
   which release's licence applies. OpenCV and opencv_contrib moved from their
   old BSD-style licence to Apache-2.0 with **4.5.0** (verified: opencv_contrib's
-  `LICENSE` at 4.4.0 is the old text, at 4.5.0 it is Apache-2.0), so port from
-  4.5.0 or later and check the file has no stricter notice of its own.
+  `LICENSE` at 4.4.0 is the old text, at 4.5.0 it is Apache-2.0). Port from the
+  reference release in `AGENTS.md` (OpenCV 4.10.0, under Apache-2.0) and check
+  the file has no stricter notice of its own.
 - The licence text itself ships as `LICENSES/Apache-2.0.txt` (copied verbatim
   from opencv_contrib's `LICENSE`, listed in `package.json` `files` so it is in
   the npm tarball), and the bundle banner in `vite.config.mts` names it.

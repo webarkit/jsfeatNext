@@ -20,7 +20,7 @@
 ## Architecture — read this before editing
 
 - **One real module per algorithm** under `src/<module>/<module>.ts`, each extending the base class in **`src/core/core.ts`** (constants, data-type helpers, the shared cache). `src/jsfeatNext.ts` is a thin aggregator that only attaches modules to the namespace; `src/index.ts` default-exports the namespace directly.
-- **Calling convention (since 0.9.0, issue #41):** the 14 algorithm modules (`imgproc`, `math`, `matmath`, `linalg`, `transform`, `fast_corners`, `yape`, `yape06`, `orb`, `optical_flow_lk`, `motion_estimator`, `affine2d`, `homography2d`, `bfmatcher`, plus the `cache` pool) are **singleton instances** on the namespace — `jsfeatNext.imgproc.grayscale(...)`, no `new` — matching original jsfeat. The data-structure classes (`matrix_t`, `keypoint_t`, `pyramid_t`, `ransac_params_t`, `match_t`, `pose_t`) remain constructors, and so does `pose_estimator`.
+- **Calling convention (since 0.9.0, issue #41):** the 15 algorithm modules (`imgproc`, `math`, `matmath`, `linalg`, `transform`, `fast_corners`, `yape`, `yape06`, `orb`, `optical_flow_lk`, `motion_estimator`, `affine2d`, `homography2d`, `bfmatcher`, `gms`, plus the `cache` pool) are **singleton instances** on the namespace — `jsfeatNext.imgproc.grayscale(...)`, no `new` — matching original jsfeat. The data-structure classes (`matrix_t`, `keypoint_t`, `pyramid_t`, `ransac_params_t`, `match_t`, `pose_t`) remain constructors, and so does `pose_estimator`.
   - **`pose_estimator` is deliberately NOT a singleton and deliberately does not extend `core`.** It is *stateful* — it holds the inverted intrinsics `K⁻¹` — and the public API constructs it with a `K` (`new jsfeatNext.pose_estimator(K)`), which also makes its `intrinsics()` factory reachable as a `static` on the namespace class. It therefore belongs with the constructors above, not with the stateless algorithm singletons. Review tooling has flagged this twice as a rule violation; it is not one, and the reasoning is repeated in the class's own JSDoc.
 - **One shared buffer pool:** all modules borrow scratch buffers from the single `shared_cache` exported by `src/core/core.ts` (public as `jsfeatNext.cache`), exactly like jsfeat's global `jsfeat.cache`. Balance every `get_buffer` with a `put_buffer`.
 - Full background: `docs/jsfeat-parity-and-refactor-audit.md` (the plan) and `docs/migration-0.9.md` (the 0.9.0 API break and its motivation).
@@ -59,6 +59,21 @@ The script decides from the file's path; the check verifies the applied header m
 
 Replace `{{FILENAME}}` with the file's basename. Never stack a second header on a file that already has one, and never overwrite an existing third-party notice (`src/math/math.ts` carries a \*BSD `qsort` attribution; `src/orb/bit_pattern_31.ts` an OpenCV/ORB one). Never stamp `tests/vendor/**` or the inherited `examples/js/` third-party scripts. Full policy: [`.agents/skills/license-header-adder/SKILL.md`](.agents/skills/license-header-adder/SKILL.md).
 
+### 🔬 OpenCV reference version — one build for every comparison
+
+**Every comparison with OpenCV and every port from it uses OpenCV 4.10.0**: the wheel `opencv-contrib-python==4.10.0.84` (with `numpy==2.4.6`), built from opencv `71d3237a` and opencv_contrib `1ed3dd2c` (the commits behind the `4.10.0` tags). It is the same reference build PureCV measures parity against ([`cpp_ref/`](https://github.com/webarkit/purecv/blob/main/cpp_ref/README.md)). PureCV validates against jsfeatNext and jsfeatNext against OpenCV, so both links of that chain must use one OpenCV, or a difference cannot be traced to the code rather than the version. The shared policy is PureCV's ["OpenCV Reference Version"](https://github.com/webarkit/purecv/blob/main/CONTRIBUTING.md#opencv-reference-version); this section applies it here.
+
+The exact build lives in one place, [`scripts/requirements-fixtures.txt`](scripts/requirements-fixtures.txt); this section names it so the rule and the pin move together. `tests/fixtures/opencv/pinned-version.test.ts` fails if they disagree, if any committed fixture was generated with another version or with IPP on, or if `src/`, `tests/`, `bench/` or the top-level docs link another OpenCV version or cite a bare `file.cpp:NN`. (`docs/` is exempt: it holds dated analyses, which name their version instead.)
+
+It applies to:
+
+- **Ports.** Read the upstream source at that release, and record it in the module's TSDoc. Port the generic CPU path, not the IPP, OpenCL, HAL or SIMD-dispatch variants, unless one changes results. The licence notice still follows the per-file rule above.
+- **Fixtures.** Generate them only with the pinned wheel, with Intel IPP switched off so they pin the generic CPU path. `scripts/gen-opencv-fixtures.py` refuses any other `cv2.__version__`, disables IPP and fails if it cannot, and every fixture records `meta.opencv_version`, the `Version control` lines of `cv2.getBuildInformation()` (`opencv_build`, `opencv_contrib_build`) and `"ipp": false`.
+- **Citations.** Link OpenCV sources and docs pinned to the release: `https://github.com/opencv/opencv/blob/4.10.0/<path>#L<a>-L<b>` (`opencv_contrib/blob/4.10.0/...` for contrib) and `https://docs.opencv.org/4.10.0/...`. Never cite `4.x`, `master` or another version unlabelled, and never a bare `file.cpp:NN`.
+- **Claims.** Any statement in an issue, PR or doc that "OpenCV does X" is verified against that build and says so. Older notes checked against another version (e.g. the `warp_affine` analysis in `docs/implementation-notes.md`, against 4.14.0-pre) stay, labelled with their version.
+
+**Changing the version is a change of ground truth, never a side effect.** Open an issue explaining why, and the matching issue in [webarkit/purecv](https://github.com/webarkit/purecv), since the two repositories move together. Then open one PR that bumps the pin and this section, regenerates every fixture, and lists which fixtures changed and why.
+
 ## Git & contribution workflow
 
 - **Open PRs against the `dev` branch — never `main`.** `dev` is the integration branch; `main` is stable/release. Branch your work off `dev`.
@@ -77,4 +92,4 @@ Replace `{{FILENAME}}` with the file's basename. Never stack a second header on 
 
 - **Remaining vs jsfeat:** port `haar` (#43) and `bbf` (#44); exhaustive per-symbol parity audit (#45).
 - **1.0.0 scope (closed):** the natural-feature pipeline is complete (`bfmatcher` #133, `pose_estimator` #83); the `CvBackend` contract and adapter live in webarkit/webarkit (#96, #128, #129); `docs/roadmap-1.0.0.md` §7 records the closure.
-- **Next (1.1.0):** GMS match filter (#134), TEBLID (#135), FREAK (#80), adapter wiring (#136), tree-shakeable bundle (#137) — design in `docs/features2d-expansion-plan.md`.
+- **1.1.0:** GMS match filter (#134); TEBLID (#135), FREAK (#80) and the tree-shakeable bundle (#137) move to 1.2.0. The adapter wiring (#136) is built in webarkit/webarkit — design in `docs/features2d-expansion-plan.md`.

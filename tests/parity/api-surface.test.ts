@@ -95,6 +95,7 @@ const ADDITIONS: Record<string, string> = {
     NORM_HAMMING: "bfmatcher's norm constant, mirroring cv::NORM_HAMMING (#133)",
     bfmatcher: "brute-force Hamming matcher; jsfeat had no matcher (#133)",
     match_t: "cv::DMatch-style correspondence produced by bfmatcher (#133)",
+    gms: "GMS match filter ported from OpenCV xfeatures2d; jsfeat had none (#134)",
     pose_estimator: "planar pose from a homography and intrinsics (#83)",
     pose_t: "pose_estimator's output struct (#83)",
     affine2d:
