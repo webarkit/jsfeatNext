@@ -40,7 +40,8 @@ opencv_contrib commit `1ed3dd2c`). PureCV validates against jsfeatNext and
 jsfeatNext against OpenCV, so both links of that chain use one OpenCV. The
 fixtures were first generated with 4.14.0; regenerating them with 4.10.0
 changed nothing but `meta.opencv_version` (`gms.cpp` is byte-identical across
-both releases).
+both releases). The rule, and how to change the version, is in the "OpenCV
+reference version" section of [`AGENTS.md`](../../../AGENTS.md).
 
 The generator reads that pin and **refuses to run** (non-zero exit, a message
 naming both versions) unless `cv2.__version__` matches it, so a wrong version is

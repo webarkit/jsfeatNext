@@ -59,6 +59,20 @@ The script decides from the file's path; the check verifies the applied header m
 
 Replace `{{FILENAME}}` with the file's basename. Never stack a second header on a file that already has one, and never overwrite an existing third-party notice (`src/math/math.ts` carries a \*BSD `qsort` attribution; `src/orb/bit_pattern_31.ts` an OpenCV/ORB one). Never stamp `tests/vendor/**` or the inherited `examples/js/` third-party scripts. Full policy: [`.agents/skills/license-header-adder/SKILL.md`](.agents/skills/license-header-adder/SKILL.md).
 
+### 🔬 OpenCV reference version — one build for every comparison
+
+**Every comparison with OpenCV and every port from it uses OpenCV 4.10.0**: the wheel `opencv-contrib-python==4.10.0.84` (with `numpy==2.4.6`), built from opencv `71d3237a` and opencv_contrib `1ed3dd2c` (the commits behind the `4.10.0` tags). It is the same reference build PureCV measures parity against ([`cpp_ref/`](https://github.com/webarkit/purecv/blob/main/cpp_ref/README.md)). PureCV validates against jsfeatNext and jsfeatNext against OpenCV, so both links of that chain must use one OpenCV, or a difference cannot be traced to the code rather than the version.
+
+The exact build lives in one place, [`scripts/requirements-fixtures.txt`](scripts/requirements-fixtures.txt); this section names it so the rule and the pin move together. `tests/fixtures/opencv/pinned-version.test.ts` fails if they disagree, or if any committed fixture was generated with another version.
+
+It applies to:
+
+- **Ports.** Read the upstream source at that release, and record it in the module's TSDoc. The licence notice still follows the per-file rule above.
+- **Fixtures.** Generate them only with the pinned wheel. `scripts/gen-opencv-fixtures.py` refuses any other `cv2.__version__`, and every fixture records `meta.opencv_version`.
+- **Claims.** Any statement in an issue, PR or doc that "OpenCV does X" is verified against that build and says so. Older notes checked against another version (e.g. the `warp_affine` analysis in `docs/implementation-notes.md`, against 4.14.0-pre) stay, labelled with their version.
+
+**Changing the version is a change of ground truth, never a side effect.** Open an issue explaining why, and the matching issue in [webarkit/purecv](https://github.com/webarkit/purecv), since the two repositories move together. Then open one PR that bumps the pin and this section, regenerates every fixture, and lists which fixtures changed and why.
+
 ## Git & contribution workflow
 
 - **Open PRs against the `dev` branch — never `main`.** `dev` is the integration branch; `main` is stable/release. Branch your work off `dev`.

@@ -135,8 +135,9 @@ interface gms_scratch_t {
  * neighbourhood supports them.
  *
  * Ported from OpenCV's `cv::xfeatures2d::matchGMS`, file
- * `opencv_contrib/modules/xfeatures2d/src/gms.cpp` as of release 4.5.0, the
- * first release under Apache-2.0; the file is byte-identical through 4.14.0.
+ * `opencv_contrib/modules/xfeatures2d/src/gms.cpp` at the reference release
+ * 4.10.0 (AGENTS.md); the file is byte-identical from 4.5.0, the first release
+ * under Apache-2.0, through 4.14.0.
  * The port reproduces OpenCV's output bit-for-bit, which the OpenCV fixtures
  * in `tests/reference/gms.opencv.test.ts` pin. They are generated with OpenCV
  * 4.10.0, the reference version PureCV measures against. jsfeat had no GMS
