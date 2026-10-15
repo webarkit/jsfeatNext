@@ -42,16 +42,16 @@ In the browser (UMD build), the global is the namespace directly:
 ## List of features ✨
 
 - TypeScript definitions, with full TSDoc on every public class/method (`npm run docs` to generate a browsable API reference locally)
-- The natural-feature pipeline end to end: FAST/YAPE detection → ORB descriptors → `bfmatcher` Hamming matching → RANSAC homography → `pose_estimator` camera pose `(R, t)`. The pluggable `CvBackend` contract and its jsfeatNext adapter live in [webarkit/webarkit](https://github.com/webarkit/webarkit) (`packages/cv-backend-spec`, `packages/cv-backend-jsfeatnext`); jsfeatNext itself stays contract-agnostic.
+- The natural-feature pipeline end to end: FAST/YAPE detection → ORB descriptors → `bfmatcher` Hamming matching → GMS filtering → RANSAC homography → `pose_estimator` camera pose `(R, t)`. The pluggable `CvBackend` contract and its jsfeatNext adapter live in [webarkit/webarkit](https://github.com/webarkit/webarkit) (`packages/cv-backend-spec`, `packages/cv-backend-jsfeatnext`); jsfeatNext itself stays contract-agnostic.
 - UMD (browser `<script>`) + ESM builds, built with **Vite** library mode
 - npm package
-- 350+ tests across 28 files: characterization tests asserting numeric/behavioral parity against the original jsfeat, plus property/invariant tests, ground-truth reference tests, and a registry of intentional divergences
+- 560+ tests across 34 files: characterization tests asserting numeric/behavioral parity against the original jsfeat, plus property/invariant tests, ground-truth reference tests, and a registry of intentional divergences
 
 ## Modules 📚
 
 These classes are attached to the `jsfeatNext` namespace (`jsfeatNext.<name>`):
 
-`cache` · `fast_corners` · `homography2d` · `affine2d` · `imgproc` · `keypoint_t` · `linalg` · `math` · `matmath` · `matrix_t` · `motion_estimator` · `ransac_params_t` · `optical_flow_lk` · `orb` · `bfmatcher` · `match_t` · `pose_estimator` · `pose_t` · `pyramid_t` · `transform` · `yape` · `yape06`
+`cache` · `fast_corners` · `homography2d` · `affine2d` · `imgproc` · `keypoint_t` · `linalg` · `math` · `matmath` · `matrix_t` · `motion_estimator` · `ransac_params_t` · `optical_flow_lk` · `orb` · `bfmatcher` · `gms` · `match_t` · `pose_estimator` · `pose_t` · `pyramid_t` · `transform` · `yape` · `yape06`
 
 `pose_estimator` is a constructor (`new jsfeatNext.pose_estimator(K)`) like the data structures, because it holds the inverted intrinsics; the other algorithm modules are singletons.
 
@@ -68,7 +68,7 @@ These classes are attached to the `jsfeatNext` namespace (`jsfeatNext.<name>`):
 
 ## Benchmarks 📊
 
-Every case runs **both** jsfeatNext and the vendored original jsfeat in the same process, and the number that matters is the **ratio** between them — absolute `ops/s` are not comparable across machines or even across runs on one machine.
+Every case runs **both** jsfeatNext and the vendored original jsfeat in the same process, and the number that matters is the **ratio** between them — absolute `ops/s` are not comparable across machines or even across runs on one machine. The one exception is [`bench/gms.bench.ts`](bench/gms.bench.ts): jsfeat has no GMS, so it times `gms.filter` against the matching step it follows instead, and reports "GMS costs N× matching".
 
 The suite has already found and fixed several real slowdowns ([#159](https://github.com/webarkit/jsfeatNext/issues/159), [#165](https://github.com/webarkit/jsfeatNext/pull/165), [#166](https://github.com/webarkit/jsfeatNext/pull/166)), and it records the ones still open.
 
@@ -155,6 +155,8 @@ Every public class, interface, method and property has TSDoc comments. Run `npm 
 ## Contributing 🤝
 
 See [`AGENTS.md`](AGENTS.md) for the canonical contribution conventions (Conventional Commits, PRs target `dev` not `main`, numeric-parity expectations) and [`MAINTAINERS.md`](MAINTAINERS.md) for the release process.
+
+Comparisons with OpenCV and ports from it use **OpenCV 4.10.0** only: the reference build that [PureCV](https://github.com/webarkit/purecv) also measures against, pinned in [`scripts/requirements-fixtures.txt`](scripts/requirements-fixtures.txt). Moving to another version takes its own issue and PR; see [`AGENTS.md`](AGENTS.md#-opencv-reference-version--one-build-for-every-comparison).
 
 Dependencies and GitHub Actions are kept current by [Dependabot](https://docs.github.com/en/code-security/dependabot), which opens its own PRs against `dev` — they go through the same CI and review as any other change.
 

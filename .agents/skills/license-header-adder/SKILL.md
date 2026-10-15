@@ -31,8 +31,9 @@ retained in all copies or substantial portions of the software.** Nearly every
 file under `src/` is a direct port of the corresponding jsfeat algorithm, so
 the header must carry that attribution.
 
-This is why the header has **two variants**, and why copying purecv's verbatim
-would be wrong.
+This is why the header has **three variants** (two for jsfeat-derived and
+original code, a third for OpenCV-derived code, see below), and why copying
+purecv's verbatim would be wrong.
 
 ## Templates and placeholders
 
@@ -43,6 +44,7 @@ licence text, so the wording cannot drift between variants:
 | --- | --- |
 | `resources/HEADER.txt` | the LGPL notice, with `{{FILENAME}}` and `{{ATTRIBUTION}}` slots |
 | `resources/ATTRIBUTION-jsfeat.txt` | the upstream jsfeat MIT attribution block |
+| `resources/ATTRIBUTION-opencv-gms.txt` | the OpenCV (Apache-2.0) attribution for `gms.cpp`, used under `src/gms/` |
 
 The script composes them:
 
@@ -50,6 +52,7 @@ The script composes them:
 | --- | --- | --- |
 | **derived** | the jsfeat MIT block | code ported/derived from jsfeat |
 | **original** | empty | code original to jsfeatNext |
+| **opencv-gms** | the OpenCV Apache-2.0 block | code ported from OpenCV's `gms.cpp` (`src/gms/`) |
 
 Applying the derived variant to genuinely original files is a false credit —
 and licence scanners read these notices, so it would report MIT content in
@@ -64,7 +67,8 @@ not `src/imgproc/imgproc.ts`).
 **Apply to:**
 
 - `src/**/*.ts` — derived template, except the files listed as original in the
-  script (`src/types.ts`, `src/index.ts`, which contain no ported code)
+  script (`src/types.ts`, `src/index.ts`, which contain no ported code) and the
+  OpenCV-derived prefixes (`src/gms/`, see the next section)
 - `tests/**/*.ts` — original template (our own test code)
 - `examples/*.html` — derived template, rendered as an HTML comment placed
   **after** `<!DOCTYPE html>` (a comment before the doctype can trigger quirks
@@ -79,6 +83,38 @@ not `src/imgproc/imgproc.ts`).
   the web"*; inherited from jsfeat's examples
 - `examples/js/profiler.js` — inherited from jsfeat's examples
 - `dist/`, `types/`, `node_modules/` — generated or vendored
+
+## Third variant: OpenCV-derived
+
+Code ported from OpenCV is **not** jsfeat-derived: stamping it with the jsfeat
+MIT credit would be a false credit (the same reasoning as the original variant),
+and dropping OpenCV's own notice would break its licence. OpenCV and
+opencv_contrib are **Apache-2.0**, which requires that we keep the copyright and
+licence notices, ship a copy of the licence, and state that we changed the
+files.
+
+How it is wired:
+
+- The script's `OPENCV_SRC` map is **path prefix -> snippet in `resources/`**.
+  Today it holds one entry, `src/gms/` -> `ATTRIBUTION-opencv-gms.txt`. Any file
+  under a prefix is stamped with `HEADER.txt` whose `{{ATTRIBUTION}}` is that
+  snippet (never the jsfeat one), and the check verifies it byte-for-byte like
+  the other variants. An explicit `ORIGINAL_SRC` entry still wins over a prefix,
+  for a file under `src/gms/` that is genuinely original.
+- **One snippet per upstream file.** The snippet names the upstream source file,
+  its repository, the licence, that this is a modified version, and the paper if
+  there is one. Port a second OpenCV file and you add a second snippet and a
+  second prefix, rather than editing the first.
+- **Verify the upstream licence per file.** OpenCV's per-file headers point to
+  the repository `LICENSE` rather than carrying the licence text, so record
+  which release's licence applies. OpenCV and opencv_contrib moved from their
+  old BSD-style licence to Apache-2.0 with **4.5.0** (verified: opencv_contrib's
+  `LICENSE` at 4.4.0 is the old text, at 4.5.0 it is Apache-2.0). Port from the
+  reference release in `AGENTS.md` (OpenCV 4.10.0, under Apache-2.0) and check
+  the file has no stricter notice of its own.
+- The licence text itself ships as `LICENSES/Apache-2.0.txt` (copied verbatim
+  from opencv_contrib's `LICENSE`, listed in `package.json` `files` so it is in
+  the npm tarball), and the bundle banner in `vite.config.mts` names it.
 
 ## What the check actually verifies
 
@@ -115,10 +151,11 @@ these additions must survive:
 ## The built bundles
 
 `dist/jsfeatNext.js` and `.mjs` get a condensed banner from
-`licenseBannerPlugin()` in `vite.config.mts`. It runs in `generateBundle`,
-**after** minification, because Rolldown's Oxc minifier strips `output.banner`
-from the UMD bundle even with legal comments enabled. If the banner ever
-disappears from a release, check that plugin first.
+`licenseBannerPlugin()` in `vite.config.mts` (the jsfeat MIT credit plus the
+OpenCV Apache-2.0 line that points at `LICENSES/Apache-2.0.txt`). It runs in
+`generateBundle`, **after** minification, because Rolldown's Oxc minifier strips
+`output.banner` from the UMD bundle even with legal comments enabled. If the
+banner ever disappears from a release, check that plugin first.
 
 ## Adding a new source file
 

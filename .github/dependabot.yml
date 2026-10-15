@@ -19,6 +19,14 @@ updates:
               patterns:
                   - "vitest"
                   - "@vitest/*"
+      ignore:
+          # TypeScript 7 cannot install yet: typedoc 0.28.x (latest 0.28.20)
+          # declares `typescript` peer support only up to 6.0.x, so a major
+          # bump would fail with ERESOLVE and break `npm run docs`. Minor and
+          # patch updates of 6.x still come through. Drop this entry once a
+          # typedoc release supports TypeScript 7.
+          - dependency-name: "typescript"
+            update-types: ["version-update:semver-major"]
 
     - package-ecosystem: "github-actions"
       # Workflow files stored in the default location of `.github/workflows`. (You don't need to specify `/.github/workflows` for `directory`. You can use `directory: "/"`.)

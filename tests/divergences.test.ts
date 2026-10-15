@@ -39,6 +39,8 @@
 import { describe, it, expect } from "vitest";
 import jsfeatNext from "../src/jsfeatNext";
 import jsfeat from "./vendor/oracle.cjs";
+import type { keypoint_t } from "../src/keypoint_t/keypoint_t";
+import type { match_t } from "../src/bfmatcher/match_t";
 
 /**
  * Registry of INTENTIONAL divergences from original jsfeat.
@@ -627,6 +629,50 @@ describe("intentional divergences from jsfeat", () => {
             const scratch = Array.from({ length: 1600 }, () => new jsfeatNext.keypoint_t(0, 0, 0, 0, -1));
             jsfeatNext.fast_corners.detect(throwaway, scratch, 3);
             expect(detectBoth().nextKeys.join("|")).toBe(first);
+        });
+    });
+});
+
+/**
+ * Registry of INTENTIONAL divergences from OpenCV, for the modules ported from
+ * it rather than from jsfeat. There is no OpenCV at test time: what OpenCV
+ * does is pinned by the committed fixtures in `tests/fixtures/opencv/` where
+ * jsfeatNext matches it, and recorded here, with the version that was checked,
+ * where it deliberately does not.
+ */
+describe("intentional divergences from OpenCV", () => {
+    describe("gms ignores keypoints outside the image; OpenCV computes a wrapped or out-of-range cell index (#134)", () => {
+        /**
+         * matchGMS never checks that a keypoint lies inside its image. On the
+         * query side a negative x floors to cell column -1, and `x + y * 20`
+         * then lands on the last column of the previous row; on the train side
+         * there is no bound test at all, so a coordinate at or past the size
+         * indexes past the motion-statistics row. jsfeatNext gives such a
+         * match no cell on either side: it is never counted and never kept.
+         *
+         * The case below is the wrap: (-1, 250) is in OpenCV's cell 199 =
+         * (19, 9), on the far edge of the image, where a cluster agrees with
+         * the match's train point. OpenCV 4.10.0 (opencv-contrib-python
+         * 4.10.0.84, the fixtures' pinned version) keeps it, as does 4.14.0,
+         * checked with this exact input; gms drops it.
+         */
+        it("drops a match whose query keypoint is left of the image, which OpenCV wraps into a supported cell", () => {
+            const kp1: keypoint_t[] = [];
+            const kp2: keypoint_t[] = [];
+            const matches: match_t[] = [];
+            const add = (x1: number, y1: number, x2: number, y2: number) => {
+                kp1.push(new jsfeatNext.keypoint_t(x1, y1));
+                kp2.push(new jsfeatNext.keypoint_t(x2, y2));
+                matches.push(new jsfeatNext.match_t(kp1.length - 1, kp2.length - 1, 0));
+            };
+            // 16 matches agreeing inside cell (19, 9): x in [610, 625], y in [218, 230]
+            for (const y of [218, 222, 226, 230]) for (const x of [610, 615, 620, 625]) add(x, y, x, y);
+            add(-1, 250, 620, 225); // outside the image; OpenCV wraps it into (19, 9)
+
+            const size = { width: 640, height: 480 };
+            const out = jsfeatNext.gms.filter(size, size, kp1, kp2, matches);
+            expect(out).toEqual(matches.slice(0, 16));
+            expect(out).not.toContain(matches[16]);
         });
     });
 });

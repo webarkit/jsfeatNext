@@ -1,8 +1,9 @@
 /*
- * bench-ratios.mjs — reduce a `vitest bench --outputJson` file to A/B ratios.
+ * bench-ratios.mjs — reduce a `vitest bench` JSON-reporter file to A/B ratios.
  *
- * Reads the raw Vitest benchmark JSON and prints one line per case:
- * which side won, and by how much. Optionally writes a compact JSON.
+ * Reads the raw Vitest 5 JSON-reporter output (`--reporter=json`, see the
+ * `bench:ratios` script) and prints one line per case: which side won, and by
+ * how much. Optionally writes a compact JSON.
  *
  * WHY RATIOS AND NOT `hz`: absolute throughput depends on the CPU model, its
  * thermal state, what else the machine is doing and the Node version — none of
@@ -10,6 +11,45 @@
  * against another reports noise as a regression. The ratio, measured for both
  * implementations in the same process at the same moment, cancels almost all
  * of that. See bench/README.md.
+ *
+ * INPUT SHAPE (Vitest 5, issue #219). Vitest 4 wrote `files[].groups[].benchmarks[]`
+ * through `--outputJson`. Vitest 5 removed that flag; benchmarks are now regular
+ * tests, and the JSON reporter attaches each test's results as a `benchmarks`
+ * field:
+ *
+ *   testResults[].assertionResults[]      one entry per test
+ *     .ancestorTitles / .title            the enclosing describe, the test's own title
+ *     .benchmarks[].tasks[]               one entry per `bench(...).run()`
+ *       .name                             "jsfeatNext" / "jsfeat (reference)"
+ *       .period                           mean latency, ms
+ *       .latency.rme                      relative margin of error, %
+ *
+ * One test is one A/B group: its tasks are collected across all of its
+ * `benchmarks` entries (two sequential `.run()` calls give two entries of one
+ * task each; `bench.compare()` would give one entry of two) and paired by name.
+ * The case key is the enclosing describe's name -- exactly the key the Vitest 4
+ * reader derived -- so `bench/history.jsonl` stays comparable.
+ *
+ * INTRA-LIBRARY GROUPS (#134). A test none of whose tasks is named after either
+ * implementation (no "jsfeatNext*" and no "jsfeat*") is not an A/B group and
+ * is not an error: it times several things of this library against each other
+ * because there is nothing to compare them with -- `bench/gms.bench.ts`, where
+ * jsfeat has no GMS. Such a group is reported on its own, as the cost of each
+ * task relative to the group's FIRST task ("gms: default costs 0.07x match:
+ * ..."), and is never written to `bench/history.jsonl`: the history is A/B
+ * speedups, and an intra-library ratio is a different quantity. A test with
+ * only ONE of the two implementation names is still an error row, and so is a
+ * name that looks like a mistyped implementation name (anything starting with
+ * "jsfeat", any case): only a group that visibly does not claim to be A/B
+ * escapes the check.
+ *
+ * HZ DEFINITION. `hz` is `1000 / period` (operations per second from the mean
+ * latency), which is what Vitest 4 / tinybench 4 reported as `hz`. It is NOT the
+ * `throughput.mean` that Vitest 5's console table prints under the same "hz"
+ * heading: that is the mean of per-sample throughputs, a different estimator
+ * that diverges from `1000 / period` once a call is fast enough for the timer
+ * to quantise it (the ~100 ns cache cases differ by tens of percent). The
+ * ratio's definition -- jsfeatNext hz / jsfeat hz -- is unchanged.
  *
  * Usage:
  *   node scripts/bench-ratios.mjs <input.json> [--json <out>] [--markdown]
@@ -54,42 +94,125 @@ function side(name) {
 }
 
 const raw = JSON.parse(readFileSync(input, "utf8"));
-const rows = [];
 
-for (const file of raw.files ?? []) {
-    for (const group of file.groups ?? []) {
+// Refuse input that is not Vitest's JSON reporter output. Without this, a
+// Vitest 4 `--outputJson` file (or any other JSON) would reduce to zero rows,
+// and `--append` would then write an empty record into the permanent history.
+if (!Array.isArray(raw.testResults)) {
+    console.error(
+        `${input}: no \`testResults\` array -- expected Vitest 5 JSON-reporter output ` +
+            "(vitest bench --run --reporter=json --outputFile.json=<file>)"
+    );
+    process.exit(2);
+}
+
+/** Operations per second from the mean latency in ms: Vitest 4's `hz`. */
+function hzOf(task) {
+    return task.period > 0 ? 1000 / task.period : NaN;
+}
+
+const rows = [];
+/** Groups with no A/B side by design: reported apart, never recorded. */
+const intra = [];
+
+for (const file of raw.testResults) {
+    for (const test of file.assertionResults ?? []) {
+        // A test the run filtered out (`-t`) is not a case that went missing.
+        if (test.status === "skipped" || test.status === "pending" || test.status === "todo") continue;
+
+        // The enclosing describe's name is the case key; a test outside any
+        // describe falls back to its own title.
+        const caseName = test.ancestorTitles?.length ? test.ancestorTitles.join(" > ") : test.title;
+
         let next = null;
         let oracle = null;
-        for (const b of group.benchmarks ?? []) {
-            const s = side(b.name);
-            if (s === "next") next = b;
-            else if (s === "oracle") oracle = b;
+        const tasks = [];
+        for (const bm of test.benchmarks ?? []) {
+            for (const task of bm.tasks ?? []) {
+                tasks.push(task);
+                const s = side(task.name);
+                if (s === "next") next = task;
+                else if (s === "oracle") oracle = task;
+            }
         }
-        // A group missing either side cannot produce a ratio. Report it rather
-        // than dropping it silently — a case that stopped pairing up is a bug
-        // in the bench file, not something to hide.
-        if (!next || !oracle) {
-            rows.push({ case: group.fullName, error: "missing jsfeatNext and/or jsfeat side" });
+        // No A/B side at all and no name claiming to be one: an intra-library
+        // group, by design (see the header). It needs a usable mean for every
+        // task to be worth reporting; otherwise it falls through to the error
+        // row below like any other group that cannot produce its numbers.
+        if (
+            test.status === "passed" &&
+            !next &&
+            !oracle &&
+            tasks.length > 0 &&
+            !tasks.some((t) => /^jsfeat/i.test(t.name)) &&
+            tasks.every((t) => t.period > 0)
+        ) {
+            intra.push({
+                case: caseName,
+                baseline: tasks[0].name,
+                tasks: tasks.map((t) => ({
+                    name: t.name,
+                    ms: Number(t.period.toFixed(4)),
+                    // Mean latency relative to the first task: 1 for the baseline itself.
+                    cost: Number((t.period / tasks[0].period).toFixed(4)),
+                    rme: Number(t.latency.rme.toFixed(2)),
+                })),
+            });
             continue;
         }
-        const faster = next.hz >= oracle.hz ? "jsfeatNext" : "jsfeat";
-        const ratio = next.hz >= oracle.hz ? next.hz / oracle.hz : oracle.hz / next.hz;
+        // A test missing either side cannot produce a ratio. Report it rather
+        // than dropping it silently — a case that stopped pairing up is a bug
+        // in the bench file, not something to hide. A failed test lands here
+        // too, with its reason.
+        if (test.status !== "passed" || !next || !oracle) {
+            const why =
+                test.status !== "passed"
+                    ? `test ${test.status}: ${(test.failureMessages?.[0] ?? "").split("\n")[0]}`
+                    : "missing jsfeatNext and/or jsfeat side";
+            rows.push({ case: `${file.name ?? "?"} > ${caseName}`, error: why });
+            continue;
+        }
+        const nextHz = hzOf(next);
+        const oracleHz = hzOf(oracle);
+        if (!(nextHz > 0) || !(oracleHz > 0)) {
+            rows.push({ case: caseName, error: "a side reported no usable mean latency" });
+            continue;
+        }
+        const faster = nextHz >= oracleHz ? "jsfeatNext" : "jsfeat";
+        const ratio = nextHz >= oracleHz ? nextHz / oracleHz : oracleHz / nextHz;
         rows.push({
-            case: group.fullName.replace(/^.*?>\s*/, ""),
+            case: caseName,
             faster,
             ratio: Number(ratio.toFixed(3)),
             // Signed: >1 means jsfeatNext is faster, <1 means jsfeat is. The
             // display `ratio` above is always >=1 and needs `faster` to be
             // read; this one is directional, which is what aggregating needs.
-            speedup: Number((next.hz / oracle.hz).toFixed(4)),
+            speedup: Number((nextHz / oracleHz).toFixed(4)),
             aboveFloor: ratio >= NOISE_FLOOR,
-            rme: { jsfeatNext: Number(next.rme.toFixed(2)), jsfeat: Number(oracle.rme.toFixed(2)) },
+            rme: { jsfeatNext: Number(next.latency.rme.toFixed(2)), jsfeat: Number(oracle.latency.rme.toFixed(2)) },
         });
     }
 }
 
+if (rows.length === 0 && intra.length === 0) {
+    console.error(`${input}: no benchmark results found (did the run execute any bench tests?)`);
+    process.exit(2);
+}
+// The history is A/B speedups only. A run with no successful A/B row (only
+// intra-library groups, or only error rows from failed or unpaired tests) has
+// nothing to put in it and must not append an empty record.
+if (appendTo && !rows.some((r) => !r.error)) {
+    console.error(
+        `${input}: no successful A/B results to append to ${appendTo} ` +
+            `(${rows.length} error row(s), ${intra.length} intra-library group(s))`
+    );
+    process.exit(2);
+}
+
 if (jsonOut) {
-    writeFileSync(jsonOut, JSON.stringify({ noiseFloor: NOISE_FLOOR, rows }, null, 2) + "\n");
+    const out = { noiseFloor: NOISE_FLOOR, rows };
+    if (intra.length) out.intraLibrary = intra;
+    writeFileSync(jsonOut, JSON.stringify(out, null, 2) + "\n");
 }
 
 /**
@@ -160,15 +283,30 @@ if (appendTo) {
     console.error(`appended 1 record to ${appendTo} (geomean ${record.geomean})`);
 }
 
+/** Two decimals, three below 0.1: a cost of 0.066 reads "0.066x", not a rounded-off "0.07x". */
+function costText(cost) {
+    return `${cost.toFixed(cost < 0.1 ? 3 : 2)}x`;
+}
+
 if (markdown) {
-    console.log("| case | faster | ratio | above floor? |");
-    console.log("| --- | --- | --- | --- |");
-    for (const r of rows) {
-        if (r.error) {
-            console.log(`| \`${r.case}\` | — | — | ⚠️ ${r.error} |`);
-            continue;
+    if (rows.length) {
+        console.log("| case | faster | ratio | above floor? |");
+        console.log("| --- | --- | --- | --- |");
+        for (const r of rows) {
+            if (r.error) {
+                console.log(`| \`${r.case}\` | — | — | ⚠️ ${r.error} |`);
+                continue;
+            }
+            console.log(`| ${r.case} | ${r.faster} | ${r.ratio.toFixed(2)}x | ${r.aboveFloor ? "yes" : "no"} |`);
         }
-        console.log(`| ${r.case} | ${r.faster} | ${r.ratio.toFixed(2)}x | ${r.aboveFloor ? "yes" : "no"} |`);
+    }
+    for (const g of intra) {
+        console.log("");
+        console.log(`Intra-library (not A/B, not recorded): \`${g.case}\``);
+        console.log("");
+        console.log(`| task | mean (ms) | cost vs \`${g.baseline}\` |`);
+        console.log("| --- | --- | --- |");
+        for (const t of g.tasks) console.log(`| ${t.name} | ${t.ms} | ${costText(t.cost)} |`);
     }
 } else {
     for (const r of rows) {
@@ -177,6 +315,13 @@ if (markdown) {
             continue;
         }
         console.log(`${r.ratio.toFixed(2)}x ${r.faster.padEnd(10)} ${r.aboveFloor ? "*" : " "} ${r.case}`);
+    }
+    for (const g of intra) {
+        console.log("");
+        console.log(`intra-library (not A/B, not recorded): ${g.case}`);
+        for (const t of g.tasks.slice(1)) {
+            console.log(`  ${t.name} costs ${costText(t.cost)} ${g.baseline} (${t.ms} ms vs ${g.tasks[0].ms} ms)`);
+        }
     }
 }
 

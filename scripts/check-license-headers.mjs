@@ -56,6 +56,18 @@ const ORIGINAL_SRC = new Set([
 ]);
 
 /**
+ * Files ported from OpenCV (Apache-2.0) rather than from jsfeat (MIT): path
+ * prefix -> attribution snippet in the skill's resources/ folder. Anything
+ * under a prefix gets the same LGPL template as everything else, but with
+ * that snippet in the `{{ATTRIBUTION}}` slot INSTEAD of the jsfeat MIT block,
+ * since crediting jsfeat for code it never contained would be a false credit
+ * (see #130). One snippet per upstream file; the snippet names it and the
+ * licence that applies. Only src/ is mapped: OpenCV-derived code is not
+ * expected in tests/ or examples/.
+ */
+const OPENCV_SRC = new Map([["src/gms/", "ATTRIBUTION-opencv-gms.txt"]]);
+
+/**
  * Third-party or foreign-provenance files. Never stamp these — they either
  * carry their own notice already or their origin is not ours to relicense.
  */
@@ -66,13 +78,14 @@ const EXCLUDED = new Set([
 ]);
 
 /**
- * One licence template, two variants. The `{{ATTRIBUTION}}` slot carries the
+ * One licence template, three variants. The `{{ATTRIBUTION}}` slot carries the
  * upstream jsfeat MIT notice, which is REQUIRED on ported code (MIT obliges us
  * to retain it) and must be ABSENT from code original to jsfeatNext, where it
  * would be a false credit — and would make licence scanners report MIT content
- * in files that have none.
+ * in files that have none. For code ported from OpenCV the slot instead carries
+ * that file's Apache-2.0 attribution (OPENCV_SRC above), and not the jsfeat one.
  *
- * Kept as one base plus a snippet rather than two near-identical files, so the
+ * Kept as one base plus snippets rather than near-identical files, so the
  * licence text itself cannot drift between variants.
  */
 const base = readFileSync(join(SKILL, "HEADER.txt"), "utf8");
@@ -81,6 +94,26 @@ const templates = {
     derived: base.replace("{{ATTRIBUTION}}", attribution),
     original: base.replace("{{ATTRIBUTION}}", ""),
 };
+
+/** Variant name for an OpenCV snippet: ATTRIBUTION-opencv-gms.txt -> "opencv-gms". */
+const opencvKind = (snippet) => snippet.replace(/^ATTRIBUTION-/, "").replace(/\.txt$/, "");
+for (const snippet of new Set(OPENCV_SRC.values())) {
+    // a replacer function: the snippet text must never be read as a $-pattern
+    const text = readFileSync(join(SKILL, snippet), "utf8");
+    templates[opencvKind(snippet)] = base.replace("{{ATTRIBUTION}}", () => text);
+}
+
+/**
+ * The variant a file carries: an explicit ORIGINAL_SRC entry wins, then an
+ * OPENCV_SRC path prefix, then the default of the pattern that matched it.
+ */
+function variantOf(rel, fallback) {
+    if (ORIGINAL_SRC.has(rel)) return "original";
+    for (const [prefix, snippet] of OPENCV_SRC) {
+        if (rel.startsWith(prefix)) return opencvKind(snippet);
+    }
+    return fallback;
+}
 
 /** Renders the block-comment header for a JS/TS file. */
 function jsHeader(kind, filename) {
@@ -110,11 +143,12 @@ function collect() {
             for (const abs of globSync(pattern, { cwd: ROOT })) {
                 const rel = relative(ROOT, join(ROOT, abs)).split("\\").join("/");
                 if (EXCLUDED.has(rel)) continue;
-                out.push({ rel, kind: ORIGINAL_SRC.has(rel) ? "original" : kind, type });
+                out.push({ rel, kind: variantOf(rel, kind), type });
             }
         }
     };
     // src/ is a port of jsfeat, apart from the explicitly original files above
+    // and the OpenCV-derived prefixes (see variantOf)
     add(["src/**/*.ts"], "derived", "js");
     // our own tests: original work, no derived portions
     add(["tests/**/*.ts"], "original", "js");

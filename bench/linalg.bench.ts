@@ -36,7 +36,7 @@
  *
  */
 
-import { bench, describe } from "vitest";
+import { describe, test } from "vitest";
 import jsfeatNext from "../src/jsfeatNext";
 import jsfeat from "../tests/vendor/oracle.cjs";
 import { rng } from "../tests/properties/helpers";
@@ -111,38 +111,40 @@ describe("linalg.lu_solve (6x6)", () => {
     const { next: B0, orig: Bo0 } = vecPair(N, 1002);
     // lu_solve overwrites both its matrix and its vector argument in place, so
     // each iteration needs a fresh copy rather than accumulating drift into the
-    // next call's input. `setup` runs once per mode (warmup, then run), not per
-    // iteration, so the copy costs nothing inside the timed region.
+    // next call's input. `beforeAll` runs once per phase (warmup, then run), not
+    // per iteration, so the copy costs nothing inside the timed region.
     const A = new jsfeatNext.matrix_t(N, N, F32C1);
     const B = new jsfeatNext.matrix_t(1, N, F32C1);
     const Ao = new jsfeat.matrix_t(N, N, OF32C1);
     const Bo = new jsfeat.matrix_t(1, N, OF32C1);
 
-    bench(
-        "jsfeatNext",
-        () => {
-            jsfeatNext.linalg.lu_solve(A, B);
-        },
-        {
-            setup: () => {
-                A0.copy_to(A);
-                B0.copy_to(B);
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench(
+            "jsfeatNext",
+            {
+                beforeAll: () => {
+                    A0.copy_to(A);
+                    B0.copy_to(B);
+                },
             },
-        }
-    );
+            () => {
+                jsfeatNext.linalg.lu_solve(A, B);
+            }
+        ).run();
 
-    bench(
-        "jsfeat (reference)",
-        () => {
-            jsfeat.linalg.lu_solve(Ao, Bo);
-        },
-        {
-            setup: () => {
-                Ao0.copy_to(Ao);
-                Bo0.copy_to(Bo);
+        await bench(
+            "jsfeat (reference)",
+            {
+                beforeAll: () => {
+                    Ao0.copy_to(Ao);
+                    Bo0.copy_to(Bo);
+                },
             },
-        }
-    );
+            () => {
+                jsfeat.linalg.lu_solve(Ao, Bo);
+            }
+        ).run();
+    });
 });
 
 describe("linalg.cholesky_solve (6x6)", () => {
@@ -157,31 +159,33 @@ describe("linalg.cholesky_solve (6x6)", () => {
     const Ao = new jsfeat.matrix_t(N, N, OF32C1);
     const Bo = new jsfeat.matrix_t(1, N, OF32C1);
 
-    bench(
-        "jsfeatNext",
-        () => {
-            jsfeatNext.linalg.cholesky_solve(A, B);
-        },
-        {
-            setup: () => {
-                A0.copy_to(A);
-                B0.copy_to(B);
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench(
+            "jsfeatNext",
+            {
+                beforeAll: () => {
+                    A0.copy_to(A);
+                    B0.copy_to(B);
+                },
             },
-        }
-    );
+            () => {
+                jsfeatNext.linalg.cholesky_solve(A, B);
+            }
+        ).run();
 
-    bench(
-        "jsfeat (reference)",
-        () => {
-            jsfeat.linalg.cholesky_solve(Ao, Bo);
-        },
-        {
-            setup: () => {
-                Ao0.copy_to(Ao);
-                Bo0.copy_to(Bo);
+        await bench(
+            "jsfeat (reference)",
+            {
+                beforeAll: () => {
+                    Ao0.copy_to(Ao);
+                    Bo0.copy_to(Bo);
+                },
             },
-        }
-    );
+            () => {
+                jsfeat.linalg.cholesky_solve(Ao, Bo);
+            }
+        ).run();
+    });
 });
 
 describe("linalg.svd_decompose (9x9)", () => {
@@ -195,12 +199,14 @@ describe("linalg.svd_decompose (9x9)", () => {
     const Vo = new jsfeat.matrix_t(N, N, OF32C1);
     const options = jsfeatNext.SVD_U_T | jsfeatNext.SVD_V_T;
 
-    bench("jsfeatNext", () => {
-        jsfeatNext.linalg.svd_decompose(A, W, U, V, options);
-    });
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.linalg.svd_decompose(A, W, U, V, options);
+        }).run();
 
-    bench("jsfeat (reference)", () => {
-        jsfeat.linalg.svd_decompose(Ao, Wo, Uo, Vo, options);
+        await bench("jsfeat (reference)", () => {
+            jsfeat.linalg.svd_decompose(Ao, Wo, Uo, Vo, options);
+        }).run();
     });
 });
 
@@ -211,12 +217,14 @@ describe("linalg.svd_solve (9x9)", () => {
     const X = new jsfeatNext.matrix_t(1, N, F32C1);
     const Xo = new jsfeat.matrix_t(1, N, OF32C1);
 
-    bench("jsfeatNext", () => {
-        jsfeatNext.linalg.svd_solve(A, X, B);
-    });
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.linalg.svd_solve(A, X, B);
+        }).run();
 
-    bench("jsfeat (reference)", () => {
-        jsfeat.linalg.svd_solve(Ao, Xo, Bo);
+        await bench("jsfeat (reference)", () => {
+            jsfeat.linalg.svd_solve(Ao, Xo, Bo);
+        }).run();
     });
 });
 
@@ -226,12 +234,14 @@ describe("linalg.svd_invert (9x9)", () => {
     const Ai = new jsfeatNext.matrix_t(N, N, F32C1);
     const Aio = new jsfeat.matrix_t(N, N, OF32C1);
 
-    bench("jsfeatNext", () => {
-        jsfeatNext.linalg.svd_invert(Ai, A);
-    });
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.linalg.svd_invert(Ai, A);
+        }).run();
 
-    bench("jsfeat (reference)", () => {
-        jsfeat.linalg.svd_invert(Aio, Ao);
+        await bench("jsfeat (reference)", () => {
+            jsfeat.linalg.svd_invert(Aio, Ao);
+        }).run();
     });
 });
 
@@ -243,11 +253,13 @@ describe("linalg.eigenVV (9x9)", () => {
     const vectso = new jsfeat.matrix_t(N, N, OF32C1);
     const valso = new jsfeat.matrix_t(1, N, OF32C1);
 
-    bench("jsfeatNext", () => {
-        jsfeatNext.linalg.eigenVV(A, vects, vals);
-    });
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.linalg.eigenVV(A, vects, vals);
+        }).run();
 
-    bench("jsfeat (reference)", () => {
-        jsfeat.linalg.eigenVV(Ao, vectso, valso);
+        await bench("jsfeat (reference)", () => {
+            jsfeat.linalg.eigenVV(Ao, vectso, valso);
+        }).run();
     });
 });
