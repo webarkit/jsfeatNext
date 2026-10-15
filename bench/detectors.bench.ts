@@ -36,7 +36,7 @@
  *
  */
 
-import { bench, describe } from "vitest";
+import { describe, test } from "vitest";
 import jsfeatNext from "../src/jsfeatNext";
 import jsfeat from "../tests/vendor/oracle.cjs";
 import { noiseImage, keypointPool } from "../tests/properties/helpers";
@@ -116,20 +116,17 @@ function pair() {
 /**
  * `fast_corners.set_threshold` mutates the singleton, so it CANNOT be called
  * from a `describe` body: Vitest runs every `describe` callback during
- * collection, before any `bench` callback runs. The last assignment in the file
+ * collection, before any test body runs. The last assignment in the file
  * would win and every case would silently measure that one threshold.
  *
- * Nor can it go in `beforeAll` — Vitest's bench mode does not run the standard
- * test hooks at all, so the call would simply never happen and both cases would
- * run at the constructor default.
- *
- * `bench`'s own `setup` option is the one that works. It runs once per mode
- * (warmup, then run) rather than per iteration, so it costs nothing inside the
- * timed region.
+ * Each case applies it through its own `beforeAll` hook instead -- the
+ * per-case option `bench(name, options, fn)` takes, not a suite hook. It runs
+ * once per phase (warmup, then run) rather than per iteration, immediately
+ * before that case is measured, so it costs nothing inside the timed region.
  */
 function threshold(thr: number) {
     return {
-        setup: () => {
+        beforeAll: () => {
             jsfeatNext.fast_corners.set_threshold(thr);
             jsfeat.fast_corners.set_threshold(thr);
         },
@@ -214,21 +211,15 @@ describe("fast_corners.detect — threshold 20 (~26k corners)", () => {
         jsfeat.fast_corners.detect(orig, keypointPool(POOL), BORDER)
     );
 
-    bench(
-        "jsfeatNext",
-        () => {
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", threshold(20), () => {
             jsfeatNext.fast_corners.detect(next, poolN, BORDER);
-        },
-        threshold(20)
-    );
+        }).run();
 
-    bench(
-        "jsfeat (reference)",
-        () => {
+        await bench("jsfeat (reference)", threshold(20), () => {
             jsfeat.fast_corners.detect(orig, poolO, BORDER);
-        },
-        threshold(20)
-    );
+        }).run();
+    });
 });
 
 describe("fast_corners.detect — threshold 60 (~13k corners)", () => {
@@ -246,21 +237,15 @@ describe("fast_corners.detect — threshold 60 (~13k corners)", () => {
         jsfeat.fast_corners.detect(orig, keypointPool(POOL), BORDER)
     );
 
-    bench(
-        "jsfeatNext",
-        () => {
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", threshold(60), () => {
             jsfeatNext.fast_corners.detect(next, poolN, BORDER);
-        },
-        threshold(60)
-    );
+        }).run();
 
-    bench(
-        "jsfeat (reference)",
-        () => {
+        await bench("jsfeat (reference)", threshold(60), () => {
             jsfeat.fast_corners.detect(orig, poolO, BORDER);
-        },
-        threshold(60)
-    );
+        }).run();
+    });
 });
 
 describe("yape06.detect (~49k corners)", () => {
@@ -274,12 +259,14 @@ describe("yape06.detect (~49k corners)", () => {
         jsfeat.yape06.detect(orig, keypointPool(POOL), BORDER)
     );
 
-    bench("jsfeatNext", () => {
-        jsfeatNext.yape06.detect(next, poolN, BORDER);
-    });
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.yape06.detect(next, poolN, BORDER);
+        }).run();
 
-    bench("jsfeat (reference)", () => {
-        jsfeat.yape06.detect(orig, poolO, BORDER);
+        await bench("jsfeat (reference)", () => {
+            jsfeat.yape06.detect(orig, poolO, BORDER);
+        }).run();
     });
 });
 
@@ -300,11 +287,13 @@ describe("yape.detect — radius 5 (~149 corners)", () => {
         jsfeat.yape.detect(orig, keypointPool(POOL), 5)
     );
 
-    bench("jsfeatNext", () => {
-        jsfeatNext.yape.detect(next, poolN, 5);
-    });
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.yape.detect(next, poolN, 5);
+        }).run();
 
-    bench("jsfeat (reference)", () => {
-        jsfeat.yape.detect(orig, poolO, 5);
+        await bench("jsfeat (reference)", () => {
+            jsfeat.yape.detect(orig, poolO, 5);
+        }).run();
     });
 });

@@ -36,7 +36,7 @@
  *
  */
 
-import { bench, describe } from "vitest";
+import { describe, test } from "vitest";
 import jsfeatNext from "../src/jsfeatNext";
 import jsfeat from "../tests/vendor/oracle.cjs";
 
@@ -94,14 +94,16 @@ import jsfeat from "../tests/vendor/oracle.cjs";
 const STEADY_SIZE = 2048; // <= the pool's pre-allocated 2560B, so resize never fires
 
 describe("cache.get_buffer + put_buffer — steady state (no resize)", () => {
-    bench("jsfeatNext", () => {
-        const node = jsfeatNext.cache.get_buffer(STEADY_SIZE);
-        jsfeatNext.cache.put_buffer(node);
-    });
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            const node = jsfeatNext.cache.get_buffer(STEADY_SIZE);
+            jsfeatNext.cache.put_buffer(node);
+        }).run();
 
-    bench("jsfeat (reference)", () => {
-        const node = jsfeat.cache.get_buffer(STEADY_SIZE);
-        jsfeat.cache.put_buffer(node);
+        await bench("jsfeat (reference)", () => {
+            const node = jsfeat.cache.get_buffer(STEADY_SIZE);
+            jsfeat.cache.put_buffer(node);
+        }).run();
     });
 });
 
@@ -124,50 +126,53 @@ describe("_pool_node_t.resize — forced every call", () => {
     // node, one fixed size, every call, both sides doing identical work
     // regardless of how many iterations either completes.
     //
-    // The node is borrowed in `setup` rather than the `describe` body.
-    // `describe` bodies run during collection, unconditionally, even for a
-    // `bench()` task a name filter (`--testNamePattern`) later excludes from
-    // actually running -- a borrow there would never be matched by this
-    // task's own `teardown`, which only fires for tasks that run. `setup`
-    // only fires for a task that is actually about to execute, so a filtered
-    // out task borrows nothing and leaks nothing (verified empirically).
+    // The node is borrowed in the case's `beforeAll` hook rather than the
+    // `describe` body. `describe` bodies run during collection,
+    // unconditionally, even for a test a name filter (`--testNamePattern`)
+    // later excludes from actually running -- a borrow there would never be
+    // matched by this case's own `afterAll`, which only fires for cases that
+    // run. `beforeAll` only fires for a case that is actually about to
+    // execute, so a filtered-out test borrows nothing and leaks nothing.
     const RESIZE_TARGET = 65536;
     let nodeN: ReturnType<typeof jsfeatNext.cache.get_buffer>;
     let nodeO: ReturnType<typeof jsfeat.cache.get_buffer>;
 
-    bench(
-        "jsfeatNext",
-        () => {
-            nodeN.resize(RESIZE_TARGET);
-        },
-        {
-            // setup/teardown fire for both the warmup and the run mode; only
-            // borrow once (warmup, the first phase) and only return once
-            // (run, the last phase, proven to fire after warmup), so the
-            // node isn't back in the pool -- available to some other
-            // caller -- while this case's own iterations are still mutating
-            // it.
-            setup: (_task, mode) => {
-                if (mode === "warmup") nodeN = jsfeatNext.cache.get_buffer(1);
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench(
+            "jsfeatNext",
+            {
+                // beforeAll/afterAll fire for both the warmup and the run phase
+                // (once each, with the phase as `mode`); only borrow once
+                // (warmup, the first phase) and only return once
+                // (run, the last phase, proven to fire after warmup), so the
+                // node isn't back in the pool -- available to some other
+                // caller -- while this case's own iterations are still mutating
+                // it.
+                beforeAll: (mode) => {
+                    if (mode === "warmup") nodeN = jsfeatNext.cache.get_buffer(1);
+                },
+                afterAll: (mode) => {
+                    if (mode === "run") jsfeatNext.cache.put_buffer(nodeN);
+                },
             },
-            teardown: (_task, mode) => {
-                if (mode === "run") jsfeatNext.cache.put_buffer(nodeN);
-            },
-        }
-    );
+            () => {
+                nodeN.resize(RESIZE_TARGET);
+            }
+        ).run();
 
-    bench(
-        "jsfeat (reference)",
-        () => {
-            nodeO.resize(RESIZE_TARGET);
-        },
-        {
-            setup: (_task, mode) => {
-                if (mode === "warmup") nodeO = jsfeat.cache.get_buffer(1);
+        await bench(
+            "jsfeat (reference)",
+            {
+                beforeAll: (mode) => {
+                    if (mode === "warmup") nodeO = jsfeat.cache.get_buffer(1);
+                },
+                afterAll: (mode) => {
+                    if (mode === "run") jsfeat.cache.put_buffer(nodeO);
+                },
             },
-            teardown: (_task, mode) => {
-                if (mode === "run") jsfeat.cache.put_buffer(nodeO);
-            },
-        }
-    );
+            () => {
+                nodeO.resize(RESIZE_TARGET);
+            }
+        ).run();
+    });
 });

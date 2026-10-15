@@ -36,7 +36,7 @@
  *
  */
 
-import { bench, describe } from "vitest";
+import { describe, test } from "vitest";
 import jsfeatNext from "../src/jsfeatNext";
 import jsfeat from "../tests/vendor/oracle.cjs";
 import { point_t } from "../src/point_t/point_t";
@@ -135,12 +135,14 @@ describe("homography2d.run — 4 points (RANSAC minimal sample)", () => {
     const { model, modelO } = models();
     const kernelO = new jsfeat.motion_model.homography2d();
 
-    bench("jsfeatNext", () => {
-        jsfeatNext.homography2d.run(from, to, model, 4);
-    });
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.homography2d.run(from, to, model, 4);
+        }).run();
 
-    bench("jsfeat (reference)", () => {
-        kernelO.run(from, to, modelO, 4);
+        await bench("jsfeat (reference)", () => {
+            kernelO.run(from, to, modelO, 4);
+        }).run();
     });
 });
 
@@ -148,12 +150,14 @@ describe("homography2d.run — 40 points (final refit)", () => {
     const { model, modelO } = models();
     const kernelO = new jsfeat.motion_model.homography2d();
 
-    bench("jsfeatNext", () => {
-        jsfeatNext.homography2d.run(from, to, model, FULL);
-    });
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.homography2d.run(from, to, model, FULL);
+        }).run();
 
-    bench("jsfeat (reference)", () => {
-        kernelO.run(from, to, modelO, FULL);
+        await bench("jsfeat (reference)", () => {
+            kernelO.run(from, to, modelO, FULL);
+        }).run();
     });
 });
 
@@ -166,12 +170,14 @@ describe("homography2d.error — 40 points (per-iteration scoring)", () => {
     const err = new Float32Array(FULL);
     const errO = new Float32Array(FULL);
 
-    bench("jsfeatNext", () => {
-        jsfeatNext.homography2d.error(from, to, model, err, FULL);
-    });
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.homography2d.error(from, to, model, err, FULL);
+        }).run();
 
-    bench("jsfeat (reference)", () => {
-        kernelO.error(from, to, modelO, errO, FULL);
+        await bench("jsfeat (reference)", () => {
+            kernelO.error(from, to, modelO, errO, FULL);
+        }).run();
     });
 });
 
@@ -180,12 +186,14 @@ describe("homography2d.check_subset — 4 points (allocates matmath in jsfeatNex
     // jsfeat does not. RANSAC calls this once per iteration.
     const kernelO = new jsfeat.motion_model.homography2d();
 
-    bench("jsfeatNext", () => {
-        jsfeatNext.homography2d.check_subset(from, to, 4);
-    });
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.homography2d.check_subset(from, to, 4);
+        }).run();
 
-    bench("jsfeat (reference)", () => {
-        kernelO.check_subset(from, to, 4);
+        await bench("jsfeat (reference)", () => {
+            kernelO.check_subset(from, to, 4);
+        }).run();
     });
 });
 
@@ -195,12 +203,14 @@ describe("affine2d.run — 3 points (RANSAC minimal sample)", () => {
     const { model, modelO } = models();
     const kernelO = new jsfeat.motion_model.affine2d();
 
-    bench("jsfeatNext", () => {
-        jsfeatNext.affine2d.run(from, to, model, 3);
-    });
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.affine2d.run(from, to, model, 3);
+        }).run();
 
-    bench("jsfeat (reference)", () => {
-        kernelO.run(from, to, modelO, 3);
+        await bench("jsfeat (reference)", () => {
+            kernelO.run(from, to, modelO, 3);
+        }).run();
     });
 });
 
@@ -208,12 +218,14 @@ describe("affine2d.run — 40 points (final refit)", () => {
     const { model, modelO } = models();
     const kernelO = new jsfeat.motion_model.affine2d();
 
-    bench("jsfeatNext", () => {
-        jsfeatNext.affine2d.run(from, to, model, FULL);
-    });
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.affine2d.run(from, to, model, FULL);
+        }).run();
 
-    bench("jsfeat (reference)", () => {
-        kernelO.run(from, to, modelO, FULL);
+        await bench("jsfeat (reference)", () => {
+            kernelO.run(from, to, modelO, FULL);
+        }).run();
     });
 });
 
@@ -225,11 +237,13 @@ describe("affine2d.error — 40 points (per-iteration scoring)", () => {
     const err = new Float32Array(FULL);
     const errO = new Float32Array(FULL);
 
-    bench("jsfeatNext", () => {
-        jsfeatNext.affine2d.error(from, to, model, err, FULL);
-    });
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.affine2d.error(from, to, model, err, FULL);
+        }).run();
 
-    bench("jsfeat (reference)", () => {
-        kernelO.error(from, to, modelO, errO, FULL);
+        await bench("jsfeat (reference)", () => {
+            kernelO.error(from, to, modelO, errO, FULL);
+        }).run();
     });
 });

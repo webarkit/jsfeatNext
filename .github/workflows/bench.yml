@@ -60,12 +60,15 @@ jobs:
             - name: Warm-up run (discarded)
               run: npx vitest bench --run
 
+            # Vitest 5 has no --outputJson: the json reporter writes the raw file
+            # that scripts/bench-ratios.mjs reduces to ratios, next to the
+            # default reporter's console tables.
             - name: Measured runs
               run: |
                   mkdir -p bench-results
                   for i in $(seq 1 "${{ inputs.runs || 2 }}"); do
                     echo "::group::run $i"
-                    npx vitest bench --run --outputJson "bench-results/raw-$i.json"
+                    npx vitest bench --run --reporter=default --reporter=json --outputFile.json="bench-results/raw-$i.json"
                     node scripts/bench-ratios.mjs "bench-results/raw-$i.json" \
                       --json "bench-results/ratios-$i.json"
                     echo "::endgroup::"

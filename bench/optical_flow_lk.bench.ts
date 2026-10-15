@@ -36,7 +36,7 @@
  *
  */
 
-import { bench, describe } from "vitest";
+import { describe, test } from "vitest";
 import jsfeatNext from "../src/jsfeatNext";
 import jsfeat from "../tests/vendor/oracle.cjs";
 import type { matrix_t } from "../src/matrix_t/matrix_t";
@@ -159,33 +159,35 @@ describe("optical_flow_lk.track (~966 points)", () => {
     const statusN = new Uint8Array(seed.n);
     const statusO = new Uint8Array(seed.n);
 
-    bench("jsfeatNext", () => {
-        jsfeatNext.optical_flow_lk.track(
-            pyrN,
-            pyrN,
-            seed.xy,
-            currN,
-            seed.n,
-            WIN_SIZE,
-            MAX_ITER,
-            statusN,
-            EPSILON,
-            MIN_EIGEN
-        );
-    });
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.optical_flow_lk.track(
+                pyrN,
+                pyrN,
+                seed.xy,
+                currN,
+                seed.n,
+                WIN_SIZE,
+                MAX_ITER,
+                statusN,
+                EPSILON,
+                MIN_EIGEN
+            );
+        }).run();
 
-    bench("jsfeat (reference)", () => {
-        jsfeat.optical_flow_lk.track(
-            pyrO,
-            pyrO,
-            seed.xy,
-            currO,
-            seed.n,
-            WIN_SIZE,
-            MAX_ITER,
-            statusO,
-            EPSILON,
-            MIN_EIGEN
-        );
+        await bench("jsfeat (reference)", () => {
+            jsfeat.optical_flow_lk.track(
+                pyrO,
+                pyrO,
+                seed.xy,
+                currO,
+                seed.n,
+                WIN_SIZE,
+                MAX_ITER,
+                statusO,
+                EPSILON,
+                MIN_EIGEN
+            );
+        }).run();
     });
 });
