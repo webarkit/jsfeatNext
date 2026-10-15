@@ -3,3 +3,6 @@
 # without this, Windows checkouts get CRLF and local format-checks disagree
 # with CI.
 * text=auto eol=lf
+
+# Committed OpenCV scene dump (#132): a binary PGM, so never EOL-normalised or text-diffed
+tests/fixtures/opencv/*.pgm binary
