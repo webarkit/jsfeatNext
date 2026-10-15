@@ -59,7 +59,7 @@ SCENE_NAME = "scene-640x480.pgm"
 OPENCV_DIST = "opencv-contrib-python"
 NUMPY_DIST = "numpy"
 
-Toolchain = namedtuple("Toolchain", "cv2 np")
+Toolchain = namedtuple("Toolchain", "cv2 np build contrib_build")
 Scene = namedtuple("Scene", "name path image sha256")
 
 
@@ -125,7 +125,30 @@ def require_pinned_toolchain() -> Toolchain:
             f"but the installed numpy is {np.__version__}.\n"
             f"Reinstall: python -m pip install -r scripts/{REQUIREMENTS.name}"
         )
-    return Toolchain(cv2, np)
+
+    # The reference behaviour is OpenCV's generic CPU path, as in PureCV's
+    # cpp_ref (CONTRIBUTING.md, "OpenCV Reference Version"): Intel IPP can take
+    # a different code path for some functions, so it is switched off before
+    # any fixture is produced, and the run fails if it cannot be.
+    cv2.ipp.setUseIPP(False)
+    if cv2.ipp.useIPP():
+        sys.exit("error: could not disable Intel IPP (cv2.ipp.setUseIPP(False) had no effect)")
+
+    build = build_version(cv2, "Version control:")
+    contrib_build = build_version(cv2, "Version control (extra):")
+    return Toolchain(cv2, np, build, contrib_build)
+
+
+def build_version(cv2, label: str) -> str:
+    """The value of one ``Version control`` line of ``cv2.getBuildInformation()``.
+
+    It names the source tree the wheel was built from (``4.10.0`` for a release
+    build), which ``cv2.__version__`` alone does not. Every fixture records it.
+    """
+    for line in cv2.getBuildInformation().splitlines():
+        if line.strip().startswith(label):
+            return line.strip()[len(label):].strip()
+    sys.exit(f"error: cv2.getBuildInformation() has no {label!r} line")
 
 
 # ---------------------------------------------------------------------------
@@ -151,6 +174,9 @@ def envelope(tc: Toolchain, algorithm: str, params: dict, payload: dict | list, 
     """Wrap ``payload`` in the common ``meta`` block."""
     meta = {
         "opencv_version": tc.cv2.__version__,
+        "opencv_build": tc.build,
+        "opencv_contrib_build": tc.contrib_build,
+        "ipp": False,
         "algorithm": algorithm,
         "params": params,
     }

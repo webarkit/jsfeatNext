@@ -45,7 +45,7 @@ In the browser (UMD build), the global is the namespace directly:
 - The natural-feature pipeline end to end: FAST/YAPE detection → ORB descriptors → `bfmatcher` Hamming matching → GMS filtering → RANSAC homography → `pose_estimator` camera pose `(R, t)`. The pluggable `CvBackend` contract and its jsfeatNext adapter live in [webarkit/webarkit](https://github.com/webarkit/webarkit) (`packages/cv-backend-spec`, `packages/cv-backend-jsfeatnext`); jsfeatNext itself stays contract-agnostic.
 - UMD (browser `<script>`) + ESM builds, built with **Vite** library mode
 - npm package
-- 460+ tests across 34 files: characterization tests asserting numeric/behavioral parity against the original jsfeat, plus property/invariant tests, ground-truth reference tests, and a registry of intentional divergences
+- 560+ tests across 34 files: characterization tests asserting numeric/behavioral parity against the original jsfeat, plus property/invariant tests, ground-truth reference tests, and a registry of intentional divergences
 
 ## Modules 📚
 

@@ -1,6 +1,9 @@
 {
  "meta": {
   "algorithm": "matchGMS",
+  "ipp": false,
+  "opencv_build": "4.10.0",
+  "opencv_contrib_build": "4.10.0",
   "opencv_version": "4.10.0",
   "params": {
    "inliers": "share 0.6 of view 1, match (i, i); an inlier leaving view 2 gets no match",

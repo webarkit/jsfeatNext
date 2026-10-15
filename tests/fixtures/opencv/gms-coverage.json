@@ -1,6 +1,9 @@
 {
  "meta": {
   "algorithm": "matchGMS",
+  "ipp": false,
+  "opencv_build": "4.10.0",
+  "opencv_contrib_build": "4.10.0",
   "opencv_version": "4.10.0",
   "params": {
    "cases": 33,

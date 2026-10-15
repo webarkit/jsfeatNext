@@ -64,6 +64,12 @@ const SCENE_FILE = "scene-640x480.pgm";
 export interface FixtureMeta {
     /** `cv2.__version__` of the run that produced the fixture. */
     opencv_version: string;
+    /** The `Version control:` line of `cv2.getBuildInformation()`: the opencv tree the wheel was built from. */
+    opencv_build: string;
+    /** The `Version control (extra):` line: the opencv_contrib tree the wheel was built from. */
+    opencv_contrib_build: string;
+    /** Whether Intel IPP was enabled. Always `false`: fixtures pin OpenCV's generic CPU path. */
+    ipp: boolean;
     /** Which algorithm the fixture pins, e.g. `"integral"`. */
     algorithm: string;
     /** The parameters of that run, so the fixture documents what it pins. */

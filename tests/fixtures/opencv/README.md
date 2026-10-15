@@ -47,7 +47,15 @@ The generator reads that pin and **refuses to run** (non-zero exit, a message
 naming both versions) unless `cv2.__version__` matches it, so a wrong version is
 an explicit error instead of silent drift between fixtures generated in
 different sessions. The version that produced each fixture is also written into
-its `meta.opencv_version`.
+its `meta.opencv_version`, together with the `Version control` lines of
+`cv2.getBuildInformation()` (the opencv and opencv_contrib trees the wheel was
+built from).
+
+The generator also switches **Intel IPP off** (`cv2.ipp.setUseIPP(False)`)
+before producing anything, and fails if it cannot: the reference is OpenCV's
+generic CPU path, as in PureCV's `cpp_ref`, and IPP can take a different code
+path for some functions. Every fixture records `"ipp": false`. Turning it off
+changed no fixture payload.
 
 ## Regenerating
 
@@ -130,6 +138,9 @@ algorithm-specific `payload`.
 {
  "meta": {
   "opencv_version": "A.B.C",         // cv2.__version__ of the run that produced it
+  "opencv_build": "A.B.C",           // "Version control:" line of getBuildInformation()
+  "opencv_contrib_build": "A.B.C",   // "Version control (extra):" line
+  "ipp": false,                      // Intel IPP disabled: the generic CPU path
   "algorithm": "integral",           // which algorithm it pins
   "params": { "sdepth": "CV_32S" },  // the parameters of that run
   "image": "scene-640x480.pgm",      // present only when an image is involved

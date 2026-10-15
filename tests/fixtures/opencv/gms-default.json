@@ -2,6 +2,9 @@
  "meta": {
   "algorithm": "matchGMS",
   "image": "scene-640x480.pgm",
+  "ipp": false,
+  "opencv_build": "4.10.0",
+  "opencv_contrib_build": "4.10.0",
   "opencv_version": "4.10.0",
   "params": {
    "detector": "ORB_create(nfeatures=500).detectAndCompute",
