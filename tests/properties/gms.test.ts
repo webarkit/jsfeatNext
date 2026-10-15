@@ -299,6 +299,36 @@ describe("gms.filter edge cases (#134)", () => {
         );
     });
 
+    it("never lets a right keypoint wrap into the next grid row on a fractional image size", () => {
+        // With an integer size a coordinate below the size normalises to at
+        // most 1 - 2^-24 and never reaches the last grid column + 1. With a
+        // fractional one it can: x = 1000 is inside a 1000 + 1e-9 wide image,
+        // yet x / width rounds to exactly 1 in float32, so the column is the
+        // grid size itself. OpenCV has no bound test there and would index
+        // `x + y * 20` = cell (0, y + 1), the next row. gms gives it no cell.
+        const size2 = { width: 1000 + 1e-9, height: 480 };
+        expect(Math.fround(Math.fround(1000) / size2.width)).toBe(1);
+
+        // The cluster moves left cell (10, 10) to right cell (0, 10) of the
+        // 1000-wide image. The probe shares the left cell and sits at
+        // (1000, 230): row 9, so a wrap would land exactly in (0, 10) and
+        // the probe would be kept along with the cluster.
+        const cluster = clusterPairs().map(([x, y]) => [x, y, x - 320, y] as [number, number, number, number]);
+        const { kp1, kp2, matches } = build([...cluster, [330, 250, 1000, 230]]);
+        const probe = matches[16];
+        for (const [rot, scale] of [
+            [false, false],
+            [true, false],
+            [false, true],
+            [true, true],
+        ]) {
+            let out: match_t[] = [];
+            expect(() => (out = gms.filter(VGA, size2, kp1, kp2, matches, rot, scale))).not.toThrow();
+            expect(out).not.toContain(probe);
+        }
+        expect(gms.filter(VGA, size2, kp1, kp2, matches)).toEqual(matches.slice(0, 16));
+    });
+
     it("reads a keypoint coordinate as float32 first, as cv::KeyPoint stores it", () => {
         // x is not float32-exact, and the cell depends on the order of the
         // roundings: read as float32 first (OpenCV's KeyPoint::pt is a
