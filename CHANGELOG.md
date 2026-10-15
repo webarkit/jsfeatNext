@@ -1,4 +1,36 @@
 
+## 1.1.0 - 2026-10-15
+
+### 🐛 Bug Fixes
+
+- Detect ORB keypoints with a 20 px border, matching describe()'s margin (#233) (6d33058)
+
+
+### 📚 Documentation
+
+- Milestone 1.1.0 — GMS only (design, plan, D12) (#231) (75d21de)
+
+
+### 🚀 Features
+
+- Grid-based motion statistics match filter (#237) (d8bf828)
+
+
+### 🧪 Testing
+
+- OpenCV ground-truth harness, validated on compute_integral_image (#235) (290e176)
+
+- Migrate the benchmark suite to the vitest 5 bench API (#236) (ef426e7)
+
+
+### 🧹 Miscellaneous
+
+- Add an OpenCV/Apache-2.0 header variant, banner line and licence file (#234) (cb6f03d)
+
+- Upgrade dev dependencies and clear the npm audit findings (#242) (33afeee)
+
+
+
 ## 1.0.0 - 2026-09-30
 
 ### 🐛 Bug Fixes
