@@ -652,8 +652,9 @@ describe("intentional divergences from OpenCV", () => {
          *
          * The case below is the wrap: (-1, 250) is in OpenCV's cell 199 =
          * (19, 9), on the far edge of the image, where a cluster agrees with
-         * the match's train point. OpenCV 4.14.0 (opencv-contrib-python
-         * 4.14.0.94) keeps it, checked with this exact input; gms drops it.
+         * the match's train point. OpenCV 4.10.0 (opencv-contrib-python
+         * 4.10.0.84, the fixtures' pinned version) keeps it, as does 4.14.0,
+         * checked with this exact input; gms drops it.
          */
         it("drops a match whose query keypoint is left of the image, which OpenCV wraps into a supported cell", () => {
             const kp1: keypoint_t[] = [];

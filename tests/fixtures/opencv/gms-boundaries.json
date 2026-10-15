@@ -1,7 +1,7 @@
 {
  "meta": {
   "algorithm": "matchGMS",
-  "opencv_version": "4.14.0",
+  "opencv_version": "4.10.0",
   "params": {
    "points": "hand-placed at float-sensitive cell borders, see gms_boundaries()",
    "thresholdFactor": 6.0,

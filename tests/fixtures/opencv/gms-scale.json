@@ -2,7 +2,7 @@
  "meta": {
   "algorithm": "matchGMS",
   "image": "scene-640x480.pgm",
-  "opencv_version": "4.14.0",
+  "opencv_version": "4.10.0",
   "params": {
    "detector": "ORB_create(nfeatures=500).detectAndCompute",
    "matcher": "BFMatcher(NORM_HAMMING, crossCheck=False).match",

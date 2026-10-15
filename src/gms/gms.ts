@@ -138,7 +138,9 @@ interface gms_scratch_t {
  * `opencv_contrib/modules/xfeatures2d/src/gms.cpp` as of release 4.5.0, the
  * first release under Apache-2.0; the file is byte-identical through 4.14.0.
  * The port reproduces OpenCV's output bit-for-bit, which the OpenCV fixtures
- * in `tests/reference/gms.opencv.test.ts` pin. jsfeat had no GMS (#134).
+ * in `tests/reference/gms.opencv.test.ts` pin. They are generated with OpenCV
+ * 4.10.0, the reference version PureCV measures against. jsfeat had no GMS
+ * (#134).
  *
  * A stateless singleton: call it as `jsfeatNext.gms.filter(...)`.
  */

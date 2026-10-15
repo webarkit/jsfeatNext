@@ -33,6 +33,15 @@ than `opencv-python` because `cv::xfeatures2d::matchGMS`
 ([#134](https://github.com/webarkit/jsfeatNext/issues/134)) only ships in the
 contrib wheel.
 
+The pin is **OpenCV 4.10.0** (`opencv-contrib-python==4.10.0.84`,
+`numpy==2.4.6`), the same reference build PureCV measures parity against
+(`cpp_ref/` in [webarkit/purecv](https://github.com/webarkit/purecv), built from
+opencv_contrib commit `1ed3dd2c`). PureCV validates against jsfeatNext and
+jsfeatNext against OpenCV, so both links of that chain use one OpenCV. The
+fixtures were first generated with 4.14.0; regenerating them with 4.10.0
+changed nothing but `meta.opencv_version` (`gms.cpp` is byte-identical across
+both releases).
+
 The generator reads that pin and **refuses to run** (non-zero exit, a message
 naming both versions) unless `cv2.__version__` matches it, so a wrong version is
 an explicit error instead of silent drift between fixtures generated in
@@ -41,8 +50,8 @@ its `meta.opencv_version`.
 
 ## Regenerating
 
-From the repository root. Python 3.12 or newer is all that is needed (the pinned
-`numpy==2.5.4` declares `Requires-Python: >=3.12`); the virtualenv lives
+From the repository root. Python 3.11 or newer is all that is needed (the pinned
+`numpy==2.4.6` declares `Requires-Python: >=3.11`); the virtualenv lives
 in `.venv/`, which is gitignored and never committed.
 
 **Linux / macOS (bash)**

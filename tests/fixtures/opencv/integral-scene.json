@@ -2,7 +2,7 @@
  "meta": {
   "algorithm": "integral",
   "image": "scene-640x480.pgm",
-  "opencv_version": "4.14.0",
+  "opencv_version": "4.10.0",
   "params": {
    "sdepth": "CV_32S",
    "sqdepth": "CV_64F"

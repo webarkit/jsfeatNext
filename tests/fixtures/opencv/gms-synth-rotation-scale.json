@@ -1,7 +1,7 @@
 {
  "meta": {
   "algorithm": "matchGMS",
-  "opencv_version": "4.14.0",
+  "opencv_version": "4.10.0",
   "params": {
    "inliers": "share 0.8 of view 1, match (i, i); an inlier leaving view 2 gets no match",
    "outliers": "random view-2 point, match to a random trainIdx (many-to-one allowed)",
