@@ -59,7 +59,12 @@ SCENE_NAME = "scene-640x480.pgm"
 OPENCV_DIST = "opencv-contrib-python"
 NUMPY_DIST = "numpy"
 
-Toolchain = namedtuple("Toolchain", "cv2 np build contrib_build")
+# The other distributions that also install a top-level ``cv2`` package. With
+# any of them next to the pinned wheel, which ``cv2`` is imported is undefined,
+# so the guard refuses to run (#245).
+OTHER_OPENCV_DISTS = ("opencv-python", "opencv-python-headless", "opencv-contrib-python-headless")
+
+Toolchain = namedtuple("Toolchain", "cv2 np wheel build contrib_build")
 Scene = namedtuple("Scene", "name path image sha256")
 
 
@@ -102,6 +107,26 @@ def require_pinned_toolchain() -> Toolchain:
     cv2_pin = parse_pin(requirements, OPENCV_DIST)
     np_pin = parse_pin(requirements, NUMPY_DIST)
 
+    # The installed wheel itself, to all four parts (#245). cv2.__version__ is
+    # only A.B.C, so another build of the same release (4.10.0.82 instead of
+    # 4.10.0.84) would pass the module check below.
+    wheel = installed_version(OPENCV_DIST)
+    if wheel != cv2_pin:
+        sys.exit(
+            f"error: OpenCV wheel mismatch: {REQUIREMENTS.name} pins {OPENCV_DIST}=={cv2_pin}, "
+            f"but the installed {OPENCV_DIST} is {wheel or 'not installed'}.\n"
+            f"Refusing to generate fixtures with the wrong ground truth. "
+            f"Reinstall: python -m pip install -r scripts/{REQUIREMENTS.name}"
+        )
+    others = [f"{dist}=={installed_version(dist)}" for dist in OTHER_OPENCV_DISTS if installed_version(dist)]
+    if others:
+        sys.exit(
+            f"error: another OpenCV distribution is installed next to {OPENCV_DIST}=={cv2_pin}: "
+            f"{', '.join(others)}.\n"
+            f"Each provides cv2, and which one is imported is undefined. "
+            f"Uninstall it: python -m pip uninstall {' '.join(d.split('==')[0] for d in others)}"
+        )
+
     try:
         import cv2
         import numpy as np
@@ -136,7 +161,17 @@ def require_pinned_toolchain() -> Toolchain:
 
     build = build_version(cv2, "Version control:")
     contrib_build = build_version(cv2, "Version control (extra):")
-    return Toolchain(cv2, np, build, contrib_build)
+    return Toolchain(cv2, np, f"{OPENCV_DIST}=={wheel}", build, contrib_build)
+
+
+def installed_version(dist: str) -> str | None:
+    """The installed version of distribution ``dist``, or None if it is absent."""
+    from importlib.metadata import PackageNotFoundError, version
+
+    try:
+        return version(dist)
+    except PackageNotFoundError:
+        return None
 
 
 def build_version(cv2, label: str) -> str:
@@ -173,6 +208,7 @@ def load_scene(tc: Toolchain) -> Scene:
 def envelope(tc: Toolchain, algorithm: str, params: dict, payload: dict | list, scene: Scene | None = None) -> dict:
     """Wrap ``payload`` in the common ``meta`` block."""
     meta = {
+        "opencv_wheel": tc.wheel,
         "opencv_version": tc.cv2.__version__,
         "opencv_build": tc.build,
         "opencv_contrib_build": tc.contrib_build,

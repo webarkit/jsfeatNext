@@ -6,6 +6,7 @@
   "opencv_build": "4.10.0",
   "opencv_contrib_build": "4.10.0",
   "opencv_version": "4.10.0",
+  "opencv_wheel": "opencv-contrib-python==4.10.0.84",
   "params": {
    "detector": "ORB_create(nfeatures=500).detectAndCompute",
    "matcher": "BFMatcher(NORM_HAMMING, crossCheck=False).match",

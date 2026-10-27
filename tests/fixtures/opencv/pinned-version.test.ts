@@ -116,8 +116,17 @@ describe("OpenCV reference version (AGENTS.md)", () => {
 
     it.each(fixtures)("%s was generated with the pinned OpenCV, on the generic CPU path", (file) => {
         const { meta } = JSON.parse(readFileSync(join(FIXTURE_DIR, file), "utf8")) as {
-            meta: { opencv_version: string; opencv_build: string; opencv_contrib_build: string; ipp: boolean };
+            meta: {
+                opencv_wheel: string;
+                opencv_version: string;
+                opencv_build: string;
+                opencv_contrib_build: string;
+                ipp: boolean;
+            };
         };
+        // The exact wheel (#245): another build of the same A.B.C reports the
+        // same cv2.__version__ and the same "Version control" lines.
+        expect(meta.opencv_wheel).toBe(`opencv-contrib-python==${pin[1]}`);
         expect(meta.opencv_version).toBe(pin[2]);
         expect(meta.opencv_build).toBe(pin[2]);
         expect(meta.opencv_contrib_build).toBe(pin[2]);
