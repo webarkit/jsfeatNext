@@ -374,7 +374,11 @@ describe("imgproc.compute_integral_image — sum only", () => {
 describe("imgproc.compute_integral_image — sum + sqsum + tilted", () => {
     const { next, orig } = u8Pair();
     const len = (W + 1) * (H + 1);
-    const [sumN, sqN, tiltN, sumO, sqO, tiltO] = Array.from({ length: 6 }, () => new Int32Array(len));
+    // sum and tilted fit in 32 bits (at most 640·480·255 ≈ 7.8e7 here), but
+    // the squared sum does not (≈ 6.7e9 for this noise), so it gets doubles;
+    // an Int32Array would wrap on both sides and still compare equal.
+    const [sumN, tiltN, sumO, tiltO] = Array.from({ length: 4 }, () => new Int32Array(len));
+    const [sqN, sqO] = [new Float64Array(len), new Float64Array(len)];
     const runN = () => jsfeatNext.imgproc.compute_integral_image(next, sumN as never, sqN as never, tiltN as never);
     const runO = () => jsfeat.imgproc.compute_integral_image(orig, sumO, sqO, tiltO);
     assertSameWork("compute_integral_image sum", runN, runO, sumN, sumO);
@@ -459,6 +463,9 @@ describe("imgproc.warp_perspective — U8, full frame", () => {
         15,
         460
     );
+    // warp_perspective maps destination to source, so invert the forward
+    // homography first, exactly as examples/sample_warp_perspective.html does.
+    jsfeatNext.matmath.invert_3x3(tN, tN);
     for (let i = 0; i < 9; i++) tO.data[i] = tN.data[i];
     const dstN = new jsfeatNext.matrix_t(W, H, U8C1);
     const dstO = new jsfeat.matrix_t(W, H, OU8C1);
