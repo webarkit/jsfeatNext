@@ -62,6 +62,8 @@ const SCENE_FILE = "scene-640x480.pgm";
 
 /** The block every fixture shares, whatever its payload. */
 export interface FixtureMeta {
+    /** The exact installed wheel, `opencv-contrib-python==A.B.C.D` (#245). */
+    opencv_wheel: string;
     /** `cv2.__version__` of the run that produced the fixture. */
     opencv_version: string;
     /** The `Version control:` line of `cv2.getBuildInformation()`: the opencv tree the wheel was built from. */
