@@ -5,6 +5,7 @@
   "opencv_build": "4.10.0",
   "opencv_contrib_build": "4.10.0",
   "opencv_version": "4.10.0",
+  "opencv_wheel": "opencv-contrib-python==4.10.0.84",
   "params": {
    "cases": 33,
    "points": "quarter pixels; see gen_gms_coverage() and each case's label",

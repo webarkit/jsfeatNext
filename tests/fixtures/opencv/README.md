@@ -44,12 +44,19 @@ both releases). The rule, and how to change the version, is in the "OpenCV
 reference version" section of [`AGENTS.md`](../../../AGENTS.md).
 
 The generator reads that pin and **refuses to run** (non-zero exit, a message
-naming both versions) unless `cv2.__version__` matches it, so a wrong version is
-an explicit error instead of silent drift between fixtures generated in
-different sessions. The version that produced each fixture is also written into
-its `meta.opencv_version`, together with the `Version control` lines of
+naming both versions) unless the installed `opencv-contrib-python` wheel equals
+it to all four parts, `A.B.C.D`, and `cv2.__version__` reports its `A.B.C`. The
+wheel is checked, not just the module: another build of the same release (say
+`4.10.0.82`) reports the same `cv2.__version__` and the same `Version control`
+lines, but is a different binary (#245). It also refuses to run when another
+distribution that provides `cv2` is installed in the same environment
+(`opencv-python`, `opencv-python-headless`, `opencv-contrib-python-headless`),
+since which one is imported is then undefined. A wrong toolchain is an explicit
+error instead of silent drift between fixtures generated in different
+sessions. Each fixture records the exact wheel in `meta.opencv_wheel` and the
+version in `meta.opencv_version`, together with the `Version control` lines of
 `cv2.getBuildInformation()` (the opencv and opencv_contrib trees the wheel was
-built from).
+built from); `pinned-version.test.ts` checks every one of them against the pin.
 
 The generator also switches **Intel IPP off** (`cv2.ipp.setUseIPP(False)`)
 before producing anything, and fails if it cannot: the reference is OpenCV's
@@ -137,6 +144,7 @@ algorithm-specific `payload`.
 ```jsonc
 {
  "meta": {
+  "opencv_wheel": "opencv-contrib-python==A.B.C.D", // the exact installed wheel
   "opencv_version": "A.B.C",         // cv2.__version__ of the run that produced it
   "opencv_build": "A.B.C",           // "Version control:" line of getBuildInformation()
   "opencv_contrib_build": "A.B.C",   // "Version control (extra):" line
