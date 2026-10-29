@@ -56,6 +56,9 @@ const ORIGINAL_SRC = new Set([
     // pose_estimator is a new module: jsfeat has no pose/homography-
     // decomposition code, so nothing here is derived from it.
     "src/pose_estimator/pose_estimator.ts",
+    // the TEBLID example (#135) is written from scratch for this library, not
+    // adapted from a jsfeat sample page
+    "examples/sample_teblid.html",
 ]);
 
 /**

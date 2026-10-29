@@ -1,0 +1,252 @@
+<!doctype html>
+<!--
+   sample_teblid.html
+   jsfeatNext
+
+   This file is part of jsfeatNext - WebARKit.
+
+   SPDX-License-Identifier: LGPL-3.0-or-later
+
+   jsfeatNext is free software: you can redistribute it and/or modify
+   it under the terms of the GNU Lesser General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   jsfeatNext is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Lesser General Public License for more details.
+
+   You should have received a copy of the GNU Lesser General Public License
+   along with jsfeatNext.  If not, see <http://www.gnu.org/licenses/>.
+
+   As a special exception, the copyright holders of this library give you
+   permission to link this library with independent modules to produce an
+   executable, regardless of the license terms of these independent modules, and to
+   copy and distribute the resulting executable under terms of your choice,
+   provided that you also meet, for each linked independent module, the terms and
+   conditions of the license of that module. An independent module is a module
+   which is neither derived from nor based on this library. If you modify this
+   library, you may extend this exception to your version of the library, but you
+   are not obligated to do so. If you do not wish to do so, delete this exception
+   statement from your version.
+
+   Copyright 2026 WebARKit.
+
+   Author(s): Walter Perdan @kalwalt https://github.com/kalwalt
+
+-->
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>jsfeatNext - TEBLID matching</title>
+    <style>
+        body { font-family: sans-serif; margin: 10px auto; max-width: 1100px; padding: 0 10px; }
+        canvas { max-width: 100%; border: 1px solid #d3d3d3; }
+        #controls { margin: 10px 0; }
+        #stats { font-family: monospace; white-space: pre; margin: 10px 0; }
+        #error { display: none; padding: 10px; border: 1px solid #c00; background: #fee; color: #900; }
+    </style>
+</head>
+
+<body>
+    <h3>TEBLID: a descriptor that survives rotation and scale</h3>
+    <p>
+        Left: <code>img/pinball.jpg</code>. Right: the same picture rotated by 30 degrees and scaled by 0.8.
+        Each view gets FAST corners, an orientation from <code>orb.ic_angle</code> and <code>size = 31</code>,
+        then <code>teblid.describe</code>. A line joins the matches that pass the ratio test
+        (<code>bfmatcher.knnMatch</code> with k = 2, ratio 0.75). Green lines agree with the known
+        transform within 3 px, red lines do not.
+    </p>
+    <div id="error"></div>
+    <div id="controls">
+        <label>Descriptor bits
+            <select id="bits">
+                <option value="256" selected>256</option>
+                <option value="512">512</option>
+            </select>
+        </label>
+        <label><input type="checkbox" id="orb"> ORB on the same keypoints</label>
+    </div>
+    <canvas id="canvas" width="10" height="10"></canvas>
+    <div id="stats">Loading...</div>
+
+    <!-- ES module example: serve over http:// (e.g. `npx serve .`), not file:// -->
+    <script type="module">
+        import jsfeatNext from '../dist/jsfeatNext.mjs';
+
+        const ANGLE_DEG = 30;
+        const SCALE = 0.8;
+        const MAX_KEYPOINTS = 500;
+        const BORDER = 24; // keeps the 31 px patch (and ic_angle's disc) inside the image
+        const RATIO = 0.75;
+        const TOLERANCE = 3; // px, for the green/red colouring
+
+        const $ = (id) => document.getElementById(id);
+        const canvas = $('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+        function showError(err) {
+            const box = $('error');
+            box.textContent = 'The demo failed: ' + (err && err.message ? err.message : err);
+            box.style.display = 'block';
+            $('stats').textContent = '';
+        }
+
+        function loadImage(src) {
+            // The load event, not image.decode(): decode() can stay pending in a background tab.
+            return new Promise((resolve, reject) => {
+                const image = new Image();
+                image.onload = () => resolve(image);
+                image.onerror = () => reject(new Error('could not load ' + src));
+                image.src = src;
+            });
+        }
+
+        // Grayscale + blur + FAST + strongest 500 + orientation + size, on one view.
+        function detect(view) {
+            const { width: w, height: h } = view.canvas;
+            const rgba = view.ctx.getImageData(0, 0, w, h).data;
+            const gray = new jsfeatNext.matrix_t(w, h, jsfeatNext.U8C1_t);
+            const smooth = new jsfeatNext.matrix_t(w, h, jsfeatNext.U8C1_t);
+            jsfeatNext.imgproc.grayscale(rgba, w, h, gray);
+            jsfeatNext.imgproc.gaussian_blur(gray, smooth, 5);
+
+            const corners = [];
+            for (let i = 0; i < w * h; i++) corners[i] = new jsfeatNext.keypoint_t(0, 0, 0, 0, -1);
+            jsfeatNext.fast_corners.set_threshold(20);
+            let count = jsfeatNext.fast_corners.detect(smooth, corners, BORDER);
+            if (count > MAX_KEYPOINTS) {
+                jsfeatNext.math.qsort(corners, 0, count - 1, (a, b) => b.score < a.score);
+                count = MAX_KEYPOINTS;
+            }
+            for (let i = 0; i < count; i++) {
+                corners[i].angle = jsfeatNext.orb.ic_angle(smooth, corners[i].x, corners[i].y);
+                corners[i].size = 31; // required by teblid.describe; one level, so pixels of this image
+            }
+            return { smooth, corners, count };
+        }
+
+        function describeAll(describe) {
+            const t0 = performance.now();
+            describe(a);
+            describe(b);
+            return performance.now() - t0;
+        }
+
+        function match(da, db) {
+            const knn = jsfeatNext.bfmatcher.knnMatch(da, db, 2);
+            return jsfeatNext.bfmatcher.ratio_test(knn, RATIO);
+        }
+
+        let a, b, offsetX, forward;
+
+        function run() {
+            const bits = Number($('bits').value);
+            const withOrb = $('orb').checked;
+
+            const teblid = { a: new jsfeatNext.matrix_t(32, 1, jsfeatNext.U8C1_t), b: new jsfeatNext.matrix_t(32, 1, jsfeatNext.U8C1_t) };
+            const ms = describeAll((v) => {
+                const m = v === a ? teblid.a : teblid.b;
+                jsfeatNext.teblid.describe(v.smooth, v.corners, v.count, m, { bits, scale_factor: 1.0 });
+            });
+            const matches = match(teblid.a, teblid.b);
+
+            // redraw both views, then the lines
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(a.canvas, 0, 0);
+            ctx.drawImage(b.canvas, offsetX, 0);
+            let consistent = 0;
+            ctx.lineWidth = 1;
+            for (const m of matches) {
+                const p = a.corners[m.queryIdx];
+                const q = b.corners[m.trainIdx];
+                const e = forward(p.x, p.y);
+                const ok = Math.hypot(e.x - q.x, e.y - q.y) <= TOLERANCE;
+                if (ok) consistent++;
+                ctx.strokeStyle = ok ? 'rgba(0,255,0,0.8)' : 'rgba(255,0,0,0.6)';
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(offsetX + q.x, q.y);
+                ctx.stroke();
+            }
+
+            let text =
+                'keypoints: ' + a.count + ' (left), ' + b.count + ' (right)\n' +
+                'TEBLID ' + bits + ' bits: ' + matches.length + ' matches (' + consistent + ' agree with the transform), ' +
+                'describe ' + ms.toFixed(1) + ' ms for both views';
+
+            if (withOrb) {
+                const orb = { a: new jsfeatNext.matrix_t(32, 1, jsfeatNext.U8C1_t), b: new jsfeatNext.matrix_t(32, 1, jsfeatNext.U8C1_t) };
+                const orbMs = describeAll((v) => {
+                    jsfeatNext.orb.describe(v.smooth, v.corners, v.count, v === a ? orb.a : orb.b);
+                });
+                const orbMatches = match(orb.a, orb.b);
+                let orbOk = 0;
+                for (const m of orbMatches) {
+                    const p = a.corners[m.queryIdx];
+                    const q = b.corners[m.trainIdx];
+                    const e = forward(p.x, p.y);
+                    if (Math.hypot(e.x - q.x, e.y - q.y) <= TOLERANCE) orbOk++;
+                }
+                text += '\nORB 256 bits:    ' + orbMatches.length + ' matches (' + orbOk + ' agree with the transform), ' +
+                    'describe ' + orbMs.toFixed(1) + ' ms for both views';
+            }
+            $('stats').textContent = text;
+        }
+
+        try {
+            const image = await loadImage('img/pinball.jpg');
+            const w = image.width, h = image.height;
+
+            // second view: rotate by 30 degrees and scale by 0.8 around the centre,
+            // on a canvas just big enough for the result
+            const rad = (ANGLE_DEG * Math.PI) / 180;
+            const cos = Math.cos(rad), sin = Math.sin(rad);
+            const w2 = Math.ceil(SCALE * (w * Math.abs(cos) + h * Math.abs(sin)));
+            const h2 = Math.ceil(SCALE * (w * Math.abs(sin) + h * Math.abs(cos)));
+            forward = (x, y) => {
+                const dx = x - w / 2, dy = y - h / 2;
+                return {
+                    x: w2 / 2 + SCALE * (cos * dx - sin * dy),
+                    y: h2 / 2 + SCALE * (sin * dx + cos * dy),
+                };
+            };
+
+            const mk = (cw, ch) => {
+                const c = document.createElement('canvas');
+                c.width = cw;
+                c.height = ch;
+                return { canvas: c, ctx: c.getContext('2d', { willReadFrequently: true }) };
+            };
+            const viewA = mk(w, h);
+            viewA.ctx.drawImage(image, 0, 0);
+            const viewB = mk(w2, h2);
+            viewB.ctx.fillStyle = 'rgb(128,128,128)'; // neutral, so the border of the rotated image makes few corners
+            viewB.ctx.fillRect(0, 0, w2, h2);
+            viewB.ctx.translate(w2 / 2, h2 / 2);
+            viewB.ctx.rotate(rad);
+            viewB.ctx.scale(SCALE, SCALE);
+            viewB.ctx.drawImage(image, -w / 2, -h / 2);
+
+            offsetX = w;
+            canvas.width = w + w2;
+            canvas.height = Math.max(h, h2);
+
+            a = { ...viewA, ...detect(viewA) };
+            b = { ...viewB, ...detect(viewB) };
+
+            $('bits').addEventListener('change', () => { try { run(); } catch (err) { showError(err); } });
+            $('orb').addEventListener('change', () => { try { run(); } catch (err) { showError(err); } });
+            run();
+        } catch (err) {
+            showError(err);
+            console.error(err);
+        }
+    </script>
+</body>
+
+</html>
