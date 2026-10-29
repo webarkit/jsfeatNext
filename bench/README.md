@@ -33,7 +33,7 @@ config does for you**: see
 | `yape.detect` | 1.11 / 1.02 / 1.05\* / 1.00 | **resolved** (#166) |
 | `matmath.invert_3x3` | 1.03 / 1.09 / 1.12 / 1.10 | **resolved** (#165) |
 | `linalg.svd_*`, `eigenVV` | all ≤ 1.17 | **resolved** (#159) |
-| **`imgproc.box_blur_gray`** radius 2 | 1.31 / 1.15 / 1.20 / 1.23 (jsfeat faster in all four; an earlier series read 1.27 / 2.31 / 1.18 / 1.84) | **new, open** (#168): 1.21–1.27 on the built bundle, so not the harness artefact. Suspected: the #114 rewrite (clamping ternaries and `Math.floor(sum / area)` in the inner loops). See [the rest of imgproc](#phase-2-continued-the-rest-of-imgproc-168) |
+| **`imgproc.box_blur_gray`** radius 2 | 1.43 / 1.26 / 1.28 / 1.26 (jsfeat faster in all four, quiet machine; two loaded series agree) | **new, open** (#168): 1.19–1.28 on the built bundle, so not the harness artefact. Suspected: the #114 rewrite (clamping ternaries and `Math.floor(sum / area)` in the inner loops). See [the rest of imgproc](#phase-2-continued-the-rest-of-imgproc-168) |
 | `gms.filter` vs the matching step, default path — **not an A/B ratio** | 0.068 / 0.069 / 0.066 / 0.068 / 0.064 | **new** (#134): costs **0.07×** the `knnMatch` + `ratio_test` step it follows. Rotation 0.47×, scale 0.32×, rotation+scale 2.3× — see [GMS](#gms-what-it-costs-next-to-the-matching-step-134) |
 | everything else | within ±1.12 | noise |
 
@@ -895,52 +895,62 @@ source (as `examples/sample_warp_perspective.html` does). In the combined
 about 6.7e9 on this noise, and an `Int32Array` would wrap identically on both
 sides and still compare equal.
 
-**Result.** Two series, each of four runs of `npx vitest bench --run
-bench/imgproc.bench.ts` after one discarded warm-up run. Series B is the
-current one. Series A was taken before the two input corrections above, so its
-`warp_perspective` and combined `compute_integral_image` numbers measured the
-wrong input and are not shown. "jsfeat" means jsfeat was faster by that factor;
-unmarked numbers mean jsfeatNext was.
+**Result.** Three series, each of four runs of `npx vitest bench --run
+bench/imgproc.bench.ts` after one discarded warm-up run. **Series C is the one
+to quote**: it was taken on a quiet machine (see Conditions below). Series B,
+on a loaded one, is kept beside it as a cross-check. Series A was taken before
+the two input corrections above, so its `warp_perspective` and combined
+`compute_integral_image` numbers measured the wrong input; it is not tabled
+(its `box_blur_gray` read 1.27 / 2.31 / 1.18 / 1.84 jsfeat). "jsfeat" means
+jsfeat was faster by that factor; unmarked numbers mean jsfeatNext was.
 
-| case | series B, 4 runs | series A, 4 runs | reading |
+| case | series C (quiet), 4 runs | series B (loaded), 4 runs | reading |
 | --- | --- | --- | --- |
-| `grayscale` | 1.09 / 1.11 jsfeat / 1.04 / 1.07 jsfeat | 1.01 / 1.04 / 1.09 jsfeat / 1.04 | noise |
-| `pyrdown` | 1.01 / 1.37 jsfeat / 1.01 / 1.14 | 1.02 / 1.01 / 1.02 jsfeat / 1.27 | noise (outliers both ways) |
-| `pyramid_t.build` | 1.02 jsfeat / 1.08 jsfeat / 1.03 jsfeat / 1.06 jsfeat | 1.01 jsfeat / 1.00 jsfeat / 1.02 / 1.07 jsfeat | under the floor |
-| `compute_integral_image` sum only | 1.08 / 1.15 / 1.14 / 1.07 | 1.10 / 1.11 / 1.15 / 1.08 | jsfeatNext slightly faster in all eight, under the floor; 1.09–1.12 on the bundle |
-| `compute_integral_image` sum + sqsum + tilted | 1.07 / 1.34 / 1.03 jsfeat / 1.06 | — | noise (sign flips) |
-| `sobel_derivatives` | 1.03 / 1.05 jsfeat / 1.04 / 1.02 jsfeat | 1.02 / 1.04 / 1.11 jsfeat / 1.09 jsfeat | noise |
-| `scharr_derivatives` | 1.02 / 1.41 jsfeat / 1.00 / 1.02 jsfeat | 1.01 jsfeat / 1.08 jsfeat / 1.01 jsfeat / 1.06 | noise (one outlier) |
-| `warp_perspective` | 1.00 jsfeat / 1.02 / 1.02 / 1.02 | — | noise |
-| `warp_affine` | 1.01 jsfeat / 1.02 jsfeat / 1.02 / 1.03 | 1.02 jsfeat / 1.13 jsfeat / 1.06 jsfeat / 1.13 | noise |
-| `canny` | 1.02 jsfeat / 1.02 / 1.04 / 1.01 | 1.14 jsfeat / 1.04 / 1.02 / 1.05 | noise: the per-call `matrix_t` does not show at this size |
-| `equalize_histogram` | 1.01 / 1.01 jsfeat / 1.00 / 1.11 | 1.01 / 1.03 / 1.04 / 1.09 | noise |
-| **`box_blur_gray`** radius 2 | **1.31 / 1.15 / 1.20 / 1.23 jsfeat** | **1.27 / 2.31 / 1.18 / 1.84 jsfeat** | **finding**: jsfeat faster in all eight |
-| `skindetector` | 1.01 / 1.01 / 1.06 / 1.03, all jsfeat | 1.00 / 1.31 / 1.49 / 1.01 jsfeat | noise |
+| `grayscale` | 1.03 jsfeat / 1.04 jsfeat / 1.00 / 1.16 jsfeat | 1.09 / 1.11 jsfeat / 1.04 / 1.07 jsfeat | noise |
+| `pyrdown` | 1.03 / 1.00 / 1.02 jsfeat / 1.03 jsfeat | 1.01 / 1.37 jsfeat / 1.01 / 1.14 | noise |
+| `pyramid_t.build` | 1.01 jsfeat / 1.01 jsfeat / 1.01 / 1.05 | 1.02 jsfeat / 1.08 jsfeat / 1.03 jsfeat / 1.06 jsfeat | noise |
+| `compute_integral_image` sum only | 1.12 / 1.11 / 1.10 / 1.12 | 1.08 / 1.15 / 1.14 / 1.07 | jsfeatNext slightly faster in every run of every series, under the floor; 1.10–1.11 on the bundle |
+| `compute_integral_image` sum + sqsum + tilted | 1.11 / 1.16 / 1.02 / 1.08 | 1.07 / 1.34 / 1.03 jsfeat / 1.06 | under the floor (one sign flip in B) |
+| `sobel_derivatives` | 1.03 jsfeat / 1.02 jsfeat / 1.07 / 1.01 | 1.03 / 1.05 jsfeat / 1.04 / 1.02 jsfeat | noise |
+| `scharr_derivatives` | 1.02 / 1.02 jsfeat / 1.00 jsfeat / 1.01 jsfeat | 1.02 / 1.41 jsfeat / 1.00 / 1.02 jsfeat | noise |
+| `warp_perspective` | 1.01 / 1.01 / 1.01 jsfeat / 1.01 jsfeat | 1.00 jsfeat / 1.02 / 1.02 / 1.02 | parity |
+| `warp_affine` | 1.01 jsfeat / 1.02 jsfeat / 1.02 jsfeat / 1.23 | 1.01 jsfeat / 1.02 jsfeat / 1.02 / 1.03 | noise (one outlier) |
+| `canny` | 1.04 / 1.04 / 1.02 jsfeat / 1.00 jsfeat | 1.02 jsfeat / 1.02 / 1.04 / 1.01 | parity: the per-call `matrix_t` does not show at this size |
+| `equalize_histogram` | 1.01 jsfeat / 1.03 / 1.02 / 1.04 jsfeat | 1.01 / 1.01 jsfeat / 1.00 / 1.11 | noise |
+| **`box_blur_gray`** radius 2 | **1.43 / 1.26 / 1.28 / 1.26 jsfeat** | **1.31 / 1.15 / 1.20 / 1.23 jsfeat** | **finding**: jsfeat faster in every run of every series |
+| `skindetector` | 1.00 / 1.00 / 1.02 / 1.05 jsfeat | 1.01 / 1.01 / 1.06 / 1.03, all jsfeat | noise |
 
-Single runs were noisy in both series (in series A, `gaussian_blur` U8, an
-unchanged case, read 1.66 in run 2; in series B, `orb.describe` read 1.46 and
-1.29), which is why every reading above rests on the direction across all runs,
-not on one value.
+Series C is markedly tighter than B: outside `box_blur_gray`, only three of its
+48 other readings pass 1.15, each by a little and each in a single run
+(`grayscale` 1.16 and `warp_affine` 1.23, both against the sign of their other
+three runs, and the combined integral image 1.16). In series B, `scharr`,
+`pyrdown`, `orb.describe` and the combined integral image each had a 1.3–1.5
+outlier. That is the load showing, and why every reading above rests on the
+direction across all runs, not on one value.
 
-**The finding: `box_blur_gray` is 1.15–2.3× slower than jsfeat.** It holds on the
-built bundle too (`npm run bench:dist`, three runs after a warm-up: 1.25 / 1.27
-/ 1.21 jsfeat), so it is not the module-runner artefact. Not diagnosed. The
-suspect is the #114 rewrite, which put a clamping ternary on every read and
-`Math.floor(sum / area)` (a float division) on every write of the inner loops,
-where jsfeat primes the window once and multiplies by a reciprocal. Hoisting the
-clamps out of the interior and dividing exactly only where it matters would be
-the first thing to try, under the parity tests and the #114 divergence tests.
-That is a `src/` change and belongs in its own issue, per #86.
+**The finding: `box_blur_gray` is about 1.25× slower than jsfeat** (1.26–1.43 in
+the quiet series). It holds on the built bundle too (`npm run bench:dist`, three
+runs after a warm-up, twice: 1.25 / 1.27 / 1.21 on the loaded machine and 1.24
+/ 1.19 / 1.28 on the quiet one), so it is not the module-runner artefact. Not
+diagnosed. The suspect is the #114 rewrite, which put a clamping ternary on
+every read and `Math.floor(sum / area)` (a float division) on every write of the
+inner loops, where jsfeat primes the window once and multiplies by a reciprocal.
+Hoisting the clamps out of the interior and dividing exactly only where it
+matters would be the first thing to try, under the parity tests and the #114
+divergence tests. That is a `src/` change and belongs in its own issue, per #86.
 
-**Conditions, honestly.** Intel Core i7-9700, Windows 11, Node v24.21.0,
-Vitest 5.0.4. **The machine was not idle**: CPU load read about 18% before
-series A, and 13% before and 28% after series B (a browser and the Claude
-desktop app were running). Both sides of every ratio share those conditions,
-and the eight-run agreement on `box_blur_gray` is what the finding rests on,
-but this is not the idle-machine measurement the rest of this file asks for.
-Read the table as a direction, not a spread, and re-run it on an idle machine
-before quoting a number for any case other than the finding.
+**Conditions, honestly.** Intel Core i7-9700 (desktop, no battery), Windows 11,
+Node v24.21.0, Vitest 5.0.4. Load is the summed CPU time of every process over a
+5 s window, as a share of all 8 cores.
+
+- **Series C (quiet):** started only once two consecutive samples read under
+  20% (9.8% and 7.3%); 16.8% just before the first run and 2.9% after the last.
+  Freshly rebooted, Windows Explorer restarted (it had been holding about 25% on
+  its own) and OneDrive sync paused. The bundle re-check read 14.5% after it.
+  Not a lab-idle machine (a browser and the Claude desktop app stayed open), but
+  the quietest this file's imgproc numbers were taken on.
+- **Series B (loaded):** 13% before, 28% after.
+- **Series A (loaded):** about 18% before.
 
 Reproduce:
 
