@@ -35,12 +35,12 @@ config does for you**: see
 | `linalg.svd_*`, `eigenVV` | all ≤ 1.17 | **resolved** (#159) |
 | **`imgproc.box_blur_gray`** radius 2 | 1.43 / 1.26 / 1.28 / 1.26 (jsfeat faster in all four, quiet machine; two loaded series agree) | **new, open** (#168, fix tracked in [#251](https://github.com/webarkit/jsfeatNext/issues/251)): 1.19–1.28 on the built bundle, so not the harness artefact. Suspected: the #114 rewrite (clamping ternaries and `Math.floor(sum / area)` in the inner loops). See [the rest of imgproc](#phase-2-continued-the-rest-of-imgproc-168) |
 | `gms.filter` vs the matching step, default path — **not an A/B ratio** | 0.068 / 0.069 / 0.066 / 0.068 / 0.064 | **new** (#134): costs **0.07×** the `knnMatch` + `ratio_test` step it follows. Rotation 0.47×, scale 0.32×, rotation+scale 2.3× — see [GMS](#gms-what-it-costs-next-to-the-matching-step-134) |
-| `teblid.describe` vs `orb.describe`, 300 keypoints — **not an A/B ratio** | p256 1.63 / 1.53 / 1.59 / 1.57; p512 3.04 / 3.20 / 3.40 / 2.76 | **new** (#135): p256 costs **1.6×** and p512 **3.1×** `orb.describe` on the same keypoints — see [TEBLID](#teblid-what-it-costs-next-to-orbdescribe-135) |
+| `teblid.describe` vs `orb.describe`, 300 keypoints — **not an A/B ratio** | p256 1.55 / 1.62 / 1.55 / 1.54; p512 2.74 / 2.90 / 2.73 / 2.73 | **new** (#135): p256 costs **1.6×** and p512 **2.7×** `orb.describe` on the same keypoints — see [TEBLID](#teblid-what-it-costs-next-to-orbdescribe-135) |
 | everything else | within ±1.12 | noise |
 
 \* = jsfeatNext faster in that run.
 
-The `gms.filter` and `teblid.describe` rows are the exceptions to everything above it: jsfeat has no GMS, so it is a cost in units of the matching step in the same process (as "`yape06` costs N× `fast_corners`"), measured on Vitest 5 — five runs of `bench/gms.bench.ts` after one discarded warm-up, not part of the four-run series above.
+The `gms.filter` and `teblid.describe` rows are the exceptions to everything above it: jsfeat has no GMS, so it is a cost in units of the matching step in the same process (as "`yape06` costs N× `fast_corners`"), measured on Vitest 5, not part of the four-run series above: `gms.filter` from five runs of `bench/gms.bench.ts`, `teblid.describe` from four runs of `bench/teblid.bench.ts`, each after one discarded warm-up.
 
 **One caveat on `yape06`.** #166 measured it at 1.14–1.47 on its own branch and
 concluded the alias had *not* helped there. On merged `dev` it measures ~1.04.
@@ -1059,31 +1059,31 @@ four runs.
 
 | case | ms / call | N× orb.describe, 4 runs | median |
 | --- | --- | --- | --- |
-| `orb.describe (256 bits)` (the baseline) | 2.59 | 1 | 1 |
-| `teblid p256` | 4.09 | 1.63 / 1.53 / 1.59 / 1.57 | **1.6×** |
-| `teblid p512` | 8.03 | 3.04 / 3.20 / 3.40 / 2.76 | **3.1×** |
+| `orb.describe (256 bits)` (the baseline) | 2.49 | 1 | 1 |
+| `teblid p256` | 3.90 | 1.55 / 1.62 / 1.55 / 1.54 | **1.6×** |
+| `teblid p512` | 6.91 | 2.74 / 2.90 / 2.73 / 2.73 | **2.7×** |
 
 Reading it:
 
-- **TEBLID p256 costs about 1.6× `orb.describe`, p512 about 3.1×.** p512 is
-  about twice p256 in the same run (1.8–2.1×): it evaluates twice the weak
+- **TEBLID p256 costs about 1.6× `orb.describe`, p512 about 2.7×.** p512 is
+  about 1.75× p256 in the same run (1.76–1.79×): it evaluates twice the weak
   learners per keypoint.
 - p256 is the same descriptor size as ORB (32 bytes), so 1.6× is the like-for-like
   figure; p512 is 64 bytes per keypoint.
-- Spread: p256 stays within ±3% across runs, p512 within about ±10% (run 3 was
-  the high one, 3.40); read them to one significant figure. The ms are this
-  machine's, the ratios are intra-process.
+- Spread: p256 stays within ±2% and p512 within about ±3% across the four
+  runs; read them to one significant figure. The ms are this machine's, the
+  ratios are intra-process.
 
-**Conditions, honestly.** Intel Core i7-9700 (8 cores, a desktop with no
-battery), Windows 11, Node v24.21.0, Vitest 5.0.5. **The machine was not
-perfectly idle**: the Claude desktop app and background services were running.
-`LoadPercentage` was read before the warm-up (14 / 18 / 24, so that one started
-slightly above the 20% gate) and before each run, which started once two
-consecutive readings were under 20% (11 and 12, 16 and 12, 14 and 12, 15 and 5).
-It is a bursty instantaneous sample, though: it ranged 0–38% between readings,
-and read 22% right after run 3. That is
-the same caveat as the GMS series and not the idle-machine measurement the rest
-of this file asks for; both sides of every ratio share the conditions.
+**Conditions.** Intel Core i7-9700 (8 cores, a desktop with no battery),
+Windows 11, Node v24.21.0, Vitest 5.0.5, under the maintainer's rule of CPU load
+under 20%. A background sampler read `Win32_Processor` `LoadPercentage` every
+about 2 s during each run; a run started only after two consecutive readings
+under 20%, and was kept only if every in-run sample was under 20%. One attempt
+broke it (a 29% sample) and was discarded and repeated. Kept in-run samples (%):
+warm-up 18/12/16, run 1 18/7/8, run 2 9/10/5, run 3 12/6/14, run 4 15/5/9. A run
+lasts about 6 s, so that is three samples per run: the sampler is coarse, and the
+bench process alone reads up to about 18%. Both sides of every ratio share the
+conditions.
 
 Reproduce:
 
