@@ -33,7 +33,7 @@ config does for you**: see
 | `yape.detect` | 1.11 / 1.02 / 1.05\* / 1.00 | **resolved** (#166) |
 | `matmath.invert_3x3` | 1.03 / 1.09 / 1.12 / 1.10 | **resolved** (#165) |
 | `linalg.svd_*`, `eigenVV` | all ≤ 1.17 | **resolved** (#159) |
-| **`imgproc.box_blur_gray`** radius 2 | 1.43 / 1.26 / 1.28 / 1.26 (jsfeat faster in all four, quiet machine; two loaded series agree) | **new, open** (#168): 1.19–1.28 on the built bundle, so not the harness artefact. Suspected: the #114 rewrite (clamping ternaries and `Math.floor(sum / area)` in the inner loops). See [the rest of imgproc](#phase-2-continued-the-rest-of-imgproc-168) |
+| **`imgproc.box_blur_gray`** radius 2 | 1.43 / 1.26 / 1.28 / 1.26 (jsfeat faster in all four, quiet machine; two loaded series agree) | **new, open** (#168, fix tracked in [#251](https://github.com/webarkit/jsfeatNext/issues/251)): 1.19–1.28 on the built bundle, so not the harness artefact. Suspected: the #114 rewrite (clamping ternaries and `Math.floor(sum / area)` in the inner loops). See [the rest of imgproc](#phase-2-continued-the-rest-of-imgproc-168) |
 | `gms.filter` vs the matching step, default path — **not an A/B ratio** | 0.068 / 0.069 / 0.066 / 0.068 / 0.064 | **new** (#134): costs **0.07×** the `knnMatch` + `ratio_test` step it follows. Rotation 0.47×, scale 0.32×, rotation+scale 2.3× — see [GMS](#gms-what-it-costs-next-to-the-matching-step-134) |
 | everything else | within ±1.12 | noise |
 
@@ -937,7 +937,8 @@ every read and `Math.floor(sum / area)` (a float division) on every write of the
 inner loops, where jsfeat primes the window once and multiplies by a reciprocal.
 Hoisting the clamps out of the interior and dividing exactly only where it
 matters would be the first thing to try, under the parity tests and the #114
-divergence tests. That is a `src/` change and belongs in its own issue, per #86.
+divergence tests. That is a `src/` change, tracked in its own issue per #86:
+[#251](https://github.com/webarkit/jsfeatNext/issues/251).
 
 **Conditions, honestly.** Intel Core i7-9700 (desktop, no battery), Windows 11,
 Node v24.21.0, Vitest 5.0.4. Load is the summed CPU time of every process over a
