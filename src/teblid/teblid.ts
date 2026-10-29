@@ -105,7 +105,9 @@ function box_average(ii: Int32Array, x: number, y: number, r: number, fw: number
     const y1 = clamp_lo(y - r, fh);
     const x2 = clamp_hi(x + r + 1, fw);
     const y2 = clamp_hi(y + r + 1, fh);
-    const sum = f(ii[y1 * fw + x1] + ii[y2 * fw + x2] - ii[y1 * fw + x2] - ii[y2 * fw + x1]);
+    // `float(A + D - B - C)` with an `int` sum: `| 0` wraps it mod 2^32 like
+    // the integral image, so a wrap in the corners cancels before the float.
+    const sum = f((ii[y1 * fw + x1] + ii[y2 * fw + x2] - ii[y1 * fw + x2] - ii[y2 * fw + x1]) | 0);
     return f(sum / ((y2 - y1) * (x2 - x1)));
 }
 
@@ -224,7 +226,9 @@ export class teblid extends jsfeatNext {
      * ```
      *
      * @param src Grayscale `U8C1` image, at full resolution. Anything else throws a `TypeError`.
-     * @param corners Keypoints; `x`, `y`, `size` and `angle` are read.
+     * @param corners Keypoints; `x`, `y`, `size` and `angle` are read. A
+     *                non-finite `x` or `y` (as float32) throws a `RangeError`
+     *                naming the index.
      * @param count Number of keypoints to describe, `corners[0 .. count)`;
      *              more than `corners.length` throws a `RangeError`.
      * @param descriptors Output, resized to `bits / 8` columns by `count` rows of `U8`.
@@ -266,6 +270,12 @@ export class teblid extends jsfeatNext {
                 throw new RangeError(
                     `teblid.describe: keypoint ${k} has size ${corners[k].size}; TEBLID needs size > 0 ` +
                         "(the diameter of the described neighbourhood, see the TSDoc)"
+                );
+            }
+            // cv::KeyPoint stores the position as float32: check it there
+            if (!Number.isFinite(f(corners[k].x)) || !Number.isFinite(f(corners[k].y))) {
+                throw new RangeError(
+                    `teblid.describe: keypoint ${k} has a non-finite position (${corners[k].x}, ${corners[k].y})`
                 );
             }
         }
@@ -402,15 +412,18 @@ export class teblid extends jsfeatNext {
                         );
                     }
                     const side = 1 + (r << 1);
+                    // An `int` sum in C++: `| 0` wraps it mod 2^32 like the
+                    // integral image, so a wrap in the corners cancels.
                     const area =
-                        ii[b1y1 + b1x1] +
-                        ii[b1y2 + b1x2] -
-                        ii[b1y1 + b1x2] -
-                        ii[b1y2 + b1x1] -
-                        ii[b2y1 + b2x1] -
-                        ii[b2y2 + b2x2] +
-                        ii[b2y1 + b2x2] +
-                        ii[b2y2 + b2x1];
+                        (ii[b1y1 + b1x1] +
+                            ii[b1y2 + b1x2] -
+                            ii[b1y1 + b1x2] -
+                            ii[b1y2 + b1x1] -
+                            ii[b2y1 + b2x1] -
+                            ii[b2y2 + b2x2] +
+                            ii[b2y1 + b2x2] +
+                            ii[b2y2 + b2x1]) |
+                        0;
                     byte |= (f(area) <= f(th[i] * (side * side)) ? 1 : 0) << (7 - (i & 7));
                     if ((i & 7) === 7) {
                         out[o++] = byte;

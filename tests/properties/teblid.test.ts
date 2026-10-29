@@ -41,6 +41,7 @@ import jsfeatNext from "../../src/jsfeatNext";
 import { matrix_t } from "../../src/matrix_t/matrix_t";
 import { keypoint_t } from "../../src/keypoint_t/keypoint_t";
 import { teblid, roundnum } from "../../src/teblid/teblid";
+import { imgproc } from "../../src/singletons";
 import { loadScene } from "../fixtures/opencv/loader";
 
 /**
@@ -102,6 +103,35 @@ describe("teblid.describe: validation", () => {
         expect(freeCount()).toBe(before);
     });
 
+    for (const [x, y] of [
+        [Number.NaN, 100],
+        [100, Number.POSITIVE_INFINITY],
+        [1e39, 100], // finite as a double, Infinity as the float32 cv::KeyPoint stores
+    ]) {
+        it(`throws a RangeError naming the index for a non-finite position (${x}, ${y})`, () => {
+            const before = freeCount();
+            const kps = [interior(), new keypoint_t(x, y, 0, 0, -1, 31)];
+            const out = new matrix_t(32, 1, jsfeatNext.U8C1_t);
+            expect(() => engine.describe(img, kps, 2, out)).toThrow(RangeError);
+            expect(() => engine.describe(img, kps, 2, out)).toThrow(/\b1\b/);
+            expect(freeCount()).toBe(before);
+        });
+    }
+
+    it("throws a RangeError, pool balanced, when the fast path would read outside the integral image", () => {
+        // On a 40x40 image, size 0.25 gives a border margin of 0.22 px, so
+        // y = 39.75 takes the fast path; its boxes round to row 40 = h, and
+        // the box's bottom edge, row 41, is past the (w+1)x(h+1) integral
+        // image: undefined behaviour in OpenCV.
+        const small = new matrix_t(40, 40, jsfeatNext.U8C1_t);
+        const out = new matrix_t(32, 1, jsfeatNext.U8C1_t);
+        const before = freeCount();
+        expect(() => engine.describe(small, [new keypoint_t(20, 39.75, 0, 0, -1, 0.25)], 1, out)).toThrow(
+            /keypoint 0 reaches outside the integral image/
+        );
+        expect(freeCount()).toBe(before);
+    });
+
     it("throws a TypeError for a non-U8C1 source", () => {
         const f32 = new matrix_t(64, 64, jsfeatNext.F32C1_t);
         const rgba = new matrix_t(64, 64, jsfeatNext.U8C4_t);
@@ -142,6 +172,67 @@ describe("teblid.describe: behaviour", () => {
         expect(rows([interior()], 1, 256)[0]).toHaveLength(64);
         expect(rows([interior()], 1, 512)[0]).toHaveLength(128);
     });
+});
+
+describe("teblid.describe: integral image past 2^31", () => {
+    // An all-255 4096x2400 image: its integral reaches 255 * 4096 * 2400 ~ 2.5e9,
+    // past 2^31, so cv::integral (8U -> 32S) and the Int32 integral both wrap.
+    // OpenCV sums the corners in `int`, where the wrap cancels; the port must
+    // too. On a flat image every box response is 0, so each keypoint must give
+    // the same bits as on a small all-255 image, whose integral cannot wrap.
+    const W = 4096;
+    const H = 2400;
+    const big = new matrix_t(W, H, jsfeatNext.U8C1_t);
+    big.data.fill(255);
+    const small = new matrix_t(200, 200, jsfeatNext.U8C1_t);
+    small.data.fill(255);
+
+    // The 2^31 contour of the prefix sum is x * y = 2^31 / 255 ~ 8421505: each
+    // keypoint sits on it, so its boxes read corners on both sides of the wrap.
+    // [x, y on the big image, x, y on the small one (same distance to the
+    // nearby borders), size, scale_factor]
+    const cases: [number, number, number, number, number, number][] = [
+        [3828, 2200, 100, 100, 31, 1], // interior: fast path
+        [3828, 2200, 100, 100, 7, 5], // interior, FAST-like size
+        [3524, 2390, 100, 190, 31, 1], // 10 px from the bottom: clamped path
+        [3524, 2390, 100, 190, 7, 5],
+    ];
+
+    it("compute_integral_image wraps mod 2^32 exactly like cv::integral", () => {
+        // it accumulates each row in a double and stores through the Int32Array,
+        // so every entry is the true prefix sum mod 2^32
+        const sum = new Int32Array((W + 1) * (H + 1));
+        imgproc.compute_integral_image(big, sum as unknown as number[], null, null);
+        for (const [x, y] of [
+            [W, H],
+            [3828, 2200],
+            [3524, 2390],
+            [W, 1],
+        ]) {
+            expect(sum[y * (W + 1) + x]).toBe((255 * x * y) | 0);
+        }
+        expect(sum[H * (W + 1) + W]).toBeLessThan(0); // it did wrap
+    });
+
+    for (const bits of [256, 512] as const) {
+        for (const angle of [-1, 0.7]) {
+            it(`p${bits}, angle ${angle}: same bits as on an image whose integral does not wrap`, () => {
+                expect(255 * W * H).toBeGreaterThan(2 ** 31);
+                for (const [bx, by, sx, sy, size, scale_factor] of cases) {
+                    const a = new matrix_t(bits / 8, 1, jsfeatNext.U8C1_t);
+                    const b = new matrix_t(bits / 8, 1, jsfeatNext.U8C1_t);
+                    engine.describe(big, [new keypoint_t(bx, by, 0, 0, angle, size)], 1, a, { bits, scale_factor });
+                    engine.describe(small, [new keypoint_t(sx, sy, 0, 0, angle, size)], 1, b, {
+                        bits,
+                        scale_factor,
+                    });
+                    expect(Array.from(a.data.subarray(0, bits / 8)), `(${bx}, ${by}) size ${size}`).toEqual(
+                        Array.from(b.data.subarray(0, bits / 8))
+                    );
+                }
+            });
+        }
+    }
 });
 
 describe("roundnum", () => {
