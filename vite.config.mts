@@ -51,41 +51,73 @@ function licenseBannerPlugin() {
 
 /**
  * Library build for jsfeatNext (replaces the webpack + babel + ts-loader chain).
+ * Two passes, because the two formats need different entry points (#137):
  *
- * - UMD  (dist/jsfeatNext.js): global `jsfeatNext`, exposing the *default* export
- *   so browser <script> consumers keep the historical `jsfeatNext.jsfeatNext`
- *   access (the double-namespace itself is addressed separately in #41). Also
- *   CommonJS-requireable, so it stays the `main` entry.
- * - ESM  (dist/jsfeatNext.mjs): the `module` / `import` entry.
- * - Type declarations via vite-plugin-dts -> types/ (mirrors the src/ tree, so
- *   the public types entry stays types/src/index.d.ts).
+ * - `vite build` (default mode): ESM (dist/jsfeatNext.mjs) from src/index.ts,
+ *   the `module` / `import` entry. It carries the default namespace AND the
+ *   named exports (`import { imgproc }`), so a consumer's bundler can drop
+ *   the modules it does not use. Also emits the type declarations via
+ *   vite-plugin-dts -> types/ (mirrors the src/ tree, so the public types
+ *   entry stays types/src/index.d.ts). Empties dist/ first.
+ * - `vite build --mode umd`: UMD (dist/jsfeatNext.js) from src/umd.ts, which
+ *   exports the namespace only, so the `jsfeatNext` global and
+ *   `module.exports` stay the namespace itself, as browser <script> consumers
+ *   and CommonJS `require` expect. Also the `main` entry. Runs second and
+ *   leaves dist/ as the first pass wrote it.
+ *
+ * `npm run build-ts` runs both. In watch mode (`npm run dev-ts`, `dev-ts:umd`)
+ * neither pass empties dist/, so each leaves the other format's bundle in place.
  */
-export default defineConfig({
-    build: {
-        target: "es2015",
-        sourcemap: false,
-        emptyOutDir: true,
-        lib: {
-            entry: fileURLToPath(new URL("src/index.ts", import.meta.url)),
-            name: "jsfeatNext",
-            formats: ["umd", "es"],
-            fileName: (format) => (format === "es" ? "jsfeatNext.mjs" : "jsfeatNext.js"),
-        },
-        rollupOptions: {
-            output: {
-                // Reproduce webpack's libraryExport: "default": expose the default
-                // export as the `jsfeatNext` UMD global and as module.exports.
-                exports: "default",
+export default defineConfig(({ mode }) => {
+    const umd = mode === "umd";
+    return {
+        build: {
+            target: "es2015",
+            sourcemap: false,
+            // Only a full ESM build empties dist/. A watch pass rebuilds one
+            // format, so emptying would delete the other format's bundle.
+            emptyOutDir: !umd && !process.argv.includes("--watch"),
+            lib: {
+                entry: fileURLToPath(new URL(umd ? "src/umd.ts" : "src/index.ts", import.meta.url)),
+                name: "jsfeatNext",
+                formats: [umd ? "umd" : "es"],
+                fileName: () => (umd ? "jsfeatNext.js" : "jsfeatNext.mjs"),
+            },
+            rollupOptions: {
+                output: {
+                    // UMD: reproduce webpack's libraryExport: "default", exposing
+                    // the default export as the `jsfeatNext` global and as
+                    // module.exports. ESM: the default namespace plus the named
+                    // exports of src/index.ts.
+                    exports: umd ? "default" : "named",
+                },
             },
         },
-    },
-    plugins: [
-        licenseBannerPlugin(),
-        dts({
-            // NB: vite-plugin-dts v5 (unplugin-dts) renamed `outDir` -> `outDirs`.
-            outDirs: ["types"],
-            entryRoot: ".",
-            include: ["src"],
-        }),
-    ],
+        plugins: [
+            licenseBannerPlugin(),
+            // Declarations once, from the ESM pass: src/index.ts reaches every
+            // public type, and the UMD pass would only rewrite the same files.
+            ...(umd
+                ? []
+                : [
+                      dts({
+                          // NB: vite-plugin-dts v5 (unplugin-dts) renamed `outDir` -> `outDirs`.
+                          outDirs: ["types"],
+                          entryRoot: ".",
+                          include: ["src"],
+                          // Fail the build on a declaration error instead of
+                          // logging it and publishing without that .d.ts: a
+                          // TS4094 during #137 silently dropped
+                          // types/src/jsfeatNext.d.ts while the build passed.
+                          afterDiagnostic: (diagnostics) => {
+                              if (diagnostics.length > 0) {
+                                  throw new Error(
+                                      `vite-plugin-dts: ${diagnostics.length} declaration error(s), see above`
+                                  );
+                              }
+                          },
+                      }),
+                  ]),
+        ],
+    };
 });

@@ -40,28 +40,15 @@
  *
  */
 
-import jsfeatNext, { shared_cache } from "./core/core";
-import { imgproc } from "./imgproc/imgproc";
-import { linalg } from "./linalg/linalg";
-import { fast_corners } from "./fast_corners/fast_corners";
-import { math } from "./math/math";
-import matmath from "./matmath/matmath";
+import core, { shared_cache } from "./core/core";
 import { matrix_t } from "./matrix_t/matrix_t";
 import { pyramid_t } from "./pyramid_t/pyramid_t";
-import { transform } from "./transform/transform";
 import { keypoint_t } from "./keypoint_t/keypoint_t";
-import { orb } from "./orb/orb";
-import { yape } from "./yape/yape";
-import { yape06 } from "./yape06/yape06";
 import { ransac_params_t } from "./motion_estimator/ransac_params_t";
-import { motion_estimator } from "./motion_estimator/motion_estimator";
-import { affine2d, homography2d } from "./motion_model/motion_model";
-import { optical_flow_lk } from "./optical_flow_lk/optical_flow_lk";
-import { bfmatcher } from "./bfmatcher/bfmatcher";
 import { match_t } from "./bfmatcher/match_t";
-import { gms } from "./gms/gms";
 import { data_t } from "./node_utils/data_t";
 import { pose_estimator, pose_t } from "./pose_estimator/pose_estimator";
+import * as singletons from "./singletons";
 
 // Thin aggregator (issue #47): every algorithm lives in its own module under
 // src/<module>/, extending the base class from src/core/core.ts.
@@ -76,59 +63,67 @@ import { pose_estimator, pose_t } from "./pose_estimator/pose_estimator";
 // exactly like jsfeat's global `jsfeat.cache` — see docs/migration-0.9.md.
 // The data-structure classes (matrix_t, keypoint_t, pyramid_t,
 // ransac_params_t) remain constructors: `new jsfeatNext.matrix_t(...)`.
-export default jsfeatNext;
+//
+// How the namespace is built matters for bundle size (#137). It is a SUBCLASS
+// of the base class every module extends, not that base class itself: it
+// inherits the base's statics (the data-type and colour constants, VERSION),
+// and the members attached here land on it alone. And it is built in ONE
+// expression with a pure annotation, rather than by assigning members one statement
+// at a time: a bundler must keep every `ns.orb = orb` statement, because
+// writing a property of a class may run a setter, and each one would keep its
+// module alive. As a single pure expression, a bundle whose code never reads
+// the namespace (one that only uses `import { imgproc }`) drops it whole, and
+// every module the code does not use goes with it. (The subclass is declared
+// on its own line, not inline: TypeScript cannot emit a declaration for an
+// exported anonymous class whose base has protected members, TS4094.)
+//
+// Two details keep it behaving exactly as the base class did: the base's own
+// statics (constants, VERSION) are copied on as OWN properties, so reflection
+// such as Object.keys(jsfeatNext) still lists them, and `instanceof` defers to
+// the base, so `jsfeatNext.imgproc instanceof jsfeatNext` stays true although
+// the modules extend the base, not this subclass.
+class jsfeatNext extends core {
+    static [Symbol.hasInstance](value: unknown): boolean {
+        return value instanceof core;
+    }
+}
 
-// the shared buffer pool itself, like original jsfeat's `jsfeat.cache`
-jsfeatNext.cache = shared_cache;
+const namespace = /* @__PURE__ */ Object.assign(jsfeatNext, core, {
+    // the shared buffer pool itself, like original jsfeat's `jsfeat.cache`
+    cache: shared_cache,
 
-// data-structure constructors (unchanged: consumers `new` these)
-jsfeatNext.pyramid_t = pyramid_t;
+    // data-structure constructors (unchanged: consumers `new` these)
+    pyramid_t,
+    matrix_t,
+    keypoint_t,
+    ransac_params_t,
+    match_t,
+    // raw byte storage, like jsfeat's `jsfeat.data_t` (surface parity, #45)
+    data_t,
+    // pose_estimator is stateful (holds inverted intrinsics), constructed with
+    // a K, so it is a constructor class like matrix_t -- NOT a stateless
+    // singleton. pose_t is its output data-struct.
+    pose_estimator,
+    pose_t,
 
-jsfeatNext.matrix_t = matrix_t;
+    // algorithm singletons (no `new` — call methods directly). Created once in
+    // ./singletons, which src/index.ts also re-exports by name (#137), so
+    // `jsfeatNext.imgproc` and `import { imgproc }` are the same object.
+    transform: singletons.transform,
+    fast_corners: singletons.fast_corners,
+    imgproc: singletons.imgproc,
+    math: singletons.math,
+    matmath: singletons.matmath,
+    linalg: singletons.linalg,
+    orb: singletons.orb,
+    yape: singletons.yape,
+    yape06: singletons.yape06,
+    motion_estimator: singletons.motion_estimator,
+    affine2d: singletons.affine2d,
+    homography2d: singletons.homography2d,
+    optical_flow_lk: singletons.optical_flow_lk,
+    bfmatcher: singletons.bfmatcher,
+    gms: singletons.gms,
+});
 
-jsfeatNext.keypoint_t = keypoint_t;
-
-jsfeatNext.ransac_params_t = ransac_params_t;
-
-jsfeatNext.match_t = match_t;
-
-// raw byte storage, like jsfeat's `jsfeat.data_t` (surface parity, #45)
-jsfeatNext.data_t = data_t;
-
-// pose_estimator is stateful (holds inverted intrinsics), constructed with a
-// K, so it is a constructor class like matrix_t -- NOT a stateless singleton.
-// pose_t is its output data-struct.
-jsfeatNext.pose_estimator = pose_estimator;
-
-jsfeatNext.pose_t = pose_t;
-
-// algorithm singletons (no `new` — call methods directly)
-jsfeatNext.transform = new transform();
-
-jsfeatNext.fast_corners = new fast_corners();
-
-jsfeatNext.imgproc = new imgproc();
-
-jsfeatNext.math = new math();
-
-jsfeatNext.matmath = new matmath();
-
-jsfeatNext.linalg = new linalg();
-
-jsfeatNext.orb = new orb();
-
-jsfeatNext.yape = new yape();
-
-jsfeatNext.yape06 = new yape06();
-
-jsfeatNext.motion_estimator = new motion_estimator();
-
-jsfeatNext.affine2d = new affine2d();
-
-jsfeatNext.homography2d = new homography2d();
-
-jsfeatNext.optical_flow_lk = new optical_flow_lk();
-
-jsfeatNext.bfmatcher = new bfmatcher();
-
-jsfeatNext.gms = new gms();
+export default namespace;
