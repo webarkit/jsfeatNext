@@ -45,6 +45,9 @@ const EXTENDED = new Map([
 const ORIGINAL_SRC = new Set([
     "src/types.ts",
     "src/index.ts",
+    // build wiring for the named exports and the UMD entry (#137): no ported code
+    "src/singletons.ts",
+    "src/umd.ts",
     // match_t is an OpenCV-shaped value type (cv::DMatch equivalent); jsfeat
     // never shipped a matcher or any such type, so nothing here is derived.
     // (bfmatcher.ts itself IS derived — it ports the sample's popcnt32/

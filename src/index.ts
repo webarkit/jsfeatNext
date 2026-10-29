@@ -37,6 +37,7 @@
  */
 
 import jsfeatNext from "./jsfeatNext";
+import core from "./core/core";
 
 /**
  * Package entry point. Since 0.9.0 the default export IS the `jsfeatNext`
@@ -53,12 +54,90 @@ import jsfeatNext from "./jsfeatNext";
 export default jsfeatNext;
 
 /**
+ * Named exports (issue #137), beside the default namespace, never instead of
+ * it: every member of the namespace is also exported under the same name, and
+ * is the very same object (`imgproc === jsfeatNext.imgproc`), so singleton
+ * state such as `fast_corners`' threshold is shared between the two.
+ *
+ * They exist for bundle size. The namespace holds every module, so importing
+ * it ships the whole library; importing by name lets a bundler drop the
+ * modules (and tables, like ORB's) that the code never reads. The ESM build
+ * carries them; the UMD build (`dist/jsfeatNext.js`, built from `src/umd.ts`)
+ * still exposes only the namespace, as CDN `<script>` consumers expect.
+ *
+ * @example
+ * ```ts
+ * import { imgproc, matrix_t, U8C1_t } from "@webarkit/jsfeat-next";
+ * const gray = new matrix_t(w, h, U8C1_t);
+ * imgproc.grayscale(rgba, w, h, gray);
+ * ```
+ */
+export {
+    transform,
+    fast_corners,
+    imgproc,
+    math,
+    matmath,
+    linalg,
+    orb,
+    yape,
+    yape06,
+    motion_estimator,
+    affine2d,
+    homography2d,
+    optical_flow_lk,
+    bfmatcher,
+    gms,
+} from "./singletons";
+export { shared_cache as cache } from "./core/core";
+export { matrix_t } from "./matrix_t/matrix_t";
+export { keypoint_t } from "./keypoint_t/keypoint_t";
+export { pyramid_t } from "./pyramid_t/pyramid_t";
+export { ransac_params_t } from "./motion_estimator/ransac_params_t";
+export { match_t } from "./bfmatcher/match_t";
+export { data_t } from "./node_utils/data_t";
+export { pose_estimator, pose_t } from "./pose_estimator/pose_estimator";
+
+// The namespace's constants, by the same names: the data types and channels a
+// `matrix_t` is built with, the colour codes, the flags and the version. Read
+// from the base class that defines them, so they cannot drift from
+// `jsfeatNext.<name>`.
+export const {
+    VERSION,
+    EPSILON,
+    FLT_MIN,
+    U8_t,
+    S32_t,
+    F32_t,
+    S64_t,
+    F64_t,
+    C1_t,
+    C2_t,
+    C3_t,
+    C4_t,
+    COLOR_RGBA2GRAY,
+    COLOR_RGB2GRAY,
+    COLOR_BGRA2GRAY,
+    COLOR_BGR2GRAY,
+    BOX_BLUR_NOSCALE,
+    SVD_U_T,
+    SVD_V_T,
+    NORM_HAMMING,
+    U8C1_t,
+    U8C3_t,
+    U8C4_t,
+    F32C1_t,
+    F32C2_t,
+    S32C1_t,
+    S32C2_t,
+} = core;
+
+/**
  * Public interfaces and shared types, re-exported from the package root so
  * consumers can type-annotate without deep paths into `types/src/**` (issue
- * #92). These are **type-only** re-exports: they are erased at build time and
- * do not change the UMD/ESM JavaScript bundles (whose `exports: "default"`
- * config exposes only the `jsfeatNext` namespace). The runtime values remain
- * reachable via that namespace — e.g. `new jsfeatNext.matrix_t(...)`.
+ * #92). Type-only: erased at build time. (The classes among them, `matrix_t`,
+ * `keypoint_t` and so on, are exported as values above, which carries their
+ * types too.)
  *
  * @example
  * ```ts
@@ -66,14 +145,11 @@ export default jsfeatNext;
  * function process(img: IMatrix_T) { ... }
  * ```
  */
-export type { matrix_t, IMatrix_T } from "./matrix_t/matrix_t";
-export type { keypoint_t } from "./keypoint_t/keypoint_t";
-export type { pyramid_t } from "./pyramid_t/pyramid_t";
+export type { IMatrix_T } from "./matrix_t/matrix_t";
 export type { point_t, IPoint_t } from "./point_t/point_t";
-export type { ransac_params_t } from "./motion_estimator/ransac_params_t";
-export type { match_t, IMatch_T } from "./bfmatcher/match_t";
+export type { IMatch_T } from "./bfmatcher/match_t";
 export type { IGmsSize } from "./gms/gms";
-export type { data_t, IData_T } from "./node_utils/data_t";
-export type { pose_t, IPose_T } from "./pose_estimator/pose_estimator";
+export type { IData_T } from "./node_utils/data_t";
+export type { IPose_T } from "./pose_estimator/pose_estimator";
 export type { ICache } from "./cache/cache";
 export type { TypedArray, NumericArray, MotionKernel, RandomFn } from "./types";

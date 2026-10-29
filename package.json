@@ -5,6 +5,7 @@
   "main": "dist/jsfeatNext.js",
   "module": "dist/jsfeatNext.mjs",
   "types": "types/src/index.d.ts",
+  "sideEffects": false,
   "unpkg": "dist/jsfeatNext.js",
   "jsdelivr": "dist/jsfeatNext.js",
   "exports": {
@@ -22,8 +23,9 @@
   ],
   "scripts": {
     "prepare": "npm run build-ts",
-    "build-ts": "vite build",
+    "build-ts": "vite build && vite build --mode umd",
     "dev-ts": "vite build --watch",
+    "dev-ts:umd": "vite build --mode umd --watch",
     "format-check": "prettier --check .",
     "format": "prettier --write .",
     "license-check": "node scripts/check-license-headers.mjs",

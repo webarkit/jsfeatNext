@@ -26,6 +26,21 @@ const src = new jsfeatNext.matrix_t(width, height, jsfeatNext.U8_t | jsfeatNext.
 jsfeatNext.imgproc.grayscale(rgbaPixelData, width, height, src);
 ```
 
+With a bundler, import only what you use by name, and the rest of the library is
+left out of your bundle (since 1.2.0, #137). Each name is the same object as the
+namespace member, so `imgproc === jsfeatNext.imgproc`:
+
+```js
+import { imgproc, matrix_t, U8C1_t } from "@webarkit/jsfeat-next";
+
+const src = new matrix_t(width, height, U8C1_t);
+imgproc.grayscale(rgbaPixelData, width, height, src);
+```
+
+An app that only converts to grayscale bundles to about 23 KB this way (8 KB
+gzipped) instead of about 70 KB (24 KB) through the default import, which carries
+every module. Measured with Vite 8, minified; see #137 for the method.
+
 In the browser (UMD build), the global is the namespace directly:
 
 ```html
@@ -59,9 +74,9 @@ These classes are attached to the `jsfeatNext` namespace (`jsfeatNext.<name>`):
 
 - **Node.js** v24 (see `.nvmrc`; npm 11)
 - Build (UMD + ESM + type declarations): `npm install` then `npm run build-ts`
-  - Produces `dist/jsfeatNext.js` (UMD, browser global `jsfeatNext`), `dist/jsfeatNext.mjs` (ESM), and `types/`
-  - Built with **Vite** library mode; webpack/babel are no longer used
-- Watch mode: `npm run dev-ts`
+  - Produces `dist/jsfeatNext.js` (UMD, browser global `jsfeatNext`), `dist/jsfeatNext.mjs` (ESM, default namespace plus named exports), and `types/`
+  - Built with **Vite** library mode, in two passes: ESM from `src/index.ts`, UMD from `src/umd.ts` (namespace only); webpack/babel are no longer used
+- Watch mode: `npm run dev-ts` (ESM and types) · `npm run dev-ts:umd` (UMD)
 - Tests: `npm test` (Vitest — characterization tests against the original jsfeat)
 - API docs: `npm run docs` (TypeDoc, output to `docs/api/`, gitignored/local-only for now)
 - Benchmarks: `npm run bench` (Vitest, A/B against the vendored original jsfeat) · `npm run bench:ratios` for the ratio summary alone
