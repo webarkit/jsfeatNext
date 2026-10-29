@@ -227,14 +227,15 @@ export class teblid extends jsfeatNext {
      *
      * @param src Grayscale `U8C1` image, at full resolution. Anything else throws a `TypeError`.
      * @param corners Keypoints; `x`, `y`, `size` and `angle` are read. A
-     *                non-finite `x` or `y` (as float32) throws a `RangeError`
-     *                naming the index.
+     *                non-finite `x`, `y` or `size` (as float32), a `size` that
+     *                is not positive, or a non-finite `angle` throws a
+     *                `RangeError` naming the index.
      * @param count Number of keypoints to describe, `corners[0 .. count)`;
      *              more than `corners.length` throws a `RangeError`.
      * @param descriptors Output, resized to `bits / 8` columns by `count` rows of `U8`.
      * @param options `bits` (256 or 512, default 256; anything else throws a
      *                `RangeError`) and `scale_factor` (default 1.0; must be
-     *                finite and positive).
+     *                positive and finite as float32, so 1e39 throws).
      */
     describe(
         src: matrix_t,
@@ -252,7 +253,8 @@ export class teblid extends jsfeatNext {
         else throw new RangeError(`teblid.describe: bits must be 256 or 512, got ${bits}`);
 
         const scale_factor = options.scale_factor === undefined ? 1.0 : options.scale_factor;
-        if (!(scale_factor > 0) || !Number.isFinite(scale_factor)) {
+        // checked as float32, which is what the descriptor arithmetic uses
+        if (!(scale_factor > 0) || !Number.isFinite(f(scale_factor))) {
             throw new RangeError(`teblid.describe: scale_factor must be finite and positive, got ${scale_factor}`);
         }
         if (src.type !== JSFEAT_CONSTANTS.U8_t || src.channel !== 1) {
@@ -266,11 +268,14 @@ export class teblid extends jsfeatNext {
         }
         for (let k = 0; k < count; ++k) {
             const size = f(corners[k].size);
-            if (!(size > 0)) {
+            if (!(size > 0) || !Number.isFinite(size)) {
                 throw new RangeError(
-                    `teblid.describe: keypoint ${k} has size ${corners[k].size}; TEBLID needs size > 0 ` +
+                    `teblid.describe: keypoint ${k} has size ${corners[k].size}; TEBLID needs a finite size > 0 ` +
                         "(the diameter of the described neighbourhood, see the TSDoc)"
                 );
+            }
+            if (!Number.isFinite(corners[k].angle)) {
+                throw new RangeError(`teblid.describe: keypoint ${k} has a non-finite angle (${corners[k].angle})`);
             }
             // cv::KeyPoint stores the position as float32: check it there
             if (!Number.isFinite(f(corners[k].x)) || !Number.isFinite(f(corners[k].y))) {

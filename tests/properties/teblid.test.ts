@@ -118,6 +118,35 @@ describe("teblid.describe: validation", () => {
         });
     }
 
+    for (const size of [Number.POSITIVE_INFINITY, 1e39]) {
+        it(`throws a RangeError naming the index for a non-finite size (${size})`, () => {
+            const before = freeCount();
+            const kps = [interior(), new keypoint_t(100, 100, 0, 0, -1, size)];
+            const out = new matrix_t(32, 1, jsfeatNext.U8C1_t);
+            expect(() => engine.describe(img, kps, 2, out)).toThrow(RangeError);
+            expect(() => engine.describe(img, kps, 2, out)).toThrow(/\b1\b/);
+            expect(freeCount()).toBe(before);
+        });
+    }
+
+    for (const angle of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+        it(`throws a RangeError naming the index for a non-finite angle (${angle})`, () => {
+            const before = freeCount();
+            const kps = [interior(), new keypoint_t(100, 100, 0, 0, angle, 31)];
+            const out = new matrix_t(32, 1, jsfeatNext.U8C1_t);
+            expect(() => engine.describe(img, kps, 2, out)).toThrow(RangeError);
+            expect(() => engine.describe(img, kps, 2, out)).toThrow(/\b1\b/);
+            expect(freeCount()).toBe(before);
+        });
+    }
+
+    it("throws a RangeError, pool balanced, for a scale_factor that is Infinity as float32 (1e39)", () => {
+        const before = freeCount();
+        const out = new matrix_t(32, 1, jsfeatNext.U8C1_t);
+        expect(() => engine.describe(img, [interior()], 1, out, { scale_factor: 1e39 })).toThrow(RangeError);
+        expect(freeCount()).toBe(before);
+    });
+
     it("throws a RangeError, pool balanced, when the fast path would read outside the integral image", () => {
         // On a 40x40 image, size 0.25 gives a border margin of 0.22 px, so
         // y = 39.75 takes the fast path; its boxes round to row 40 = h, and
