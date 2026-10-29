@@ -135,11 +135,14 @@ describe("shared buffer pool exception safety (#246)", () => {
     it("still lends a working node after a failed borrow", () => {
         expect(() => pool.get_buffer(UNALLOCATABLE)).toThrow(RangeError);
         const node = pool.get_buffer(256);
-        expect(node.size).toBeGreaterThanOrEqual(256);
-        expect(node.data).toBeDefined();
-        node.u8[255] = 7;
-        expect(node.u8[255]).toBe(7);
-        pool.put_buffer(node);
+        try {
+            expect(node.size).toBeGreaterThanOrEqual(256);
+            expect(node.data).toBeDefined();
+            node.u8[255] = 7;
+            expect(node.u8[255]).toBe(7);
+        } finally {
+            pool.put_buffer(node);
+        }
     });
 
     it("leaves a node's storage and views untouched when resize throws", () => {
