@@ -68,7 +68,10 @@ const ORIGINAL_SRC = new Set([
  * licence that applies. Only src/ is mapped: OpenCV-derived code is not
  * expected in tests/ or examples/.
  */
-const OPENCV_SRC = new Map([["src/gms/", "ATTRIBUTION-opencv-gms.txt"]]);
+const OPENCV_SRC = new Map([
+    ["src/gms/", "ATTRIBUTION-opencv-gms.txt"],
+    ["src/teblid/", "ATTRIBUTION-opencv-teblid.txt"],
+]);
 
 /**
  * Third-party or foreign-provenance files. Never stamp these — they either
