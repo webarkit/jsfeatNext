@@ -69,7 +69,13 @@ export default defineConfig(({ mode }) => {
             outDir: "dist",
             emptyOutDir: page === "named",
             minify: true,
-            rollupOptions: { input: fileURLToPath(new URL(`${page}.html`, import.meta.url)) },
+            rollupOptions: {
+                input: {
+                    [page]: fileURLToPath(new URL(`${page}.html`, import.meta.url)),
+                    // The landing page has no script, so it adds no shared chunk.
+                    ...(page === "named" ? { index: fileURLToPath(new URL("index.html", import.meta.url)) } : {}),
+                },
+            },
         },
     };
 });

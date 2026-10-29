@@ -49,6 +49,21 @@ import pinball from "../img/pinball.jpg";
  *        Grayscale + gaussian blur; returns the blurred U8 pixels.
  */
 export async function runDemo(title, blur) {
+    try {
+        await demo(title, blur);
+    } catch (err) {
+        // Show the failure on the page, not only in the console.
+        const notice = document.getElementById("notice");
+        notice.textContent = `The demo failed: ${err.message}`;
+        notice.hidden = false;
+        throw err;
+    }
+}
+
+async function demo(title, blur) {
+    // Reaching this line means a bundler resolved the package import, so the
+    // "needs a bundler" notice does not apply.
+    document.getElementById("notice").hidden = true;
     document.getElementById("title").textContent = title;
     const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
@@ -92,6 +107,8 @@ export async function runDemo(title, blur) {
         // kB = 1000 bytes, as Vite's own build report counts them
         size.textContent = `This page's JavaScript bundle: ${(bytes.byteLength / 1000).toFixed(1)} kB (minified, before gzip).`;
     } else {
-        size.textContent = "Dev mode: build it (npm run example:treeshake) to see the bundle size.";
+        size.textContent =
+            "Dev mode: modules are served one by one, so there is no bundle to measure. " +
+            "Build and preview it (npm run example:treeshake, then npm run example:treeshake:preview).";
     }
 }

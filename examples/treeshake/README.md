@@ -17,8 +17,23 @@ From the repository root:
 
 ```bash
 npm run example:treeshake          # builds the library, then both pages
-npm run example:treeshake:preview  # serves them at http://localhost:4173/named.html
+npm run example:treeshake:preview  # serves them at http://localhost:4173/
 ```
+
+or, to edit the pages with live reload (the library must be built once, with
+`npm run build-ts`):
+
+```bash
+npm run example:treeshake:dev      # http://localhost:5173/
+```
+
+The size a page reports is only meaningful in the preview: the dev server serves
+modules one by one, unbundled.
+
+**Do not open `examples/treeshake/named.html` from a plain static server** (the
+way the other examples are opened). It imports the library by package name,
+`"@webarkit/jsfeat-next"`, and only a bundler can resolve that; the browser stops
+with "Failed to resolve module specifier". The page says so itself.
 
 The build prints the size of each bundle. With jsfeatNext 1.2.0 (Vite 8,
 minified):

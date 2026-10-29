@@ -28,6 +28,7 @@
     "dev-ts:umd": "vite build --mode umd --watch",
     "example:treeshake": "npm run build-ts && vite build --config examples/treeshake/vite.config.mjs --mode named && vite build --config examples/treeshake/vite.config.mjs --mode namespace",
     "example:treeshake:preview": "vite preview --config examples/treeshake/vite.config.mjs",
+    "example:treeshake:dev": "vite --config examples/treeshake/vite.config.mjs",
     "format-check": "prettier --check .",
     "format": "prettier --write .",
     "license-check": "node scripts/check-license-headers.mjs",
