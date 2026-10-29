@@ -33,6 +33,7 @@ config does for you**: see
 | `yape.detect` | 1.11 / 1.02 / 1.05\* / 1.00 | **resolved** (#166) |
 | `matmath.invert_3x3` | 1.03 / 1.09 / 1.12 / 1.10 | **resolved** (#165) |
 | `linalg.svd_*`, `eigenVV` | all ≤ 1.17 | **resolved** (#159) |
+| **`imgproc.box_blur_gray`** radius 2 | 1.43 / 1.26 / 1.28 / 1.26 (jsfeat faster in all four, quiet machine; two loaded series agree) | **new, open** (#168, fix tracked in [#251](https://github.com/webarkit/jsfeatNext/issues/251)): 1.19–1.28 on the built bundle, so not the harness artefact. Suspected: the #114 rewrite (clamping ternaries and `Math.floor(sum / area)` in the inner loops). See [the rest of imgproc](#phase-2-continued-the-rest-of-imgproc-168) |
 | `gms.filter` vs the matching step, default path — **not an A/B ratio** | 0.068 / 0.069 / 0.066 / 0.068 / 0.064 | **new** (#134): costs **0.07×** the `knnMatch` + `ratio_test` step it follows. Rotation 0.47×, scale 0.32×, rotation+scale 2.3× — see [GMS](#gms-what-it-costs-next-to-the-matching-step-134) |
 | everything else | within ±1.12 | noise |
 
@@ -433,7 +434,8 @@ module has a bench file: `imgproc`, `orb`, `fast_corners`, `yape06`, `yape`,
 `math`/`matmath`/`transform` and `motion_model`. Within `imgproc` only
 `gaussian_blur` and `resample` are benched — the other ~12 public methods
 (`grayscale`, `pyrdown`, the derivative filters, the warps, `canny`, …) are
-not yet covered.
+not yet covered. (#168 has since covered them: see
+[the rest of imgproc](#phase-2-continued-the-rest-of-imgproc-168).)
 
 ## Phase 2, continued: optical_flow_lk
 
@@ -848,6 +850,115 @@ re-allocating a `data_type` table on every construction) — and note the two
 compound: each `new matmath()` here is itself cheap, but `matmath`'s methods
 build `matrix_t` instances, which is where #159 bites. Measurement only here,
 per #86; the fix belongs in its own PR against `src/`.
+
+## Phase 2, continued: the rest of imgproc (#168)
+
+`bench/imgproc.bench.ts` now covers every public `imgproc` method but one, and
+`pyramid_t.build`. All on 640×480, with the same seeded noise on both sides
+(RGBA noise for `grayscale` and `skindetector`).
+
+| Case | Why it is here |
+| --- | --- |
+| `grayscale` — RGBA to U8 | The first step of every frame |
+| `pyrdown`, `pyramid_t.build` (4 levels) | Every frame, for both the LK tracker and ORB |
+| `compute_integral_image` — sum only; sum + sqsum + tilted | TEBLID (#135) and FREAK (#80) will call the sum-only form: this is its baseline **before** they do |
+| `sobel_derivatives`, `scharr_derivatives` | Gradient maps; Scharr is what `optical_flow_lk` computes per level |
+| `warp_perspective`, `warp_affine` | The AR overlay step; `warp_affine` carries the #119 fix |
+| `canny` | Demo path; the one `imgproc` method that builds a `matrix_t` per call |
+| `equalize_histogram`, `box_blur_gray` | Example paths; `box_blur_gray` carries the #114 fix |
+| `skindetector` | Peripheral, but a plain per-pixel loop, so cheap to include |
+
+**Not benched: `hough_transform`.** The vendored jsfeat version throws a
+`ReferenceError` (it uses `min_theta`/`max_theta` without declaring them, under
+`"use strict"`; see `tests/parity/imgproc.test.ts`), so there is no reference
+side to pair it with, and an intra-library cost would answer no question anyone
+is asking.
+
+**Identical work, checked.** Every case runs both sides once at collection time
+and throws unless their outputs agree (`assertSameWork`), so a ratio can never
+compare two workloads. All are bit-exact except two, by design:
+
+- `warp_affine`: jsfeatNext fills the one-pixel band where a source coordinate
+  falls in (-1, 0), which jsfeat extrapolates (#119). The check requires every
+  pixel outside that band to match and every pixel inside it to be the fill
+  value (437 band pixels on this input; 431 differ, the other 6 happen to
+  extrapolate to 0).
+- `box_blur_gray` runs at **radius 2**, where it is bit-exact. At radius 3,
+  3432 pixels differ, every one by exactly +1: jsfeat's `1/49` reciprocal
+  undershoots and truncates, jsfeatNext divides exactly (#114). The loop is the
+  same at either radius.
+
+**Inputs worth knowing.** `warp_perspective` receives the **inverse** of the
+`perspective_4point_transform` homography, because the warp maps destination to
+source (as `examples/sample_warp_perspective.html` does). In the combined
+`compute_integral_image` case the squared sum is a `Float64Array`: it reaches
+about 6.7e9 on this noise, and an `Int32Array` would wrap identically on both
+sides and still compare equal.
+
+**Result.** Three series, each of four runs of `npx vitest bench --run
+bench/imgproc.bench.ts` after one discarded warm-up run. **Series C is the one
+to quote**: it was taken on a quiet machine (see Conditions below). Series B,
+on a loaded one, is kept beside it as a cross-check. Series A was taken before
+the two input corrections above, so its `warp_perspective` and combined
+`compute_integral_image` numbers measured the wrong input; it is not tabled
+(its `box_blur_gray` read 1.27 / 2.31 / 1.18 / 1.84 jsfeat). "jsfeat" means
+jsfeat was faster by that factor; unmarked numbers mean jsfeatNext was.
+
+| case | series C (quiet), 4 runs | series B (loaded), 4 runs | reading |
+| --- | --- | --- | --- |
+| `grayscale` | 1.03 jsfeat / 1.04 jsfeat / 1.00 / 1.16 jsfeat | 1.09 / 1.11 jsfeat / 1.04 / 1.07 jsfeat | noise |
+| `pyrdown` | 1.03 / 1.00 / 1.02 jsfeat / 1.03 jsfeat | 1.01 / 1.37 jsfeat / 1.01 / 1.14 | noise |
+| `pyramid_t.build` | 1.01 jsfeat / 1.01 jsfeat / 1.01 / 1.05 | 1.02 jsfeat / 1.08 jsfeat / 1.03 jsfeat / 1.06 jsfeat | noise |
+| `compute_integral_image` sum only | 1.12 / 1.11 / 1.10 / 1.12 | 1.08 / 1.15 / 1.14 / 1.07 | jsfeatNext slightly faster in every run of every series, under the floor; 1.10–1.11 on the bundle |
+| `compute_integral_image` sum + sqsum + tilted | 1.11 / 1.16 / 1.02 / 1.08 | 1.07 / 1.34 / 1.03 jsfeat / 1.06 | under the floor (one sign flip in B) |
+| `sobel_derivatives` | 1.03 jsfeat / 1.02 jsfeat / 1.07 / 1.01 | 1.03 / 1.05 jsfeat / 1.04 / 1.02 jsfeat | noise |
+| `scharr_derivatives` | 1.02 / 1.02 jsfeat / 1.00 jsfeat / 1.01 jsfeat | 1.02 / 1.41 jsfeat / 1.00 / 1.02 jsfeat | noise |
+| `warp_perspective` | 1.01 / 1.01 / 1.01 jsfeat / 1.01 jsfeat | 1.00 jsfeat / 1.02 / 1.02 / 1.02 | parity |
+| `warp_affine` | 1.01 jsfeat / 1.02 jsfeat / 1.02 jsfeat / 1.23 | 1.01 jsfeat / 1.02 jsfeat / 1.02 / 1.03 | noise (one outlier) |
+| `canny` | 1.04 / 1.04 / 1.02 jsfeat / 1.00 jsfeat | 1.02 jsfeat / 1.02 / 1.04 / 1.01 | parity: the per-call `matrix_t` does not show at this size |
+| `equalize_histogram` | 1.01 jsfeat / 1.03 / 1.02 / 1.04 jsfeat | 1.01 / 1.01 jsfeat / 1.00 / 1.11 | noise |
+| **`box_blur_gray`** radius 2 | **1.43 / 1.26 / 1.28 / 1.26 jsfeat** | **1.31 / 1.15 / 1.20 / 1.23 jsfeat** | **finding**: jsfeat faster in every run of every series |
+| `skindetector` | 1.00 / 1.00 / 1.02 / 1.05 jsfeat | 1.01 / 1.01 / 1.06 / 1.03, all jsfeat | noise |
+
+Series C is markedly tighter than B: outside `box_blur_gray`, only three of its
+48 other readings pass 1.15, each by a little and each in a single run
+(`grayscale` 1.16 and `warp_affine` 1.23, both against the sign of their other
+three runs, and the combined integral image 1.16). In series B, `scharr`,
+`pyrdown`, `orb.describe` and the combined integral image each had a 1.3–1.5
+outlier. That is the load showing, and why every reading above rests on the
+direction across all runs, not on one value.
+
+**The finding: `box_blur_gray` is about 1.25× slower than jsfeat** (1.26–1.43 in
+the quiet series). It holds on the built bundle too (`npm run bench:dist`, three
+runs after a warm-up, twice: 1.25 / 1.27 / 1.21 on the loaded machine and 1.24
+/ 1.19 / 1.28 on the quiet one), so it is not the module-runner artefact. Not
+diagnosed. The suspect is the #114 rewrite, which put a clamping ternary on
+every read and `Math.floor(sum / area)` (a float division) on every write of the
+inner loops, where jsfeat primes the window once and multiplies by a reciprocal.
+Hoisting the clamps out of the interior and dividing exactly only where it
+matters would be the first thing to try, under the parity tests and the #114
+divergence tests. That is a `src/` change, tracked in its own issue per #86:
+[#251](https://github.com/webarkit/jsfeatNext/issues/251).
+
+**Conditions, honestly.** Intel Core i7-9700 (desktop, no battery), Windows 11,
+Node v24.21.0, Vitest 5.0.4. Load is the summed CPU time of every process over a
+5 s window, as a share of all 8 cores.
+
+- **Series C (quiet):** started only once two consecutive samples read under
+  20% (9.8% and 7.3%); 16.8% just before the first run and 2.9% after the last.
+  Freshly rebooted, Windows Explorer restarted (it had been holding about 25% on
+  its own) and OneDrive sync paused. The bundle re-check read 14.5% after it.
+  Not a lab-idle machine (a browser and the Claude desktop app stayed open), but
+  the quietest this file's imgproc numbers were taken on.
+- **Series B (loaded):** 13% before, 28% after.
+- **Series A (loaded):** about 18% before.
+
+Reproduce:
+
+```bash
+npx vitest bench --run bench/imgproc.bench.ts --reporter=default --reporter=json --outputFile.json=bench-results/imgproc.json
+node scripts/bench-ratios.mjs bench-results/imgproc.json
+```
 
 ## GMS: what it costs next to the matching step (#134)
 

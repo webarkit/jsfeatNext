@@ -39,10 +39,11 @@
 import { describe, test } from "vitest";
 import jsfeatNext from "../src/jsfeatNext";
 import jsfeat from "../tests/vendor/oracle.cjs";
-import { noiseImage, keypointPool } from "../tests/properties/helpers";
+import { noiseImage, keypointPool, rng } from "../tests/properties/helpers";
 
 /**
- * Throughput benchmarks for the hot image-processing paths (issue #86, phase 1).
+ * Throughput benchmarks for the image-processing paths (issue #86, phase 1;
+ * the rest of imgproc and pyramid_t.build, issue #168).
  *
  * ## Read the RATIO, not the absolute numbers
  *
@@ -98,6 +99,36 @@ function f32Pair() {
         orig.data[i] = src.data[i];
     }
     return { next, orig };
+}
+
+/** Deterministic RGBA noise, shared by both sides (they only read it). */
+function rgbaNoise(seed: number): Uint8Array {
+    const next = rng(seed);
+    const buf = new Uint8Array(W * H * 4);
+    for (let i = 0; i < buf.length; i++) buf[i] = (i & 3) === 3 ? 255 : (next() * 256) | 0;
+    return buf;
+}
+
+/**
+ * Runs both sides once, outside the timed region, and throws unless their
+ * outputs differ in exactly `expectedDiff` elements (0 for a bit-exact port).
+ * A non-zero count is only for a documented divergence, and pins its size, so a
+ * bench never silently compares two different workloads (#168).
+ */
+function assertSameWork(
+    name: string,
+    runN: () => void,
+    runO: () => void,
+    outN: ArrayLike<number>,
+    outO: ArrayLike<number>,
+    expectedDiff = 0
+): void {
+    runN();
+    runO();
+    if (outN.length !== outO.length) throw new Error(`${name}: output lengths differ`);
+    let diff = 0;
+    for (let i = 0; i < outN.length; i++) if (outN[i] !== outO[i]) diff++;
+    if (diff !== expectedDiff) throw new Error(`${name}: ${diff} output elements differ, expected ${expectedDiff}`);
 }
 
 describe("imgproc.gaussian_blur — U8 fast path", () => {
@@ -228,3 +259,387 @@ describe("orb.describe — 256-bit descriptors per keypoint", () => {
         }).run();
     });
 });
+
+// ---------------------------------------------------------------------------
+// #168: the rest of imgproc, and pyramid_t.build. Roughly in order of how much
+// each matters to the per-frame WebAR path. Every case first checks, outside
+// the timed region, that both sides produce the same output (assertSameWork),
+// so the ratio compares implementations and not workloads.
+// ---------------------------------------------------------------------------
+
+describe("imgproc.grayscale — RGBA to U8", () => {
+    // The first step of every frame.
+    const rgba = rgbaNoise(4242);
+    const dstN = new jsfeatNext.matrix_t(W, H, U8C1);
+    const dstO = new jsfeat.matrix_t(W, H, OU8C1);
+    assertSameWork(
+        "grayscale",
+        () => jsfeatNext.imgproc.grayscale(rgba, W, H, dstN),
+        () => jsfeat.imgproc.grayscale(rgba, W, H, dstO),
+        dstN.data,
+        dstO.data
+    );
+
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.imgproc.grayscale(rgba, W, H, dstN);
+        }).run();
+
+        await bench("jsfeat (reference)", () => {
+            jsfeat.imgproc.grayscale(rgba, W, H, dstO);
+        }).run();
+    });
+});
+
+describe("imgproc.pyrdown — U8, 640x480 to 320x240", () => {
+    // One pyramid level; pyramid_t.build below is this plus the level loop.
+    const { next, orig } = u8Pair();
+    const dstN = new jsfeatNext.matrix_t(W >> 1, H >> 1, U8C1);
+    const dstO = new jsfeat.matrix_t(W >> 1, H >> 1, OU8C1);
+    assertSameWork(
+        "pyrdown",
+        () => jsfeatNext.imgproc.pyrdown(next, dstN),
+        () => jsfeat.imgproc.pyrdown(orig, dstO),
+        dstN.data,
+        dstO.data
+    );
+
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.imgproc.pyrdown(next, dstN);
+        }).run();
+
+        await bench("jsfeat (reference)", () => {
+            jsfeat.imgproc.pyrdown(orig, dstO);
+        }).run();
+    });
+});
+
+describe("pyramid_t.build — 4 levels, U8", () => {
+    // What optical_flow_lk and the ORB samples build every frame. Level 0 is
+    // copied from the input (skip_first_level = false), as the LK sample does.
+    const LEVELS = 4;
+    const { next, orig } = u8Pair();
+    const pyrN = new jsfeatNext.pyramid_t(LEVELS);
+    pyrN.allocate(W, H, U8C1);
+    const pyrO = new jsfeat.pyramid_t(LEVELS);
+    pyrO.allocate(W, H, OU8C1);
+    for (let l = 0; l < LEVELS; l++) {
+        assertSameWork(
+            `pyramid_t.build level ${l}`,
+            () => pyrN.build(next, false),
+            () => pyrO.build(orig, false),
+            pyrN.data[l].data,
+            pyrO.data[l].data
+        );
+    }
+
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            pyrN.build(next, false);
+        }).run();
+
+        await bench("jsfeat (reference)", () => {
+            pyrO.build(orig, false);
+        }).run();
+    });
+});
+
+describe("imgproc.compute_integral_image — sum only", () => {
+    // The form TEBLID (#135) and FREAK (#80) will call: a baseline taken BEFORE
+    // they become its consumers. Sizes follow the (w+1)x(h+1) layout.
+    const { next, orig } = u8Pair();
+    const len = (W + 1) * (H + 1);
+    const sumN = new Int32Array(len);
+    const sumO = new Int32Array(len);
+    assertSameWork(
+        "compute_integral_image sum",
+        () => jsfeatNext.imgproc.compute_integral_image(next, sumN as never, null, null),
+        () => jsfeat.imgproc.compute_integral_image(orig, sumO, null, null),
+        sumN,
+        sumO
+    );
+
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.imgproc.compute_integral_image(next, sumN as never, null, null);
+        }).run();
+
+        await bench("jsfeat (reference)", () => {
+            jsfeat.imgproc.compute_integral_image(orig, sumO, null, null);
+        }).run();
+    });
+});
+
+describe("imgproc.compute_integral_image — sum + sqsum + tilted", () => {
+    const { next, orig } = u8Pair();
+    const len = (W + 1) * (H + 1);
+    // sum and tilted fit in 32 bits (at most 640·480·255 ≈ 7.8e7 here), but
+    // the squared sum does not (≈ 6.7e9 for this noise), so it gets doubles;
+    // an Int32Array would wrap on both sides and still compare equal.
+    const [sumN, tiltN, sumO, tiltO] = Array.from({ length: 4 }, () => new Int32Array(len));
+    const [sqN, sqO] = [new Float64Array(len), new Float64Array(len)];
+    const runN = () => jsfeatNext.imgproc.compute_integral_image(next, sumN as never, sqN as never, tiltN as never);
+    const runO = () => jsfeat.imgproc.compute_integral_image(orig, sumO, sqO, tiltO);
+    assertSameWork("compute_integral_image sum", runN, runO, sumN, sumO);
+    assertSameWork("compute_integral_image sqsum", runN, runO, sqN, sqO);
+    assertSameWork("compute_integral_image tilted", runN, runO, tiltN, tiltO);
+
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", runN).run();
+
+        await bench("jsfeat (reference)", runO).run();
+    });
+});
+
+describe("imgproc.sobel_derivatives — U8 to S32C2", () => {
+    const { next, orig } = u8Pair();
+    const dstN = new jsfeatNext.matrix_t(W, H, jsfeatNext.S32C2_t);
+    const dstO = new jsfeat.matrix_t(W, H, jsfeat.S32C2_t);
+    assertSameWork(
+        "sobel_derivatives",
+        () => jsfeatNext.imgproc.sobel_derivatives(next, dstN),
+        () => jsfeat.imgproc.sobel_derivatives(orig, dstO),
+        dstN.data,
+        dstO.data
+    );
+
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.imgproc.sobel_derivatives(next, dstN);
+        }).run();
+
+        await bench("jsfeat (reference)", () => {
+            jsfeat.imgproc.sobel_derivatives(orig, dstO);
+        }).run();
+    });
+});
+
+describe("imgproc.scharr_derivatives — U8 to S32C2", () => {
+    // The gradient optical_flow_lk computes per pyramid level.
+    const { next, orig } = u8Pair();
+    const dstN = new jsfeatNext.matrix_t(W, H, jsfeatNext.S32C2_t);
+    const dstO = new jsfeat.matrix_t(W, H, jsfeat.S32C2_t);
+    assertSameWork(
+        "scharr_derivatives",
+        () => jsfeatNext.imgproc.scharr_derivatives(next, dstN),
+        () => jsfeat.imgproc.scharr_derivatives(orig, dstO),
+        dstN.data,
+        dstO.data
+    );
+
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.imgproc.scharr_derivatives(next, dstN);
+        }).run();
+
+        await bench("jsfeat (reference)", () => {
+            jsfeat.imgproc.scharr_derivatives(orig, dstO);
+        }).run();
+    });
+});
+
+describe("imgproc.warp_perspective — U8, full frame", () => {
+    // The AR overlay step: a mild keystone over the whole 640x480 frame.
+    const { next, orig } = u8Pair();
+    const tN = new jsfeatNext.matrix_t(3, 3, F32C1);
+    const tO = new jsfeat.matrix_t(3, 3, OF32C1);
+    jsfeatNext.transform.perspective_4point_transform(
+        tN,
+        0,
+        0,
+        20,
+        10,
+        639,
+        0,
+        610,
+        5,
+        639,
+        479,
+        620,
+        470,
+        0,
+        479,
+        15,
+        460
+    );
+    // warp_perspective maps destination to source, so invert the forward
+    // homography first, exactly as examples/sample_warp_perspective.html does.
+    jsfeatNext.matmath.invert_3x3(tN, tN);
+    for (let i = 0; i < 9; i++) tO.data[i] = tN.data[i];
+    const dstN = new jsfeatNext.matrix_t(W, H, U8C1);
+    const dstO = new jsfeat.matrix_t(W, H, OU8C1);
+    assertSameWork(
+        "warp_perspective",
+        () => jsfeatNext.imgproc.warp_perspective(next, dstN, tN, 0),
+        () => jsfeat.imgproc.warp_perspective(orig, dstO, tO, 0),
+        dstN.data,
+        dstO.data
+    );
+
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.imgproc.warp_perspective(next, dstN, tN, 0);
+        }).run();
+
+        await bench("jsfeat (reference)", () => {
+            jsfeat.imgproc.warp_perspective(orig, dstO, tO, 0);
+        }).run();
+    });
+});
+
+describe("imgproc.warp_affine — U8, rotation + scale + translation", () => {
+    // Carries the #119 fix: jsfeatNext fills the one-pixel band where a source
+    // coordinate falls in (-1, 0), which jsfeat extrapolates. That band is the
+    // only expected difference, so, as in tests/parity/imgproc.test.ts, every
+    // pixel outside the band must match and every pixel inside it must be the
+    // fill value (a few band pixels match jsfeat too, where its extrapolation
+    // happens to land on 0).
+    const { next, orig } = u8Pair();
+    const tN = new jsfeatNext.matrix_t(3, 3, F32C1);
+    const tO = new jsfeat.matrix_t(3, 3, OF32C1);
+    const cs = Math.cos(0.3) * 0.98;
+    const sn = Math.sin(0.3) * 0.98;
+    const vals = [cs, -sn, 60.0, sn, cs, -40.0];
+    for (let i = 0; i < 6; i++) {
+        tN.data[i] = vals[i];
+        tO.data[i] = vals[i];
+    }
+    const dstN = new jsfeatNext.matrix_t(W, H, U8C1);
+    const dstO = new jsfeat.matrix_t(W, H, OU8C1);
+    jsfeatNext.imgproc.warp_affine(next, dstN, tN, 0);
+    jsfeat.imgproc.warp_affine(orig, dstO, tO, 0);
+    let band = 0;
+    for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+            const i = y * W + x;
+            const xs = tN.data[0] * x + tN.data[1] * y + tN.data[2];
+            const ys = tN.data[3] * x + tN.data[4] * y + tN.data[5];
+            const inBand = (xs > -1 && xs < 0) || (ys > -1 && ys < 0);
+            if (inBand) band++;
+            if (inBand ? dstN.data[i] !== 0 : dstN.data[i] !== dstO.data[i]) {
+                throw new Error(`warp_affine: pixel (${x}, ${y}) differs outside the #119 band`);
+            }
+        }
+    }
+    if (band === 0) throw new Error("warp_affine: the transform no longer reaches the #119 band");
+
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.imgproc.warp_affine(next, dstN, tN, 0);
+        }).run();
+
+        await bench("jsfeat (reference)", () => {
+            jsfeat.imgproc.warp_affine(orig, dstO, tO, 0);
+        }).run();
+    });
+});
+
+describe("imgproc.canny — U8, blurred noise", () => {
+    // Blurred first, as the samples do; the blur is outside the timed region.
+    // The only imgproc method that allocates a matrix_t on every call.
+    const { next, orig } = u8Pair();
+    const blurN = new jsfeatNext.matrix_t(W, H, U8C1);
+    const blurO = new jsfeat.matrix_t(W, H, OU8C1);
+    jsfeatNext.imgproc.gaussian_blur(next, blurN, 5, 0);
+    jsfeat.imgproc.gaussian_blur(orig, blurO, 5, 0);
+    const dstN = new jsfeatNext.matrix_t(W, H, U8C1);
+    const dstO = new jsfeat.matrix_t(W, H, OU8C1);
+    assertSameWork(
+        "canny",
+        () => jsfeatNext.imgproc.canny(blurN, dstN, 20, 60),
+        () => jsfeat.imgproc.canny(blurO, dstO, 20, 60),
+        dstN.data,
+        dstO.data
+    );
+
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.imgproc.canny(blurN, dstN, 20, 60);
+        }).run();
+
+        await bench("jsfeat (reference)", () => {
+            jsfeat.imgproc.canny(blurO, dstO, 20, 60);
+        }).run();
+    });
+});
+
+describe("imgproc.equalize_histogram — U8", () => {
+    const { next, orig } = u8Pair();
+    const dstN = new jsfeatNext.matrix_t(W, H, U8C1);
+    const dstO = new jsfeat.matrix_t(W, H, OU8C1);
+    assertSameWork(
+        "equalize_histogram",
+        () => jsfeatNext.imgproc.equalize_histogram(next, dstN),
+        () => jsfeat.imgproc.equalize_histogram(orig, dstO),
+        dstN.data,
+        dstO.data
+    );
+
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.imgproc.equalize_histogram(next, dstN);
+        }).run();
+
+        await bench("jsfeat (reference)", () => {
+            jsfeat.imgproc.equalize_histogram(orig, dstO);
+        }).run();
+    });
+});
+
+describe("imgproc.box_blur_gray — U8, radius 2", () => {
+    // Carries the #114 fix: jsfeatNext divides exactly where jsfeat multiplies
+    // by the float reciprocal and truncates, which comes out 1 low wherever the
+    // true mean is an integer the reciprocal undershoots. Radius 2 (1/25) is
+    // bit-exact on this input, as in tests/parity; at radius 3 (1/49) 3432
+    // pixels differ, every one by exactly +1. The loop is the same either way.
+    const { next, orig } = u8Pair();
+    const dstN = new jsfeatNext.matrix_t(W, H, U8C1);
+    const dstO = new jsfeat.matrix_t(W, H, OU8C1);
+    assertSameWork(
+        "box_blur_gray",
+        () => jsfeatNext.imgproc.box_blur_gray(next, dstN, 2, 0),
+        () => jsfeat.imgproc.box_blur_gray(orig, dstO, 2, 0),
+        dstN.data,
+        dstO.data
+    );
+
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.imgproc.box_blur_gray(next, dstN, 2, 0);
+        }).run();
+
+        await bench("jsfeat (reference)", () => {
+            jsfeat.imgproc.box_blur_gray(orig, dstO, 2, 0);
+        }).run();
+    });
+});
+
+describe("imgproc.skindetector — RGBA", () => {
+    // Peripheral (a demo path), but a plain per-pixel loop, so cheap to cover.
+    const src = { width: W, height: H, data: rgbaNoise(4242) };
+    const dstN = new Array<number>(W * H).fill(0);
+    const dstO = new Array<number>(W * H).fill(0);
+    assertSameWork(
+        "skindetector",
+        () => jsfeatNext.imgproc.skindetector(src, dstN),
+        () => jsfeat.imgproc.skindetector(src, dstO),
+        dstN,
+        dstO
+    );
+
+    test("jsfeatNext vs jsfeat (reference)", async ({ bench }) => {
+        await bench("jsfeatNext", () => {
+            jsfeatNext.imgproc.skindetector(src, dstN);
+        }).run();
+
+        await bench("jsfeat (reference)", () => {
+            jsfeat.imgproc.skindetector(src, dstO);
+        }).run();
+    });
+});
+
+// hough_transform is deliberately NOT benched: the vendored jsfeat version
+// throws a ReferenceError (undeclared min_theta/max_theta under "use strict",
+// see tests/parity/imgproc.test.ts), so there is no reference side to pair it
+// with. See bench/README.md.
