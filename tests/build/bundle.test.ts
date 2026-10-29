@@ -70,6 +70,8 @@ const UNUSED_BY_GRAYSCALE: Record<string, RegExp> = {
     linalg: /svd_invert/,
     fast_corners: /fast_corners\.detect/,
     gms: /GMS|gms\.filter/,
+    /** The first learner of the p256 table, as a minifier writes it. */
+    teblid: /25,\s*14,\s*13,\s*15,\s*6/,
 };
 
 /** Bundles `code` (which imports "LIB") against the published ESM, minified. */

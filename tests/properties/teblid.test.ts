@@ -243,3 +243,32 @@ describe("roundnum", () => {
         expect(roundnum(1.49)).toBe(1);
     });
 });
+
+describe("teblid descriptors through bfmatcher", () => {
+    /** ~50 interior keypoints on a deterministic textured image. */
+    const W = 320;
+    const H = 240;
+    const tex = new matrix_t(W, H, jsfeatNext.U8C1_t);
+    let seed = 12345;
+    for (let i = 0; i < W * H; i++) {
+        seed = (Math.imul(seed, 1103515245) + 12345) & 0x7fffffff;
+        tex.data[i] = (seed >> 16) & 255;
+    }
+    const kps: keypoint_t[] = [];
+    for (let i = 0; i < 50; i++)
+        kps.push(new keypoint_t(60 + (i % 10) * 20, 60 + Math.floor(i / 10) * 25, 0, 0, -1, 31));
+
+    for (const bits of [256, 512] as const) {
+        it(`matches every ${bits}-bit descriptor to itself at distance 0`, () => {
+            const d = new matrix_t(bits / 8, kps.length, jsfeatNext.U8C1_t);
+            jsfeatNext.teblid.describe(tex, kps, kps.length, d, { bits });
+            expect(d.cols).toBe(bits / 8);
+            const matches = jsfeatNext.bfmatcher.match(d, d);
+            expect(matches.length).toBe(kps.length);
+            for (const m of matches) {
+                expect(m.distance).toBe(0);
+                expect(m.queryIdx).toBe(m.trainIdx);
+            }
+        });
+    }
+});

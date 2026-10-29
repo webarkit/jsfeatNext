@@ -92,6 +92,7 @@ describe("named exports (#137)", () => {
             "imgproc",
             "orb",
             "gms",
+            "teblid",
             "bfmatcher",
             "fast_corners",
             "matrix_t",

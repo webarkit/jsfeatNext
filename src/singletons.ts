@@ -50,6 +50,7 @@ import { affine2d as affine2d_t, homography2d as homography2d_t } from "./motion
 import { optical_flow_lk as optical_flow_lk_t } from "./optical_flow_lk/optical_flow_lk";
 import { bfmatcher as bfmatcher_t } from "./bfmatcher/bfmatcher";
 import { gms as gms_t } from "./gms/gms";
+import { teblid as teblid_t } from "./teblid/teblid";
 
 /**
  * The library-wide algorithm singletons (issues #41, #137).
@@ -80,3 +81,4 @@ export const homography2d = /* @__PURE__ */ new homography2d_t();
 export const optical_flow_lk = /* @__PURE__ */ new optical_flow_lk_t();
 export const bfmatcher = /* @__PURE__ */ new bfmatcher_t();
 export const gms = /* @__PURE__ */ new gms_t();
+export const teblid = /* @__PURE__ */ new teblid_t();
