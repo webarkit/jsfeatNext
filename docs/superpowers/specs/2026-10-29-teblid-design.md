@@ -140,6 +140,18 @@ OpenCV computes `float(cos(deg_f32 * 0.017453292519943295))` in double. So a cal
   - the bundle test adds a TEBLID-table marker that a `{ imgproc }` bundle must not contain.
 - **Bench:** `bench/teblid.bench.ts`, an intra-library group (jsfeat has no TEBLID): TEBLID p256 and p512 against `orb.describe` on the same keypoints, recorded in `bench/README.md`.
 
+## 7b. Example (requested by the maintainer, 2026-10-29)
+
+`examples/sample_teblid.html` is a very simple page. It needs no camera, so it opens anywhere, the browser pane included, and it imports `../dist/jsfeatNext.mjs` like the other ESM examples, so a plain static server is enough. It:
+
+- loads `img/pinball.jpg`, and draws a second view on a canvas, rotated (about 30°) and scaled down (about 0.8×);
+- on both views, detects FAST corners, sets `angle` with `orb.ic_angle` and `size = 31` (one level, coordinates in that image's pixels), and describes them with `teblid.describe`;
+- matches with `bfmatcher.knnMatch` (k = 2) and the ratio test;
+- draws the two views side by side with a line per match, and prints the match count and the describe time;
+- offers two controls: 256 / 512 bits, and an "ORB on the same keypoints" toggle that prints ORB's match count beside TEBLID's for comparison.
+
+Kept deliberately small: no pyramid and no homography. Its job is to show the calling convention, `keypoint_t.size` included, and that the descriptor survives rotation and scale. Header: the *original* variant, registered in `scripts/check-license-headers.mjs`, because the page does not derive from a jsfeat sample. The README's examples section links it.
+
 ## 8. Files
 
 | Path | Change |
@@ -152,6 +164,7 @@ OpenCV computes `float(cos(deg_f32 * 0.017453292519943295))` in double. So a cal
 | `scripts/gen-opencv-fixtures.py`, `tests/fixtures/opencv/teblid-p{256,512}.json`, `tests/fixtures/opencv/README.md`, `tests/fixtures/opencv/pinned-version.test.ts`, every existing fixture (`meta` only) | fixtures, `meta.platform` / `meta.compiler` (T5) |
 | `tests/parity/teblid.test.ts`, `tests/properties/teblid.test.ts`, updated surface tests | tests |
 | `bench/teblid.bench.ts`, `bench/README.md` | bench |
+| `examples/sample_teblid.html` | the example (§7b) |
 | `README.md`, `AGENTS.md`, `docs/features2d-expansion-plan.md` | module list, D7/D10 revisions |
 
 The module TSDoc cites the upstream at `https://github.com/opencv/opencv_contrib/blob/4.10.0/modules/xfeatures2d/src/beblid.cpp#L…`, as AGENTS.md requires.
