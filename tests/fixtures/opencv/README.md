@@ -393,14 +393,14 @@ bounds check. For a small keypoint at the margin with a rotation, that index can
 outside the integral buffer `[0, (W + 1) * (H + 1))`: undefined behaviour, which
 cannot be a ground truth. The generator replicates `rectifyABWL` in float32 (each
 operation rounded, in C++ order, `CV_ROUNDNUM(x) = int(x + 0.5f)`), takes the four
-corners of the 32x32 patch, widens them by the largest `boxRadius` (7 in both tables,
+corners of the table range, (1, 1), (30, 1), (1, 30), (30, 30), widens them by the largest `boxRadius` (7 in both tables,
 patch coordinates all in [1, 30]) and drops, **before calling OpenCV**, any keypoint
 whose lowest or highest flat index leaves the buffer. A read that wraps to an adjacent
 row stays inside the buffer and is defined, so it is kept. The screen is
 **conservative** (a bounding box, not the exact learners): it can drop a keypoint
 whose real reads all stay inside, never the reverse. It never removes a keypoint
 because of a later mismatch. The count is recorded in `meta.params`
-(`screened_out` of `screened_candidates`) and printed by the generator.
+(`screened_out` of `screened_candidates`) and printed by the generator. Three of 684 candidates are screened out, in both fixtures: the `border-bottom` keypoints of size 7 at `scale_factor` 1.0, angle 37.5, y = 473.87494 and 473.87497 (the two values just inside the margin), and one random `tiny` keypoint at `scale_factor` 5.0 (17.198456, 16.034943, size 1.5, angle 46.39571). Every other border, angle and size keypoint is kept.
 
 **Ground truth (T5).** The fixtures are generated on the platform PureCV
 measures on, a Windows x86-64 machine (`meta.platform`, `meta.compiler`), with

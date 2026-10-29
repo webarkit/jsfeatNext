@@ -931,7 +931,7 @@ def teblid_fast_path_out_of_buffer(np, kp, width, height, scale_factor) -> bool:
     For a keypoint that is not in the border, ``computeBoxDiffsDescriptor`` indexes
     ``integralPtr[(y +/- r) * (W + 1) + (x +/- r)]`` with no bounds check. This
     replicates ``rectifyABWL`` in float32 (each operation rounded, in C++ order)
-    for the four corners of the 32x32 patch, which bound every table coordinate
+    for the four corners (1, 1), (30, 1), (1, 30), (30, 30) of the table range, which bound every table coordinate
     (all in [1, 30]), and widens the result by the largest boxRadius. The lowest and
     highest flat index that can be read are compared with ``[0, (W + 1) * (H + 1))``.
     A read that wraps to an adjacent row stays inside the buffer and is defined, so it
@@ -959,7 +959,7 @@ def teblid_fast_path_out_of_buffer(np, kp, width, height, scale_factor) -> bool:
         m12 = (-s * sine - s * cosine) * n * f(0.5) + y
     radius = teblid_roundnum(np, s * f(TEBLID_MAX_BOX_RADIUS))
     xs, ys = [], []
-    for px, py in ((0, 0), (31, 0), (0, 31), (31, 31)):
+    for px, py in ((1, 1), (30, 1), (1, 30), (30, 30)):
         px, py = f(px), f(py)
         xs.append(teblid_roundnum(np, m00 * px + m01 * py + m02))
         ys.append(teblid_roundnum(np, m10 * px + m11 * py + m12))
