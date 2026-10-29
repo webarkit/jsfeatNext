@@ -39,7 +39,9 @@ imgproc.grayscale(rgbaPixelData, width, height, src);
 
 An app that only converts to grayscale bundles to about 23 KB this way (8 KB
 gzipped) instead of about 70 KB (24 KB) through the default import, which carries
-every module. Measured with Vite 8, minified; see #137 for the method.
+every module. Measured with Vite 8, minified; see #137 for the method, and
+[`examples/treeshake/`](examples/treeshake/README.md) for a page you can build and
+compare yourself (`npm run example:treeshake`).
 
 In the browser (UMD build), the global is the namespace directly:
 

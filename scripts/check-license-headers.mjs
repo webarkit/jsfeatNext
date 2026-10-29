@@ -160,6 +160,9 @@ function collect() {
     // example pages descend from jsfeat's sample pages; our ESM helpers do not
     add(["examples/*.html"], "derived", "html");
     add(["examples/js/*.mjs"], "original", "js");
+    // the Vite tree-shaking demo (#137): our own code, not a jsfeat sample
+    add(["examples/treeshake/*.html"], "original", "html");
+    add(["examples/treeshake/*.{js,mjs}"], "original", "js");
     return out.filter((f) => !f.rel.startsWith("tests/vendor/"));
 }
 
