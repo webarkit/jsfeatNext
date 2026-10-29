@@ -35,11 +35,12 @@ config does for you**: see
 | `linalg.svd_*`, `eigenVV` | all ≤ 1.17 | **resolved** (#159) |
 | **`imgproc.box_blur_gray`** radius 2 | 1.43 / 1.26 / 1.28 / 1.26 (jsfeat faster in all four, quiet machine; two loaded series agree) | **new, open** (#168, fix tracked in [#251](https://github.com/webarkit/jsfeatNext/issues/251)): 1.19–1.28 on the built bundle, so not the harness artefact. Suspected: the #114 rewrite (clamping ternaries and `Math.floor(sum / area)` in the inner loops). See [the rest of imgproc](#phase-2-continued-the-rest-of-imgproc-168) |
 | `gms.filter` vs the matching step, default path — **not an A/B ratio** | 0.068 / 0.069 / 0.066 / 0.068 / 0.064 | **new** (#134): costs **0.07×** the `knnMatch` + `ratio_test` step it follows. Rotation 0.47×, scale 0.32×, rotation+scale 2.3× — see [GMS](#gms-what-it-costs-next-to-the-matching-step-134) |
+| `teblid.describe` vs `orb.describe`, 300 keypoints — **not an A/B ratio** | p256 1.63 / 1.53 / 1.59 / 1.57; p512 3.04 / 3.20 / 3.40 / 2.76 | **new** (#135): p256 costs **1.6×** and p512 **3.1×** `orb.describe` on the same keypoints — see [TEBLID](#teblid-what-it-costs-next-to-orbdescribe-135) |
 | everything else | within ±1.12 | noise |
 
 \* = jsfeatNext faster in that run.
 
-The `gms.filter` row is the one exception to everything above it: jsfeat has no GMS, so it is a cost in units of the matching step in the same process (as "`yape06` costs N× `fast_corners`"), measured on Vitest 5 — five runs of `bench/gms.bench.ts` after one discarded warm-up, not part of the four-run series above.
+The `gms.filter` and `teblid.describe` rows are the exceptions to everything above it: jsfeat has no GMS, so it is a cost in units of the matching step in the same process (as "`yape06` costs N× `fast_corners`"), measured on Vitest 5 — five runs of `bench/gms.bench.ts` after one discarded warm-up, not part of the four-run series above.
 
 **One caveat on `yape06`.** #166 measured it at 1.14–1.47 on its own branch and
 concluded the alias had *not* helped there. On merged `dev` it measures ~1.04.
@@ -1034,6 +1035,61 @@ Reproduce:
 ```bash
 npx vitest bench --run bench/gms.bench.ts --reporter=default --reporter=json --outputFile.json=bench-results/gms.json
 node scripts/bench-ratios.mjs bench-results/gms.json     # "gms: default costs 0.068x match: ..."
+```
+
+## TEBLID: what it costs next to `orb.describe` (#135)
+
+`teblid.describe` has no jsfeat counterpart either, so `bench/teblid.bench.ts`
+has no `"jsfeat (reference)"` case; it reports "`teblid pN` costs N×
+`orb.describe`" for the same keypoints in one process, three cases, the ORB
+call being the baseline (the first task).
+
+**Workload.** The 300 strongest FAST corners (threshold 20, border 20) of the
+same seeded 640×480 noise image as the other detector benches, oriented with
+`orb.ic_angle` and given `size = 31` (ORB's patch diameter, which TEBLID reads
+as the diameter of the described neighbourhood). Detection, orientation and the
+output matrices are built at collection time; collection throws if fewer than
+300 keypoints are found. Only the three `describe` calls run inside a `bench`
+callback.
+
+**Result.** Four runs of `npx vitest bench --run bench/teblid.bench.ts` after
+one discarded warm-up run. "N× orb.describe" is the mean latency of the case
+divided by that of `orb.describe` in the same run; the ms are the median of the
+four runs.
+
+| case | ms / call | N× orb.describe, 4 runs | median |
+| --- | --- | --- | --- |
+| `orb.describe (256 bits)` (the baseline) | 2.59 | 1 | 1 |
+| `teblid p256` | 4.09 | 1.63 / 1.53 / 1.59 / 1.57 | **1.6×** |
+| `teblid p512` | 8.03 | 3.04 / 3.20 / 3.40 / 2.76 | **3.1×** |
+
+Reading it:
+
+- **TEBLID p256 costs about 1.6× `orb.describe`, p512 about 3.1×.** p512 is
+  about twice p256 in the same run (1.8–2.1×): it evaluates twice the weak
+  learners per keypoint.
+- p256 is the same descriptor size as ORB (32 bytes), so 1.6× is the like-for-like
+  figure; p512 is 64 bytes per keypoint.
+- Spread: p256 stays within ±3% across runs, p512 within about ±10% (run 3 was
+  the high one, 3.40); read them to one significant figure. The ms are this
+  machine's, the ratios are intra-process.
+
+**Conditions, honestly.** Intel Core i7-9700 (8 cores, a desktop with no
+battery), Windows 11, Node v24.21.0, Vitest 5.0.5. **The machine was not
+perfectly idle**: the Claude desktop app and background services were running.
+`LoadPercentage` was read before the warm-up (14 / 18 / 24, so that one started
+slightly above the 20% gate) and before each run, which started once two
+consecutive readings were under 20% (11 and 12, 16 and 12, 14 and 12, 15 and 5).
+It is a bursty instantaneous sample, though: it ranged 0–38% between readings,
+and read 22% right after run 3. That is
+the same caveat as the GMS series and not the idle-machine measurement the rest
+of this file asks for; both sides of every ratio share the conditions.
+
+Reproduce:
+
+```bash
+npx vitest bench --run bench/teblid.bench.ts --reporter=default --reporter=json --outputFile.json=bench-results/teblid.json
+node scripts/bench-ratios.mjs bench-results/teblid.json     # "teblid p256 costs 1.6x orb.describe ..."
 ```
 
 ## Notes on the inputs
