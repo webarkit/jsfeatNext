@@ -68,7 +68,7 @@ import * as singletons from "./singletons";
 // of the base class every module extends, not that base class itself: it
 // inherits the base's statics (the data-type and colour constants, VERSION),
 // and the members attached here land on it alone. And it is built in ONE
-// expression marked @__PURE__, rather than by assigning members one statement
+// expression with a pure annotation, rather than by assigning members one statement
 // at a time: a bundler must keep every `ns.orb = orb` statement, because
 // writing a property of a class may run a setter, and each one would keep its
 // module alive. As a single pure expression, a bundle whose code never reads
@@ -76,9 +76,19 @@ import * as singletons from "./singletons";
 // every module the code does not use goes with it. (The subclass is declared
 // on its own line, not inline: TypeScript cannot emit a declaration for an
 // exported anonymous class whose base has protected members, TS4094.)
-class jsfeatNext extends core {}
+//
+// Two details keep it behaving exactly as the base class did: the base's own
+// statics (constants, VERSION) are copied on as OWN properties, so reflection
+// such as Object.keys(jsfeatNext) still lists them, and `instanceof` defers to
+// the base, so `jsfeatNext.imgproc instanceof jsfeatNext` stays true although
+// the modules extend the base, not this subclass.
+class jsfeatNext extends core {
+    static [Symbol.hasInstance](value: unknown): boolean {
+        return value instanceof core;
+    }
+}
 
-const namespace = /* @__PURE__ */ Object.assign(jsfeatNext, {
+const namespace = /* @__PURE__ */ Object.assign(jsfeatNext, core, {
     // the shared buffer pool itself, like original jsfeat's `jsfeat.cache`
     cache: shared_cache,
 

@@ -60,7 +60,7 @@ import { gms as gms_t } from "./gms/gms";
  * are the same objects either way, so state such as `fast_corners`' threshold
  * is shared.
  *
- * Each `new` is marked `@__PURE__`: constructing a module has no effect beyond
+ * Each `new` carries a pure annotation: constructing a module has no effect beyond
  * the instance itself (its constructor only fills its own tables and points at
  * the shared pool), so a consumer's bundler may drop every singleton the
  * consumer never reads, together with its class and tables (#137).

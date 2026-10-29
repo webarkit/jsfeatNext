@@ -39,6 +39,9 @@
 import { describe, it, expect } from "vitest";
 import jsfeatNext from "../src/jsfeatNext";
 import * as entry from "../src/index";
+import core from "../src/core/core";
+import { imgproc as imgproc_class } from "../src/imgproc/imgproc";
+import { gms as gms_class } from "../src/gms/gms";
 
 /**
  * Named exports (#137): `import { imgproc } from "@webarkit/jsfeat-next"`, so a
@@ -118,5 +121,36 @@ describe("named exports (#137)", () => {
         const gray = new matrix_t(4, 4, U8C1_t);
         imgproc.grayscale(rgba, 4, 4, gray);
         expect(Array.from(gray.data.slice(0, 16))).toEqual(new Array(16).fill(200));
+    });
+});
+
+/**
+ * The namespace is now a subclass of the base class rather than the base class
+ * itself (#137), so it can be dropped from bundles that do not read it. To a
+ * consumer it must still behave as before: the base's statics as OWN
+ * properties (reflection), and `instanceof` true for every algorithm instance.
+ */
+describe("the namespace behaves as the base class did (#137)", () => {
+    it("owns the constants and VERSION, not only inherits them", () => {
+        const own = Object.keys(jsfeatNext);
+        for (const key of Object.keys(core)) {
+            expect(own).toContain(key);
+            expect(Object.getOwnPropertyDescriptor(jsfeatNext, key)?.value).toBe(
+                (core as unknown as Record<string, unknown>)[key]
+            );
+        }
+        for (const key of ["U8_t", "C1_t", "U8C1_t", "VERSION", "EPSILON", "imgproc", "matrix_t", "cache"]) {
+            expect(own).toContain(key);
+        }
+    });
+
+    it("counts every algorithm singleton and a freshly constructed module as an instance", () => {
+        expect(jsfeatNext.imgproc instanceof jsfeatNext).toBe(true);
+        expect(jsfeatNext.gms instanceof jsfeatNext).toBe(true);
+        expect(entry.orb instanceof jsfeatNext).toBe(true);
+        expect(new imgproc_class() instanceof jsfeatNext).toBe(true);
+        expect(new gms_class() instanceof jsfeatNext).toBe(true);
+        expect({} instanceof jsfeatNext).toBe(false);
+        expect(new jsfeatNext.matrix_t(1, 1, jsfeatNext.U8C1_t) instanceof jsfeatNext).toBe(false);
     });
 });

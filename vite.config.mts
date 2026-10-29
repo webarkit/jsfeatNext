@@ -65,7 +65,8 @@ function licenseBannerPlugin() {
  *   and CommonJS `require` expect. Also the `main` entry. Runs second and
  *   leaves dist/ as the first pass wrote it.
  *
- * `npm run build-ts` runs both.
+ * `npm run build-ts` runs both. In watch mode (`npm run dev-ts`, `dev-ts:umd`)
+ * neither pass empties dist/, so each leaves the other format's bundle in place.
  */
 export default defineConfig(({ mode }) => {
     const umd = mode === "umd";
@@ -73,7 +74,9 @@ export default defineConfig(({ mode }) => {
         build: {
             target: "es2015",
             sourcemap: false,
-            emptyOutDir: !umd,
+            // Only a full ESM build empties dist/. A watch pass rebuilds one
+            // format, so emptying would delete the other format's bundle.
+            emptyOutDir: !umd && !process.argv.includes("--watch"),
             lib: {
                 entry: fileURLToPath(new URL(umd ? "src/umd.ts" : "src/index.ts", import.meta.url)),
                 name: "jsfeatNext",

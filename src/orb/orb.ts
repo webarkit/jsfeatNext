@@ -55,7 +55,7 @@ import { rectify_patch } from "./rectify_patch";
  * Module scope, not an instance field: it is a read-only constant shared by
  * every call, and hoisting it out of the method keeps the hot loop free of a
  * per-call allocation (the same reason `bit_pattern_31` lives in its own file).
- * `@__PURE__` lets a bundle that never uses ORB drop it (#137).
+ * Its pure annotation lets a bundle that never uses ORB drop it (#137).
  */
 const u_max = /* @__PURE__ */ new Int32Array([15, 15, 15, 15, 14, 14, 14, 13, 13, 12, 11, 10, 9, 8, 6, 3, 0]);
 

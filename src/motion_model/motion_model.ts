@@ -51,7 +51,7 @@ import { linalg, LMCallback } from "../linalg/linalg";
 // One instance each, shared by every call (#169): constructing them per call
 // was a measurable fixed cost on the 3- and 4-point RANSAC minimal samples,
 // where the real arithmetic is smallest. Both classes are stateless.
-// @__PURE__ (#137): construction has no effect beyond the instance, so a
+// Pure-annotated (#137): construction has no effect beyond the instance, so a
 // bundle that never uses motion_model drops both, and linalg with them.
 const shared_matmath = /* @__PURE__ */ new matmath();
 const shared_linalg = /* @__PURE__ */ new linalg();
