@@ -150,7 +150,7 @@ algorithm-specific `payload`.
   "opencv_contrib_build": "A.B.C",   // "Version control (extra):" line
   "ipp": false,                      // Intel IPP disabled: the generic CPU path
   "platform": "Windows AMD64",       // platform.system() + platform.machine() of the run
-  "compiler": "…",                   // "C++ Compiler:" line of getBuildInformation()
+  "compiler": "â€¦",                   // "C++ Compiler:" line of getBuildInformation()
   "algorithm": "integral",           // which algorithm it pins
   "params": { "sdepth": "CV_32S" },  // the parameters of that run
   "image": "scene-640x480.pgm",      // present only when an image is involved
@@ -159,6 +159,9 @@ algorithm-specific `payload`.
  "payload": { /* algorithm-specific */ }
 }
 ```
+
+`compiler` is the wheel's own build-machine path and version, identical for every
+install of the pinned wheel.
 
 The envelope is generic on purpose. `compute_integral_image` outputs an integer
 array, and GMS ([#134](https://github.com/webarkit/jsfeatNext/issues/134))
