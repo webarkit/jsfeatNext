@@ -68,7 +68,7 @@ In the browser (UMD build), the global is the namespace directly:
 
 These classes are attached to the `jsfeatNext` namespace (`jsfeatNext.<name>`):
 
-`cache` · `fast_corners` · `homography2d` · `affine2d` · `imgproc` · `keypoint_t` · `linalg` · `math` · `matmath` · `matrix_t` · `motion_estimator` · `ransac_params_t` · `optical_flow_lk` · `orb` · `bfmatcher` · `gms` · `match_t` · `pose_estimator` · `pose_t` · `pyramid_t` · `transform` · `yape` · `yape06`
+`cache` · `fast_corners` · `homography2d` · `affine2d` · `imgproc` · `keypoint_t` · `linalg` · `math` · `matmath` · `matrix_t` · `motion_estimator` · `ransac_params_t` · `optical_flow_lk` · `orb` · `bfmatcher` · `gms` · `teblid` · `match_t` · `pose_estimator` · `pose_t` · `pyramid_t` · `transform` · `yape` · `yape06`
 
 `pose_estimator` is a constructor (`new jsfeatNext.pose_estimator(K)`) like the data structures, because it holds the inverted intrinsics; the other algorithm modules are singletons.
 
