@@ -149,6 +149,8 @@ algorithm-specific `payload`.
   "opencv_build": "A.B.C",           // "Version control:" line of getBuildInformation()
   "opencv_contrib_build": "A.B.C",   // "Version control (extra):" line
   "ipp": false,                      // Intel IPP disabled: the generic CPU path
+  "platform": "Windows AMD64",       // platform.system() + platform.machine() of the run
+  "compiler": "…",                   // "C++ Compiler:" line of getBuildInformation()
   "algorithm": "integral",           // which algorithm it pins
   "params": { "sdepth": "CV_32S" },  // the parameters of that run
   "image": "scene-640x480.pgm",      // present only when an image is involved

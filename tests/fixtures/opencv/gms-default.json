@@ -1,6 +1,7 @@
 {
  "meta": {
   "algorithm": "matchGMS",
+  "compiler": "C:/Program Files (x86)/Microsoft Visual Studio 14.0/VC/bin/x86_amd64/cl.exe  (ver 19.0.24247.2)",
   "image": "scene-640x480.pgm",
   "ipp": false,
   "opencv_build": "4.10.0",
@@ -16,6 +17,7 @@
    "withRotation": false,
    "withScale": false
   },
+  "platform": "Windows AMD64",
   "sha256": "892a3df1e86688f1c4cd82131bdb87abc753d95754d0058a0c8871ed76ddc20c"
  },
  "payload": {

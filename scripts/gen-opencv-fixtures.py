@@ -44,6 +44,7 @@ import argparse
 import hashlib
 import json
 import math
+import platform
 import re
 import sys
 from collections import namedtuple
@@ -64,7 +65,7 @@ NUMPY_DIST = "numpy"
 # so the guard refuses to run (#245).
 OTHER_OPENCV_DISTS = ("opencv-python", "opencv-python-headless", "opencv-contrib-python-headless")
 
-Toolchain = namedtuple("Toolchain", "cv2 np wheel build contrib_build")
+Toolchain = namedtuple("Toolchain", "cv2 np wheel build contrib_build compiler")
 Scene = namedtuple("Scene", "name path image sha256")
 
 
@@ -161,7 +162,8 @@ def require_pinned_toolchain() -> Toolchain:
 
     build = build_version(cv2, "Version control:")
     contrib_build = build_version(cv2, "Version control (extra):")
-    return Toolchain(cv2, np, f"{OPENCV_DIST}=={wheel}", build, contrib_build)
+    compiler = build_version(cv2, "C++ Compiler:")
+    return Toolchain(cv2, np, f"{OPENCV_DIST}=={wheel}", build, contrib_build, compiler)
 
 
 def installed_version(dist: str) -> str | None:
@@ -213,6 +215,8 @@ def envelope(tc: Toolchain, algorithm: str, params: dict, payload: dict | list, 
         "opencv_build": tc.build,
         "opencv_contrib_build": tc.contrib_build,
         "ipp": False,
+        "platform": f"{platform.system()} {platform.machine()}",
+        "compiler": tc.compiler,
         "algorithm": algorithm,
         "params": params,
     }

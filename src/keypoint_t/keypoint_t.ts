@@ -65,6 +65,13 @@ export class keypoint_t {
     public level: number;
     /** Orientation in radians; -1 when not yet computed. */
     public angle: number;
+    /**
+     * Diameter of the meaningful keypoint neighbourhood, in pixels. Default 0
+     * (unset). Original to jsfeatNext: jsfeat's `keypoint_t` has no `size`.
+     * `teblid.describe` reads it as the patch scale, like OpenCV's
+     * `KeyPoint::size` (design section 4, #135).
+     */
+    public size: number;
 
     /**
      * @param x     X (column) coordinate. Default 0.
@@ -72,12 +79,21 @@ export class keypoint_t {
      * @param score Detector response. Default 0.
      * @param level Pyramid level. Default 0.
      * @param angle Orientation in radians. Default -1 (unset).
+     * @param size  Keypoint diameter in pixels. Default 0 (unset).
      */
-    constructor(x: number = 0, y: number = 0, score: number = 0, level: number = 0, angle: number = -1.0) {
+    constructor(
+        x: number = 0,
+        y: number = 0,
+        score: number = 0,
+        level: number = 0,
+        angle: number = -1.0,
+        size: number = 0
+    ) {
         this.x = x;
         this.y = y;
         this.score = score;
         this.level = level;
         this.angle = angle;
+        this.size = size;
     }
 }

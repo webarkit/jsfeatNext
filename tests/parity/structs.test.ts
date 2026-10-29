@@ -140,3 +140,12 @@ describe("parity: imgproc.resample f32 path", () => {
         }
     });
 });
+
+describe("parity: keypoint_t vs original jsfeat.keypoint_t", () => {
+    it("adds size, defaulting to 0 (documented divergence, #135)", () => {
+        expect(new jsfeatNext.keypoint_t().size).toBe(0);
+        expect(new jsfeatNext.keypoint_t(1, 2, 3, 4, 0.5, 31).size).toBe(31);
+        // jsfeat's keypoint_t has no size
+        expect("size" in new jsfeat.keypoint_t()).toBe(false);
+    });
+});

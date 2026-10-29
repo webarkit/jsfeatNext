@@ -72,6 +72,10 @@ export interface FixtureMeta {
     opencv_contrib_build: string;
     /** Whether Intel IPP was enabled. Always `false`: fixtures pin OpenCV's generic CPU path. */
     ipp: boolean;
+    /** `"<OS> <machine>"` of the run that produced the fixture, e.g. `"Windows AMD64"` (#135). */
+    platform: string;
+    /** The `C++ Compiler:` line of `cv2.getBuildInformation()`: the compiler that built the wheel (#135). */
+    compiler: string;
     /** Which algorithm the fixture pins, e.g. `"integral"`. */
     algorithm: string;
     /** The parameters of that run, so the fixture documents what it pins. */

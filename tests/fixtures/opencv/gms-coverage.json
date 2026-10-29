@@ -1,6 +1,7 @@
 {
  "meta": {
   "algorithm": "matchGMS",
+  "compiler": "C:/Program Files (x86)/Microsoft Visual Studio 14.0/VC/bin/x86_amd64/cl.exe  (ver 19.0.24247.2)",
   "ipp": false,
   "opencv_build": "4.10.0",
   "opencv_contrib_build": "4.10.0",
@@ -10,7 +11,8 @@
    "cases": 33,
    "points": "quarter pixels; see gen_gms_coverage() and each case's label",
    "seeds": "numpy.random.default_rng([1345, case number])"
-  }
+  },
+  "platform": "Windows AMD64"
  },
  "payload": [
   {
