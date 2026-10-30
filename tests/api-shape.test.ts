@@ -75,6 +75,7 @@ describe("0.9.0 API shape (issue #41)", () => {
         expect(typeof jsfeatNext.bfmatcher.ratio_test).toBe("function");
         expect(typeof jsfeatNext.gms.filter).toBe("function");
         expect(typeof jsfeatNext.teblid.describe).toBe("function");
+        expect(typeof jsfeatNext.freak.describe).toBe("function");
     });
 
     it("singletons are stable identities (state persists across accesses)", () => {

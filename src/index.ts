@@ -89,6 +89,7 @@ export {
     bfmatcher,
     gms,
     teblid,
+    freak,
 } from "./singletons";
 export { shared_cache as cache } from "./core/core";
 export { matrix_t } from "./matrix_t/matrix_t";
@@ -151,6 +152,7 @@ export type { point_t, IPoint_t } from "./point_t/point_t";
 export type { IMatch_T } from "./bfmatcher/match_t";
 export type { IGmsSize } from "./gms/gms";
 export type { TeblidOptions } from "./teblid/teblid";
+export type { FreakOptions } from "./freak/freak";
 export type { IData_T } from "./node_utils/data_t";
 export type { IPose_T } from "./pose_estimator/pose_estimator";
 export type { ICache } from "./cache/cache";

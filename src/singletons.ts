@@ -51,6 +51,7 @@ import { optical_flow_lk as optical_flow_lk_t } from "./optical_flow_lk/optical_
 import { bfmatcher as bfmatcher_t } from "./bfmatcher/bfmatcher";
 import { gms as gms_t } from "./gms/gms";
 import { teblid as teblid_t } from "./teblid/teblid";
+import { freak as freak_t } from "./freak/freak";
 
 /**
  * The library-wide algorithm singletons (issues #41, #137).
@@ -82,3 +83,4 @@ export const optical_flow_lk = /* @__PURE__ */ new optical_flow_lk_t();
 export const bfmatcher = /* @__PURE__ */ new bfmatcher_t();
 export const gms = /* @__PURE__ */ new gms_t();
 export const teblid = /* @__PURE__ */ new teblid_t();
+export const freak = /* @__PURE__ */ new freak_t();

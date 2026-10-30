@@ -317,14 +317,54 @@ describe("cv_round", () => {
 });
 
 describe("freak descriptors through bfmatcher", () => {
-    it("matches every descriptor to itself at distance 0", () => {
-        const kps: keypoint_t[] = [];
-        for (let i = 0; i < 40; i++) kps.push(interior(100 + (i % 10) * 40, 120 + Math.floor(i / 10) * 60));
-        const d = new matrix_t(64, 1, jsfeatNext.U8C1_t);
-        const kept = engine.describe(img, kps, kps.length, d);
-        expect(kept).toBeGreaterThan(0);
+    // The scene has flat and repeated areas, so several keypoints describe
+    // identically; bfmatcher breaks such ties towards the lowest index, which is
+    // correct but not the identity. The identity is asserted on rows that are
+    // pairwise distinct, the tie rule on the whole set.
+    const kps: keypoint_t[] = [];
+    for (let y = 60; y <= 420; y += 20) for (let x = 60; x <= 580; x += 20) kps.push(interior(x, y));
+    const d = new matrix_t(64, 1, jsfeatNext.U8C1_t);
+    const kept = jsfeatNext.freak.describe(img, kps, kps.length, d);
+    const key = (r: number): string => Buffer.from(d.data.subarray(r * 64, r * 64 + 64)).toString("hex");
+
+    it("returns 64-byte U8C1 rows", () => {
+        expect(kept).toBeGreaterThan(50);
+        expect(d.cols).toBe(64);
+        expect(d.type).toBe(jsfeatNext.U8_t);
+        expect(d.channel).toBe(1);
+        expect(d.rows).toBe(kept);
+    });
+
+    it("matches about 50 distinct descriptors to themselves: distance 0, same index", () => {
+        const seen = new Set<string>();
+        const uniq: number[] = [];
+        for (let r = 0; r < kept && uniq.length < 50; r++) {
+            if (!seen.has(key(r))) {
+                seen.add(key(r));
+                uniq.push(r);
+            }
+        }
+        expect(uniq.length).toBe(50);
+        const u = new matrix_t(64, uniq.length, jsfeatNext.U8C1_t);
+        uniq.forEach((r, i) => u.data.set(d.data.subarray(r * 64, r * 64 + 64), i * 64));
+        const matches = jsfeatNext.bfmatcher.match(u, u);
+        expect(matches.length).toBe(50);
+        matches.forEach((m, i) => {
+            expect(m.distance).toBe(0);
+            expect(m.queryIdx).toBe(i);
+            expect(m.trainIdx).toBe(i);
+        });
+    });
+
+    it("matches every row of the whole set at distance 0, to the first identical row on a tie", () => {
+        const first = new Map<string, number>();
+        for (let r = 0; r < kept; r++) if (!first.has(key(r))) first.set(key(r), r);
         const matches = jsfeatNext.bfmatcher.match(d, d);
         expect(matches.length).toBe(kept);
-        for (const m of matches) expect(m.distance).toBe(0);
+        matches.forEach((m, i) => {
+            expect(m.distance).toBe(0);
+            expect(m.queryIdx).toBe(i);
+            expect(m.trainIdx).toBe(first.get(key(i)));
+        });
     });
 });

@@ -104,30 +104,40 @@ const NB_POINTS = 43;
 /** `FREAK_LOG2`: a truncated literal in freak.cpp, kept verbatim (not `Math.LN2`). */
 const FREAK_LOG2 = 0.693147180559945;
 
-// buildPattern's rings, outer to inner: radius and sigma, normalised to 1.0
-const BIG_R = 2.0 / 3.0;
-const SMALL_R = 2.0 / 24.0;
-const UNIT_SPACE = (BIG_R - SMALL_R) / 21.0;
-const RADIUS = /* @__PURE__ */ new Float64Array([
-    BIG_R,
-    BIG_R - 6 * UNIT_SPACE,
-    BIG_R - 11 * UNIT_SPACE,
-    BIG_R - 15 * UNIT_SPACE,
-    BIG_R - 18 * UNIT_SPACE,
-    BIG_R - 20 * UNIT_SPACE,
-    SMALL_R,
-    0.0,
-]);
-const SIGMA = /* @__PURE__ */ new Float64Array([
-    RADIUS[0] / 2.0,
-    RADIUS[1] / 2.0,
-    RADIUS[2] / 2.0,
-    RADIUS[3] / 2.0,
-    RADIUS[4] / 2.0,
-    RADIUS[5] / 2.0,
-    RADIUS[6] / 2.0,
-    RADIUS[6] / 2.0,
-]);
+// buildPattern's rings, outer to inner: radius and sigma, normalised to 1.0.
+// Built inside pure-annotated calls with no arguments: an argument expression
+// (arithmetic, an indexed read) is left behind when a bundler drops the call,
+// and would stay in every bundle (#137).
+function ring_radius(): Float64Array {
+    const big_r = 2.0 / 3.0;
+    const small_r = 2.0 / 24.0;
+    const unit_space = (big_r - small_r) / 21.0;
+    return new Float64Array([
+        big_r,
+        big_r - 6 * unit_space,
+        big_r - 11 * unit_space,
+        big_r - 15 * unit_space,
+        big_r - 18 * unit_space,
+        big_r - 20 * unit_space,
+        small_r,
+        0.0,
+    ]);
+}
+function ring_sigma(): Float64Array {
+    const r = ring_radius();
+    return new Float64Array([
+        r[0] / 2.0,
+        r[1] / 2.0,
+        r[2] / 2.0,
+        r[3] / 2.0,
+        r[4] / 2.0,
+        r[5] / 2.0,
+        r[6] / 2.0,
+        r[6] / 2.0,
+    ]);
+}
+const RADIUS = /* @__PURE__ */ ring_radius();
+const SIGMA = /* @__PURE__ */ ring_sigma();
 
 /**
  * OpenCV's `cvRound` on x86-64 (`cvtsd2si` / `cvtss2si`): round half to even,

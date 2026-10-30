@@ -111,29 +111,31 @@ export const FREAK_DEF_PAIRS = /* @__PURE__ */ new Int16Array([
 ]);
 
 /**
- * Expands pair indices into the point indices (i, j) of `allPairs`, where
- * i runs 1..42, j < i and pair index = i(i-1)/2 + j.
+ * Expands pair indices into the point indices of `allPairs`, where i runs
+ * 1..42, j < i and pair index = i(i-1)/2 + j. Returns the i half when
+ * `first` is true, the j half otherwise.
+ *
+ * Each export below calls it directly, with the pure annotation, rather than
+ * reading a member off one shared result: a property read on a call result
+ * is an expression a bundler must keep, which would pin the whole pair table
+ * into every bundle (#137).
  */
-function expand(pairs: Int16Array): [Uint8Array, Uint8Array] {
-    const I = new Uint8Array(pairs.length);
-    const J = new Uint8Array(pairs.length);
+function expand(pairs: Int16Array, first: boolean): Uint8Array {
+    const out = new Uint8Array(pairs.length);
     for (let k = 0; k < pairs.length; k++) {
         const p = pairs[k];
         let i = 1;
         while (((i + 1) * i) / 2 <= p) i++;
-        I[k] = i;
-        J[k] = p - (i * (i - 1)) / 2;
+        out[k] = first ? i : p - (i * (i - 1)) / 2;
     }
-    return [I, J];
+    return out;
 }
 
-const EXPANDED = /* @__PURE__ */ expand(FREAK_DEF_PAIRS);
-
 /** First point index of each selected pair (always greater than the second). */
-export const FREAK_PAIR_I: Uint8Array = EXPANDED[0];
+export const FREAK_PAIR_I: Uint8Array = /* @__PURE__ */ expand(FREAK_DEF_PAIRS, true);
 
 /** Second point index of each selected pair. */
-export const FREAK_PAIR_J: Uint8Array = EXPANDED[1];
+export const FREAK_PAIR_J: Uint8Array = /* @__PURE__ */ expand(FREAK_DEF_PAIRS, false);
 
 /** First point index of each of the 45 orientation pairs, in buildPattern's order. */
 export const FREAK_ORIEN_I = /* @__PURE__ */ new Uint8Array([
