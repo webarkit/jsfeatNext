@@ -195,9 +195,10 @@ export class teblid extends jsfeatNext {
      * `Math.fround(deg) * 0.017453292519943295` to get the same double and the
      * same bits. One deliberate difference: OpenCV treats every negative angle
      * as upright, while here a negative radian angle other than `-1` is a real
-     * rotation, since `orb.ic_angle` returns angles in `(-pi, pi]`. No angle
-     * OpenCV produces is negative except `-1`, so the difference is never
-     * reached from OpenCV inputs.
+     * rotation, since `orb.ic_angle` returns angles in `(-pi, pi]`. OpenCV's
+     * FREAK produces negative angles, in `(-180°, 180°]`, and so does
+     * `freak.describe`: TEBLID run on FREAK's keypoints therefore differs from
+     * OpenCV's for every keypoint with a negative angle.
      *
      * **Out-of-buffer reads.** On the fast path OpenCV reads the integral
      * image at flat offsets without bounds checks: a box past the left or
