@@ -40,7 +40,7 @@ import { describe, it, expect } from "vitest";
 import jsfeatNext from "../../src/jsfeatNext";
 import { matrix_t } from "../../src/matrix_t/matrix_t";
 import { keypoint_t } from "../../src/keypoint_t/keypoint_t";
-import { freak, cv_round, type FreakOptions } from "../../src/freak/freak";
+import { freak, cv_round, freak_params, type FreakOptions } from "../../src/freak/freak";
 import { loadFixture, loadScene } from "../fixtures/opencv/loader";
 import { freakImages, type FreakImageParams } from "../fixtures/opencv/freak_images";
 
@@ -89,7 +89,7 @@ describe("freak.describe: validation", () => {
             const kps = [interior(), interior(300, 200), interior(310, 220, -1, size)];
             const out = new matrix_t(64, 1, jsfeatNext.U8C1_t);
             expect(() => engine.describe(img, kps, 3, out)).toThrow(RangeError);
-            expect(() => engine.describe(img, kps, 3, out)).toThrow(/\b2\b/);
+            expect(() => engine.describe(img, kps, 3, out)).toThrow(/keypoint 2 has size/);
             expect(freeCount()).toBe(before);
             // without scale normalization, size is not read
             expect(() => engine.describe(img, kps, 3, out, { scale_normalized: false })).not.toThrow();
@@ -105,9 +105,25 @@ describe("freak.describe: validation", () => {
             const kps = [interior(), new keypoint_t(x, y, 0, 0, -1, 20)];
             const out = new matrix_t(64, 1, jsfeatNext.U8C1_t);
             expect(() => engine.describe(img, kps, 2, out)).toThrow(RangeError);
-            expect(() => engine.describe(img, kps, 2, out)).toThrow(/\b1\b/);
+            expect(() => engine.describe(img, kps, 2, out)).toThrow(/keypoint 1 has a non-finite position/);
         });
     }
+
+    for (const [n_octaves, size] of [
+        [30, 1e10], // patternSizes[63] ~ 2.6e11: past int range, where OpenCV's cast is undefined
+        [2000, 1e6], // scaleStep = 2^31.25: scale 1, patternSizes[1] ~ 3.4e10
+    ]) {
+        it(`a pattern size past int range (n_octaves ${n_octaves}, size ${size}) drops the keypoint`, () => {
+            const before = freeCount();
+            const kps = [interior(320, 240, -1, size)];
+            expect(run(kps, { n_octaves })).toEqual({ kept: 0, rows: [] });
+            expect(freeCount()).toBe(before);
+        });
+    }
+
+    it("keeps an infinite pattern size infinite (n_octaves 2000, scale 63), not wrapped to an int", () => {
+        expect(freak_params(22, 2000).sizes[63]).toBe(Number.POSITIVE_INFINITY);
+    });
 
     for (const pattern_scale of [0, -1, Number.NaN, 1e39]) {
         it(`pattern_scale ${pattern_scale} throws a RangeError`, () => {

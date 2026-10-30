@@ -189,8 +189,8 @@ export class teblid extends jsfeatNext {
      * **Angles.** jsfeatNext angles are radians, and `-1` (the `keypoint_t`
      * default) means "not oriented". `angle === -1` takes OpenCV's upright
      * branch exactly. Any other value is a rotation: `cos` and `sin` of the
-     * radian angle, each rounded to float32. OpenCV angles are degrees in
-     * `[0, 360)`, computed as `float(cos(angle * 0.017453292519943295))`; a
+     * radian angle, each rounded to float32. The angles of OpenCV's detectors
+     * (ORB, FAST, ...) are degrees in `[0, 360)`, and TEBLID takes `float(cos(angle * 0.017453292519943295))`; a
      * caller holding OpenCV degrees `deg` therefore passes
      * `Math.fround(deg) * 0.017453292519943295` to get the same double and the
      * same bits. One deliberate difference: OpenCV treats every negative angle

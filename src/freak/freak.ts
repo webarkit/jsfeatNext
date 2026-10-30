@@ -148,8 +148,13 @@ export interface FreakParams {
     pattern_scale: number;
     /** `scaleStep ^ s` for each of the 64 scales. */
     scaling: Float64Array;
-    /** `patternSizes`: the pattern's half-width at each scale, for the border test. */
-    sizes: Int32Array;
+    /**
+     * `patternSizes`: the pattern's half-width at each scale, for the border
+     * test. Kept in double, not `int`: where OpenCV's `static_cast<int>` is
+     * defined the value is the same, and where it overflows (undefined in
+     * OpenCV) the huge or infinite size drops the keypoint instead of wrapping.
+     */
+    sizes: Float64Array;
     /** The 45 orientation weights, `weight_dx` and `weight_dy`. */
     weight_dx: Int32Array;
     weight_dy: Int32Array;
@@ -176,13 +181,13 @@ function pattern_point(sf: number, ps: number, theta: number, p: number, out: Fl
 /**
  * The constants `buildPattern` and `computeDescriptors` derive from
  * `pattern_scale` and `n_octaves`, recomputed on every call (a few hundred
- * numbers, about 1.1 KB). Module-internal; exported for the tests.
+ * numbers, about 1.4 KB). Module-internal; exported for the tests.
  */
 export function freak_params(pattern_scale: number, n_octaves: number): FreakParams {
     const ps = f(pattern_scale);
     const scale_step = Math.pow(2.0, n_octaves / NB_SCALES);
     const scaling = new Float64Array(NB_SCALES);
-    const sizes = new Int32Array(NB_SCALES);
+    const sizes = new Float64Array(NB_SCALES);
     for (let s = 0; s < NB_SCALES; ++s) {
         const sf = Math.pow(scale_step, s);
         scaling[s] = sf;
@@ -282,7 +287,7 @@ function mean_intensity(
  * Resident: 2266 B of module-level tables (the 512 pairs as `Int16`, 1024 B,
  * and as two `Uint8` point-index arrays, 1024 B; the 45 orientation pairs,
  * 90 B; the ring radii and sigmas, 128 B). Per call, about 2 KB of
- * constants and scratch (scaling factors, pattern sizes and weights, 1128 B;
+ * constants and scratch (scaling factors, pattern sizes and weights, 1384 B;
  * the scale-0 points, 688 B; the 43 means), the scale index of each
  * keypoint (4 bytes each) and the integral image, a
  * `Float64` buffer of `(cols + 1) * (rows + 1)` entries borrowed from the
@@ -360,6 +365,7 @@ export class freak extends jsfeatNext {
      * import jsfeatNext from "@webarkit/jsfeat-next";
      *
      * // img: a U8C1 frame. Detect, give each keypoint its size, describe: no ic_angle.
+     * // a keypoint_t has every field of the point_t that detect fills
      * const pool = Array.from({ length: img.cols * img.rows }, () => new jsfeatNext.keypoint_t());
      * const found = jsfeatNext.fast_corners.detect(img, pool, 20);
      * const kps = pool.slice(0, found);
@@ -520,8 +526,8 @@ export class freak extends jsfeatNext {
                     d0 += Math.trunc((delta * P.weight_dx[m]) / 2048);
                     d1 += Math.trunc((delta * P.weight_dy[m]) / 2048);
                 }
-                // float(atan2f(d1, d0) * (180.0 / CV_PI)), in degrees
-                const angle = f(f(Math.atan2(d1, d0)) * (180.0 / Math.PI));
+                // float(atan2f((float)d1, (float)d0) * (180.0 / CV_PI)), in degrees
+                const angle = f(f(Math.atan2(f(d1), f(d0))) * (180.0 / Math.PI));
                 kp.angle = angle * 0.017453292519943295;
                 theta_idx = cv_round(f(256 * angle) * (1 / 360.0));
                 if (theta_idx < 0) theta_idx += 256;
