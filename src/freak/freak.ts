@@ -408,6 +408,7 @@ export class freak extends jsfeatNext {
     ): number {
         // Everything that can reject the input is checked before the first
         // buffer is borrowed, so the shared pool is not touched on a bad call.
+        options = options ?? {};
         const orientation_normalized = options.orientation_normalized === undefined || !!options.orientation_normalized;
         const scale_normalized = options.scale_normalized === undefined || !!options.scale_normalized;
         const pattern_scale = options.pattern_scale === undefined ? 22 : options.pattern_scale;

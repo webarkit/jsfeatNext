@@ -36,7 +36,7 @@
  *
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import jsfeatNext from "../../src/jsfeatNext";
 import { matrix_t } from "../../src/matrix_t/matrix_t";
 import { keypoint_t } from "../../src/keypoint_t/keypoint_t";
@@ -163,6 +163,15 @@ describe("freak.describe: validation", () => {
 });
 
 describe("freak.describe: behaviour", () => {
+    it("null options behave as the defaults", () => {
+        const a = new matrix_t(64, 1, jsfeatNext.U8C1_t);
+        const b = new matrix_t(64, 1, jsfeatNext.U8C1_t);
+        const ka = jsfeatNext.freak.describe(img, [interior()], 1, a, null);
+        const kb = jsfeatNext.freak.describe(img, [interior()], 1, b);
+        expect(ka).toBe(kb);
+        expect(Array.from(a.data.subarray(0, 64))).toEqual(Array.from(b.data.subarray(0, 64)));
+    });
+
     it("count = 0 returns 0 with 0 rows", () => {
         const out = new matrix_t(64, 5, jsfeatNext.U8C1_t);
         expect(engine.describe(img, [], 0, out)).toBe(0);
@@ -321,10 +330,14 @@ describe("freak descriptors through bfmatcher", () => {
     // identically; bfmatcher breaks such ties towards the lowest index, which is
     // correct but not the identity. The identity is asserted on rows that are
     // pairwise distinct, the tie rule on the whole set.
-    const kps: keypoint_t[] = [];
-    for (let y = 60; y <= 420; y += 20) for (let x = 60; x <= 580; x += 20) kps.push(interior(x, y));
-    const d = new matrix_t(64, 1, jsfeatNext.U8C1_t);
-    const kept = jsfeatNext.freak.describe(img, kps, kps.length, d);
+    let d: matrix_t;
+    let kept: number;
+    beforeAll(() => {
+        const kps: keypoint_t[] = [];
+        for (let y = 60; y <= 420; y += 20) for (let x = 60; x <= 580; x += 20) kps.push(interior(x, y));
+        d = new matrix_t(64, 1, jsfeatNext.U8C1_t);
+        kept = jsfeatNext.freak.describe(img, kps, kps.length, d);
+    });
     const key = (r: number): string => Buffer.from(d.data.subarray(r * 64, r * 64 + 64)).toString("hex");
 
     it("returns 64-byte U8C1 rows", () => {
