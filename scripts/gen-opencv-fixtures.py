@@ -17,14 +17,15 @@
 
 """Regenerate the OpenCV fixtures that the Vitest suite asserts against.
 
-    python scripts/gen-opencv-fixtures.py [--only integral|gms|gms-synthetic|gms-coverage|teblid]
+    python scripts/gen-opencv-fixtures.py [--only integral|gms|gms-synthetic|gms-coverage|teblid|freak]
 
 ``--only integral`` writes ``integral-scene.json``; ``--only gms`` writes the
 five ORB and hand-placed GMS fixtures (``gms-default``, ``gms-rotation``,
 ``gms-scale``, ``gms-rotation-scale``, ``gms-boundaries``) and
 ``--only gms-synthetic`` the four ``gms-synth-*.json`` and ``--only
 gms-coverage`` ``gms-coverage.json`` (#134); ``--only teblid`` writes
-``teblid-p256.json`` and ``teblid-p512.json`` (#135). With no ``--only`` every fixture
+``teblid-p256.json`` and ``teblid-p512.json`` (#135); ``--only freak`` writes
+``freak.json`` (#80). With no ``--only`` every fixture
 is regenerated. Output is deterministic: the same pinned toolchain and the same
 committed scene always produce the same bytes, so ``git status`` after a re-run
 shows nothing.
@@ -234,7 +235,7 @@ def digest(array, dtype: str) -> str:
 
 # Fixtures written with compact_json(): the synthetic GMS ones hold thousands of
 # coordinates, which indent=1 would put one number per line.
-COMPACT_FIXTURES = ("gms-synth-", "gms-coverage", "teblid-")
+COMPACT_FIXTURES = ("gms-synth-", "gms-coverage", "teblid-", "freak")
 
 
 def compact_json(value, level: int = 0) -> str:
@@ -1150,6 +1151,294 @@ def gen_teblid(tc: Toolchain, scene: Scene) -> dict:
     return out
 
 
+# FREAK (#80): cv2.xfeatures2d.FREAK_create(...).compute, one case per option set.
+# The geometry below replicates FREAK_Impl::buildPattern (patternSizes) and the
+# first loop of computeDescriptors (scale index and border drop), so the border
+# keypoints can be placed exactly at the thresholds and the result asserted.
+# https://github.com/opencv/opencv_contrib/blob/4.10.0/modules/xfeatures2d/src/freak.cpp
+FREAK_SEED = 80
+FREAK_LOG2 = 0.693147180559945  # truncated literal in freak.cpp, kept verbatim
+FREAK_NB_SCALES = 64
+FREAK_SMALLEST_KP_SIZE = 7
+FREAK_RANDOM_SAFE = 60  # interior keypoints that survive any rotation by 90 degrees
+FREAK_RANDOM_MIXED = 80  # anywhere in the image
+FREAK_DEFAULTS = {"orientation_normalized": True, "scale_normalized": True, "pattern_scale": 22.0, "n_octaves": 4}
+FREAK_CASES = (
+    ("default", {}),
+    ("no-orientation", {"orientation_normalized": False}),
+    ("no-scale-normalization", {"scale_normalized": False}),
+    ("pattern-scale-8", {"pattern_scale": 8.0}),
+    ("octaves-3", {"n_octaves": 3}),
+    ("octaves-8", {"n_octaves": 8}),
+)
+FREAK_SIDES = ("left", "right", "top", "bottom")
+
+
+def freak_pattern_sizes(np, pattern_scale, n_octaves) -> list[int]:
+    """``patternSizes[64]`` of ``buildPattern``, in double and in OpenCV's expression."""
+    pattern_scale = float(np.float32(pattern_scale))  # the float ctor argument, stored as double
+    scale_step = 2.0 ** (n_octaves / FREAK_NB_SCALES)
+    big_r, small_r = 2.0 / 3.0, 2.0 / 24.0
+    unit = (big_r - small_r) / 21.0
+    radius = [big_r, big_r - 6 * unit, big_r - 11 * unit, big_r - 15 * unit, big_r - 18 * unit, big_r - 20 * unit, small_r, 0.0]
+    sigma = [r / 2.0 for r in radius[:7]] + [radius[6] / 2.0]
+    sizes = []
+    for scale_idx in range(FREAK_NB_SCALES):
+        scaling = scale_step**scale_idx
+        sizes.append(max(int(math.ceil((radius[i] + sigma[i]) * scaling * pattern_scale)) + 1 for i in range(8)))
+    return sizes
+
+
+def freak_size_cst(np, n_octaves):
+    return np.float32(FREAK_NB_SCALES / (FREAK_LOG2 * n_octaves))
+
+
+def freak_scale_idx(np, size, opts) -> int:
+    """The keypoint's scale index as in ``computeDescriptors`` (float32 steps, clamped to 63)."""
+    f = np.float32
+    cst = freak_size_cst(np, opts["n_octaves"])
+    if opts["scale_normalized"]:
+        ratio = f(size) / f(FREAK_SMALLEST_KP_SIZE)
+        idx = max(int(float(f(f(math.log(float(ratio))) * cst)) + 0.5), 0)
+    else:
+        idx = max(round(1.0986122886681 * float(cst)), 0)  # cvRound: half to even
+    return min(idx, FREAK_NB_SCALES - 1)
+
+
+def freak_dropped_sides(kp, ps, width, height) -> list[str]:
+    """The border tests OpenCV applies, by side; empty when the keypoint is kept."""
+    x, y = kp[0], kp[1]
+    sides = []
+    if x <= ps:
+        sides.append("left")
+    if x >= width - ps:
+        sides.append("right")
+    if y <= ps:
+        sides.append("top")
+    if y >= height - ps:
+        sides.append("bottom")
+    return sides
+
+
+def freak_size_for_scale(np, idx, opts) -> float:
+    """A float32 size in the middle of scale bin ``idx``."""
+    size = float(np.float32(FREAK_SMALLEST_KP_SIZE * math.exp(idx / float(freak_size_cst(np, opts["n_octaves"])))))
+    if freak_scale_idx(np, size, opts) != idx:
+        sys.exit(f"error: freak size {size} does not land in scale {idx}")
+    return size
+
+
+def freak_build_keypoints(np, rng, width, height):
+    """The shared input list as ``(keypoints, groups, ps_default, scale_sizes)``.
+
+    ``groups[name]`` are the input indices of one group.
+    """
+    f32 = lambda v: np.float32(v).item()  # noqa: E731
+    keypoints, seen, groups = [], set(), {}
+
+    def add(group, x, y, size):
+        kp = (f32(x), f32(y), f32(size))
+        if kp in seen:
+            return
+        seen.add(kp)
+        groups.setdefault(group, []).append(len(keypoints))
+        keypoints.append(list(kp))
+
+    opts = dict(FREAK_DEFAULTS)
+    ps_default = freak_pattern_sizes(np, opts["pattern_scale"], opts["n_octaves"])
+    cx, cy = 0.5 * width + 0.25, 0.5 * height + 0.75
+
+    # Interior, positions on a quarter-pixel grid so a 90 degree rotation is exact.
+    safe_sizes = [5, 7, 9, 12, 16, 22, 30]
+    for _ in range(FREAK_RANDOM_SAFE):
+        x = round(float(rng.uniform(150, width - 150)) * 4) / 4
+        y = round(float(rng.uniform(150, height - 150)) * 4) / 4
+        add("interior", x, y, safe_sizes[int(rng.integers(len(safe_sizes)))])
+
+    # Anywhere in the image, any size up to the clamp: kept and dropped mix, non-integer positions.
+    mixed_sizes = [5, 7, 10, 16, 31, 45, 60, 90, 112, 150]
+    for _ in range(FREAK_RANDOM_MIXED):
+        add("mixed", rng.uniform(0, width), rng.uniform(0, height), mixed_sizes[int(rng.integers(len(mixed_sizes)))])
+
+    # Sizes 5 and 7, then the middle of every scale bin up to 112 (scale 63 included), then 150.
+    add("sizes", cx, cy, 5)
+    add("sizes", cx, cy, 7)
+    for idx in range(1, FREAK_NB_SCALES):
+        add("sizes", cx, cy, freak_size_for_scale(np, idx, opts))
+    add("sizes", cx, cy, 112)
+    add("sizes", cx, cy, 150)
+
+    # Non-integer positions at one size.
+    for dx, dy in ((0.125, 0.375), (0.5, 0.5), (-0.3, 0.7), (1.1, -0.9), (0.01, 0.99)):
+        add("fractional", cx + dx, cy + dy, 16)
+
+    # Each border and corner at the threshold: ps - 0.5, ps, ps + 0.5, at scale 0 and about 40.
+    scale_sizes = {0: 7.0, 40: freak_size_for_scale(np, 40, opts)}
+    for s, size in scale_sizes.items():
+        ps = ps_default[s]
+        near_low = (ps - 0.5, float(ps), ps + 0.5)
+        near_x = (width - ps - 0.5, float(width - ps), width - ps + 0.5)
+        near_y = (height - ps - 0.5, float(height - ps), height - ps + 0.5)
+        for x in near_low:
+            add(f"border-left-s{s}", x, cy, size)
+        for x in near_x:
+            add(f"border-right-s{s}", x, cy, size)
+        for y in near_low:
+            add(f"border-top-s{s}", cx, y, size)
+        for y in near_y:
+            add(f"border-bottom-s{s}", cx, y, size)
+        for xs in (near_low, near_x):
+            for ys in (near_low, near_y):
+                for x in xs:
+                    for y in ys:
+                        add(f"corner-s{s}", x, y, size)
+    return keypoints, groups, ps_default, scale_sizes
+
+
+def gen_freak(tc: Toolchain, scene: Scene) -> dict:
+    """``cv2.xfeatures2d.FREAK_create(...).compute`` for six option sets and a rotated image.
+
+    The keypoints are fixed float32 inputs with angle -1. OpenCV drops those too
+    close to the border, so each case records which input indices it kept (matched
+    back by ``(x, y, size)``, which must be unique), their angles and descriptors.
+    ``rotation`` pairs the same scene points in ``scene`` and in ``scene_rot90``.
+    """
+    np, cv2 = tc.np, tc.cv2
+    height, width = scene.image.shape
+    rng = np.random.default_rng(FREAK_SEED)
+    keypoints, groups, ps_default, scale_sizes = freak_build_keypoints(np, rng, width, height)
+    if len({tuple(k) for k in keypoints}) != len(keypoints):
+        sys.exit("error: freak input keypoints contain a duplicate (x, y, size)")
+
+    rot_image = np.ascontiguousarray(np.rot90(scene.image))
+    rot_sha = hashlib.sha256(rot_image.tobytes()).hexdigest()
+    flat_image = np.full((96, 96), 100, dtype=np.uint8)
+    images = {"scene": scene.image, "scene_rot90": rot_image, "flat": flat_image}
+    f32 = lambda v: np.float32(v).item()  # noqa: E731
+
+    rot_input = groups["interior"]
+    rot_keypoints = [[f32(keypoints[i][1]), f32(width - 1 - keypoints[i][0]), keypoints[i][2]] for i in rot_input]
+    flat_keypoints = [[48.0, 48.0, 7.0], [40.5, 50.25, 7.0], [55.5, 44.75, 7.0]]
+
+    plan = []  # (name, image key, options, keypoints)
+    for name, over in FREAK_CASES:
+        plan.append((name, "scene", {**FREAK_DEFAULTS, **over}, keypoints))
+    plan.append(("rot90-default", "scene_rot90", dict(FREAK_DEFAULTS), rot_keypoints))
+    plan.append(("flat-default", "flat", dict(FREAK_DEFAULTS), flat_keypoints))
+
+    cases, kept_by_case = [], {}
+    drop_trips = {side: 0 for side in FREAK_SIDES}  # default case: dropped keypoints tripping the side
+    drop_only = {side: 0 for side in FREAK_SIDES}  # default case: tripping that side alone
+    scale63_kept, bilinear_kept = {}, 0
+    for name, image_key, opts, kps in plan:
+        image = images[image_key]
+        h, w = image.shape
+        index = {}
+        for i, kp in enumerate(kps):
+            index.setdefault((kp[0], kp[1], kp[2]), []).append(i)
+        if any(len(v) != 1 for v in index.values()):
+            sys.exit(f"error: freak case {name} has duplicate (x, y, size) inputs")
+        extractor = cv2.xfeatures2d.FREAK_create(
+            opts["orientation_normalized"], opts["scale_normalized"], opts["pattern_scale"], opts["n_octaves"]
+        )
+        returned, descriptors = extractor.compute(image, [cv2.KeyPoint(x, y, size, -1) for x, y, size in kps])
+        kept = []
+        for kp in returned:
+            found = index.get((kp.pt[0], kp.pt[1], kp.size))
+            if found is None or len(found) != 1:
+                sys.exit(f"error: freak case {name}: returned keypoint {kp.pt} {kp.size} does not match one input")
+            kept.append(found[0])
+        n = len(kept)
+        if n == 0 or descriptors is None or descriptors.shape != (n, 64) or descriptors.dtype != np.uint8:
+            sys.exit(f"error: freak case {name}: unexpected result, {n} kept, descriptors {getattr(descriptors, 'shape', None)}")
+
+        # Cross-check against the replicated geometry: the expected drops must be OpenCV's.
+        ps = freak_pattern_sizes(np, opts["pattern_scale"], opts["n_octaves"])
+        expected = []
+        for i, kp in enumerate(kps):
+            idx = freak_scale_idx(np, kp[2], opts)
+            sides = freak_dropped_sides(kp, ps[idx], w, h)
+            if not sides:
+                expected.append(i)
+            elif name == "default":
+                for side in sides:
+                    drop_trips[side] += 1
+                if len(sides) == 1:
+                    drop_only[sides[0]] += 1
+        if expected != kept:
+            diff = sorted(set(expected) ^ set(kept))
+            sys.exit(f"error: freak case {name}: replicated border test disagrees with OpenCV at inputs {diff[:10]}")
+
+        small_sigma = (2.0 / 24.0) / 2.0 * float(np.float32(opts["pattern_scale"]))  # sigma[6] at scale 0
+        for i in kept:
+            idx = freak_scale_idx(np, kps[i][2], opts)
+            if idx == FREAK_NB_SCALES - 1:
+                scale63_kept[name] = scale63_kept.get(name, 0) + 1
+            scaling = (2.0 ** (opts["n_octaves"] / FREAK_NB_SCALES)) ** idx
+            if name == "pattern-scale-8" and small_sigma * scaling < 0.5:
+                bilinear_kept += 1
+        kept_by_case[name] = kept
+        cases.append(
+            {
+                "name": name,
+                "image": image_key,
+                "options": opts,
+                "keypoints": kps,
+                "kept": kept,
+                "angles_deg": [f32(kp.angle) for kp in returned],
+                "descriptors": [row.tobytes().hex() for row in descriptors],
+            }
+        )
+        print(f"freak {name}: {n} of {len(kps)} kept")
+
+    # Rotation: input i of the scene case and input j of scene_rot90 are the same point.
+    # `pairs` holds descriptor rows, that is positions in each case's `kept`, not input indices.
+    kept_a, kept_b = kept_by_case["default"], kept_by_case["rot90-default"]
+    pairs = []
+    for j, i in enumerate(rot_input):
+        if i in kept_a and j in kept_b:
+            pairs.append([kept_a.index(i), kept_b.index(j)])
+    if len(pairs) != len(rot_input):
+        sys.exit(f"error: freak rotation: {len(pairs)} of {len(rot_input)} points survive in both images")
+    desc_a = next(c for c in cases if c["name"] == "default")["descriptors"]
+    desc_b = next(c for c in cases if c["name"] == "rot90-default")["descriptors"]
+    hamming = [bin(int(desc_a[a], 16) ^ int(desc_b[b], 16)).count("1") for a, b in pairs]
+    rotation = {
+        "case_a": "default",
+        "case_b": "rot90-default",
+        "pairs_index": "descriptor_row",  # [row in case_a, row in case_b]: positions in `kept`, not input indices
+        "pairs": pairs,
+        "max_hamming": max(hamming),
+    }
+
+    print("freak coverage:")
+    print(f"  bilinear branch (pattern-scale-8, radius < 0.5): {bilinear_kept} kept keypoints")
+    print(f"  scale 63 kept, by case: {scale63_kept}")
+    print(f"  drops in default tripping each side: {drop_trips}, that side alone: {drop_only}")
+    print(f"  rotation: {len(pairs)} pairs, max Hamming {rotation['max_hamming']} of 512")
+    problems = []
+    if bilinear_kept == 0:
+        problems.append("bilinear branch not reached")
+    if not scale63_kept:
+        problems.append("scale 63 not reached")
+    problems += [f"no drop on the {side} side" for side in FREAK_SIDES if drop_only[side] == 0]
+    if problems:
+        sys.exit("error: freak coverage: " + "; ".join(problems))
+
+    params = {
+        "opencv_call": "cv2.xfeatures2d.FREAK_create(orientationNormalized, scaleNormalized, patternScale, nOctaves).compute(image, keypoints)",
+        "seed": FREAK_SEED,
+        "input_angle": -1,
+        "scene_rot90": "numpy.rot90(scene), counter-clockwise, 480 x 640; keypoint (x, y) maps to (y, W - 1 - x), W = 640",
+        "scene_rot90_sha256": rot_sha,
+        "flat": "96 x 96 image of constant value 100",
+        "rotation_points": "the 'interior' random keypoints (quarter-pixel grid, 150 px from every border)",
+        "border_scale_sizes": {str(s): size for s, size in scale_sizes.items()},
+        "pattern_sizes_default": ps_default,
+    }
+    return {"freak": envelope(tc, "freak", params, {"cases": cases, "rotation": rotation}, scene)}
+
+
 # `--only <key>` selects one entry; no `--only` runs them all.
 GENERATORS = {
     "integral": gen_integral,
@@ -1157,6 +1446,7 @@ GENERATORS = {
     "gms-synthetic": gen_gms_synthetic,
     "gms-coverage": gen_gms_coverage,
     "teblid": gen_teblid,
+    "freak": gen_freak,
 }
 
 
