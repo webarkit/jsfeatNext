@@ -1172,6 +1172,44 @@ FREAK_CASES = (
     ("octaves-8", {"n_octaves": 8}),
 )
 FREAK_SIDES = ("left", "right", "top", "bottom")
+# A procedural texture, built with integer arithmetic only so TypeScript can rebuild it bit for bit.
+FREAK_TEXTURE = {"width": 320, "height": 240, "seed": 8001}
+FREAK_TEXTURE_KEYPOINTS = 300
+FREAK_TEXTURE_SIZES = [5, 7, 9, 12, 16, 22]
+FREAK_TEXTURE_MARGIN = 75  # keeps size 22 (scale 26, patternSizes 69) inside, in both orientations
+FREAK_MIN_THETA_IDX = 100  # coverage gate at texture-default
+FREAK_MIN_NEGATIVE_ANGLES = 20
+
+
+def freak_texture(np, width, height, seed):
+    """The ``texture`` image, uint8, row-major. Integer arithmetic only:
+
+    1. ``h = (x * 0x9E3779B1) ^ (y * 0x85EBCA6B) ^ (seed * 0xC2B2AE35)``, every product mod 2^32;
+    2. ``h ^= h >> 15; h = h * 0x2C1B3C6D mod 2^32; h ^= h >> 12; h = h * 0x297A2D39 mod 2^32; h ^= h >> 15``;
+    3. ``n = h & 255``;
+    4. one 3x3 box blur with clamped edges: ``b = (sum of the nine n + 4) // 9``;
+    5. contrast stretch: ``v = (b - min) * 255 // (max - min)``, ``min`` and ``max`` over the image.
+    """
+    m = np.uint64(0xFFFFFFFF)
+    x = np.arange(width, dtype=np.uint64)[None, :]
+    y = np.arange(height, dtype=np.uint64)[:, None]
+    h = ((x * np.uint64(0x9E3779B1)) & m) ^ ((y * np.uint64(0x85EBCA6B)) & m) ^ ((np.uint64(seed) * np.uint64(0xC2B2AE35)) & m)
+    h = h ^ (h >> np.uint64(15))
+    h = (h * np.uint64(0x2C1B3C6D)) & m
+    h = h ^ (h >> np.uint64(12))
+    h = (h * np.uint64(0x297A2D39)) & m
+    h = h ^ (h >> np.uint64(15))
+    n = (h & np.uint64(255)).astype(np.int64)
+    pad = np.pad(n, 1, mode="edge")
+    total = sum(pad[dy : dy + height, dx : dx + width] for dy in range(3) for dx in range(3))
+    b = (total + 4) // 9
+    lo, hi = int(b.min()), int(b.max())
+    return ((b - lo) * 255 // (hi - lo)).astype(np.uint8)
+
+
+def freak_theta_idx(np, angle) -> int:
+    """thetaIdx from a returned angle, as in ``computeDescriptors``: half-even, wrapped into [0, 256)."""
+    return round(float(np.float32(256 * angle)) * (1 / 360.0)) % 256
 
 
 def freak_pattern_sizes(np, pattern_scale, n_octaves) -> list[int]:
@@ -1310,10 +1348,42 @@ def gen_freak(tc: Toolchain, scene: Scene) -> dict:
     if len({tuple(k) for k in keypoints}) != len(keypoints):
         sys.exit("error: freak input keypoints contain a duplicate (x, y, size)")
 
+    # The texture and its keypoints come after the scene's, so the scene cases do not change.
+    tw, th = FREAK_TEXTURE["width"], FREAK_TEXTURE["height"]
+    texture = freak_texture(np, tw, th, FREAK_TEXTURE["seed"])
+    tex_sha = hashlib.sha256(texture.tobytes()).hexdigest()
+    tex_rot = np.ascontiguousarray(np.rot90(texture))
+    tex_keypoints, tex_seen, tex_interior = [], set(), []
+    lo, hi = FREAK_TEXTURE_MARGIN, (tw - FREAK_TEXTURE_MARGIN, th - FREAK_TEXTURE_MARGIN)
+    for i in range(FREAK_TEXTURE_KEYPOINTS + 8):
+        size = float(FREAK_TEXTURE_SIZES[int(rng.integers(len(FREAK_TEXTURE_SIZES)))])
+        if i < FREAK_TEXTURE_KEYPOINTS:  # quarter-pixel grid: exact under a 90 degree rotation
+            x = round(float(rng.uniform(lo, hi[0])) * 4) / 4
+            y = round(float(rng.uniform(lo, hi[1])) * 4) / 4
+        else:  # a few arbitrary float32 positions
+            x, y = float(rng.uniform(lo, hi[0])), float(rng.uniform(lo, hi[1]))
+        kp = [np.float32(x).item(), np.float32(y).item(), np.float32(size).item()]
+        if tuple(kp) in tex_seen:
+            continue
+        tex_seen.add(tuple(kp))
+        if i < FREAK_TEXTURE_KEYPOINTS:
+            tex_interior.append(len(tex_keypoints))
+        tex_keypoints.append(kp)
+    tex_rot_keypoints = [
+        [np.float32(tex_keypoints[i][1]).item(), np.float32(tw - 1 - tex_keypoints[i][0]).item(), tex_keypoints[i][2]]
+        for i in tex_interior
+    ]
+
     rot_image = np.ascontiguousarray(np.rot90(scene.image))
     rot_sha = hashlib.sha256(rot_image.tobytes()).hexdigest()
     flat_image = np.full((96, 96), 100, dtype=np.uint8)
-    images = {"scene": scene.image, "scene_rot90": rot_image, "flat": flat_image}
+    images = {
+        "scene": scene.image,
+        "scene_rot90": rot_image,
+        "flat": flat_image,
+        "texture": texture,
+        "texture_rot90": tex_rot,
+    }
     f32 = lambda v: np.float32(v).item()  # noqa: E731
 
     rot_input = groups["interior"]
@@ -1325,6 +1395,9 @@ def gen_freak(tc: Toolchain, scene: Scene) -> dict:
         plan.append((name, "scene", {**FREAK_DEFAULTS, **over}, keypoints))
     plan.append(("rot90-default", "scene_rot90", dict(FREAK_DEFAULTS), rot_keypoints))
     plan.append(("flat-default", "flat", dict(FREAK_DEFAULTS), flat_keypoints))
+    plan.append(("texture-default", "texture", dict(FREAK_DEFAULTS), tex_keypoints))
+    plan.append(("texture-pattern-scale-8", "texture", {**FREAK_DEFAULTS, "pattern_scale": 8.0}, tex_keypoints))
+    plan.append(("texture-rot90-default", "texture_rot90", dict(FREAK_DEFAULTS), tex_rot_keypoints))
 
     cases, kept_by_case = [], {}
     drop_trips = {side: 0 for side in FREAK_SIDES}  # default case: dropped keypoints tripping the side
@@ -1375,7 +1448,7 @@ def gen_freak(tc: Toolchain, scene: Scene) -> dict:
             if idx == FREAK_NB_SCALES - 1:
                 scale63_kept[name] = scale63_kept.get(name, 0) + 1
             scaling = (2.0 ** (opts["n_octaves"] / FREAK_NB_SCALES)) ** idx
-            if name == "pattern-scale-8" and small_sigma * scaling < 0.5:
+            if name.endswith("pattern-scale-8") and small_sigma * scaling < 0.5:
                 bilinear_kept += 1
         kept_by_case[name] = kept
         cases.append(
@@ -1393,19 +1466,20 @@ def gen_freak(tc: Toolchain, scene: Scene) -> dict:
 
     # Rotation: input i of the scene case and input j of scene_rot90 are the same point.
     # `pairs` holds descriptor rows, that is positions in each case's `kept`, not input indices.
-    kept_a, kept_b = kept_by_case["default"], kept_by_case["rot90-default"]
+    rot_input = tex_interior
+    kept_a, kept_b = kept_by_case["texture-default"], kept_by_case["texture-rot90-default"]
     pairs = []
     for j, i in enumerate(rot_input):
         if i in kept_a and j in kept_b:
             pairs.append([kept_a.index(i), kept_b.index(j)])
     if len(pairs) != len(rot_input):
         sys.exit(f"error: freak rotation: {len(pairs)} of {len(rot_input)} points survive in both images")
-    desc_a = next(c for c in cases if c["name"] == "default")["descriptors"]
-    desc_b = next(c for c in cases if c["name"] == "rot90-default")["descriptors"]
+    desc_a = next(c for c in cases if c["name"] == "texture-default")["descriptors"]
+    desc_b = next(c for c in cases if c["name"] == "texture-rot90-default")["descriptors"]
     hamming = [bin(int(desc_a[a], 16) ^ int(desc_b[b], 16)).count("1") for a, b in pairs]
     rotation = {
-        "case_a": "default",
-        "case_b": "rot90-default",
+        "case_a": "texture-default",
+        "case_b": "texture-rot90-default",
         "pairs_index": "descriptor_row",  # [row in case_a, row in case_b]: positions in `kept`, not input indices
         "pairs": pairs,
         "max_hamming": max(hamming),
@@ -1416,7 +1490,15 @@ def gen_freak(tc: Toolchain, scene: Scene) -> dict:
     print(f"  scale 63 kept, by case: {scale63_kept}")
     print(f"  drops in default tripping each side: {drop_trips}, that side alone: {drop_only}")
     print(f"  rotation: {len(pairs)} pairs, max Hamming {rotation['max_hamming']} of 512")
+    tex_angles = next(c for c in cases if c["name"] == "texture-default")["angles_deg"]
+    theta_idx = {freak_theta_idx(np, a) for a in tex_angles}
+    negative = sum(1 for a in tex_angles if a < 0)
+    print(f"  texture-default: {len(theta_idx)} distinct thetaIdx, {negative} negative angles of {len(tex_angles)}")
     problems = []
+    if len(theta_idx) < FREAK_MIN_THETA_IDX:
+        problems.append(f"only {len(theta_idx)} distinct thetaIdx at texture-default")
+    if negative < FREAK_MIN_NEGATIVE_ANGLES:
+        problems.append(f"only {negative} negative angles at texture-default")
     if bilinear_kept == 0:
         problems.append("bilinear branch not reached")
     if not scale63_kept:
@@ -1432,7 +1514,11 @@ def gen_freak(tc: Toolchain, scene: Scene) -> dict:
         "scene_rot90": "numpy.rot90(scene), counter-clockwise, 480 x 640; keypoint (x, y) maps to (y, W - 1 - x), W = 640",
         "scene_rot90_sha256": rot_sha,
         "flat": "96 x 96 image of constant value 100",
-        "rotation_points": "the 'interior' random keypoints (quarter-pixel grid, 150 px from every border)",
+        "rotation_points": "the texture 'interior' keypoints (quarter-pixel grid, 75 px from every border); scene_rot90 is a plain case",
+        "images": {
+            "texture": {**FREAK_TEXTURE, "sha256": tex_sha, "formula": "see freak_texture() and the README"},
+            "texture_rot90": "numpy.rot90(texture); keypoint (x, y) maps to (y, W - 1 - x), W = 320",
+        },
         "border_scale_sizes": {str(s): size for s, size in scale_sizes.items()},
         "pattern_sizes_default": ps_default,
     }

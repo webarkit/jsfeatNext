@@ -425,7 +425,8 @@ the fixture records which inputs OpenCV kept.
 
 - `image` is `"scene"` (the committed 640x480 image), `"scene_rot90"`
   (`numpy.rot90(scene)`, counter-clockwise, 480 x 640; its sha256 is
-  `meta.params.scene_rot90_sha256`) or `"flat"` (96 x 96, every pixel 100).
+  `meta.params.scene_rot90_sha256`) `"flat"` (96 x 96, every pixel 100), `"texture"` (320 x 240, procedural, below) or
+  `"texture_rot90"` (`numpy.rot90(texture)`, 240 x 320).
 - `options` is `{ orientation_normalized, scale_normalized, pattern_scale, n_octaves }`,
   the arguments of `FREAK_create`.
 - `keypoints` is the input, `[x, y, size][]`, every value float32-exact (written as
@@ -451,6 +452,9 @@ the fixture records which inputs OpenCV kept.
 | `octaves-3`, `octaves-8` | `n_octaves = 3`, `8` | `sizeCst`, `scaleStep`, and scale 63 kept at 3 octaves |
 | `rot90-default` | defaults, image `scene_rot90` | a rotated image and its rotated keypoints |
 | `flat-default` | defaults, image `flat` | `atan2(0, 0)` on three interior keypoints of a constant image |
+| `texture-default` | defaults, image `texture` | the orientation path: 308 keypoints, 168 distinct `thetaIdx`, 147 negative angles |
+| `texture-pattern-scale-8` | `pattern_scale = 8`, image `texture` | the bilinear branch on a textured image |
+| `texture-rot90-default` | defaults, image `texture_rot90` | the rotation payload (below) |
 
 The input list has: 60 random `interior` keypoints (quarter-pixel positions, 150 px from
 every border, sizes 5..30); 80 random `mixed` ones anywhere with sizes 5..150, at
@@ -469,13 +473,15 @@ case and exits non-zero if its expected `kept` is not OpenCV's, so the threshold
 asserted, not assumed.
 
 **Rotation.** `payload.rotation = { case_a, case_b, pairs_index, pairs, max_hamming }`.
-`case_a` is `default` and `case_b` is `rot90-default`, whose keypoints are the `interior`
-ones mapped by `(x, y) -> (y, W - 1 - x)`, `W = 640`. `pairs` are `[row in case_a, row in
+`case_a` is `texture-default` and `case_b` is `texture-rot90-default`, whose keypoints are
+the 300 `interior` texture ones (quarter-pixel positions, 75 px from every border, sizes
+5..22) mapped by `(x, y) -> (y, W - 1 - x)`, `W = 320`. (`rot90-default` on the scene is a
+plain case.) `pairs` are `[row in case_a, row in
 case_b]` pairs of **descriptor rows**, that is positions in each case's `kept` (not input
 indices; `pairs_index` says so), and `max_hamming` is OpenCV's largest Hamming distance
-between the two descriptors of a pair. FREAK is not rotation invariant on this scene
-(its texture is diagonal), so the value is large, 265 of 512; the test pins that the port
-reproduces OpenCV's number, not that it is small.
+between the two descriptors of a pair (333 of 512, median 61.5, 300 pairs). FREAK is not
+exactly rotation invariant, so the test pins that the port reproduces OpenCV's number, not
+that it is small.
 
 **Coverage**, printed by the generator (it exits non-zero if any is zero): the bilinear
 branch (kept keypoints at `pattern-scale-8` with a box radius < 0.5), scale 63 kept
@@ -483,9 +489,24 @@ branch (kept keypoints at `pattern-scale-8` with a box radius < 0.5), scale 63 k
 scale 63, so everything there is dropped), and a drop caused by each of the four sides
 alone.
 
-**Orientation is weakly exercised by the scene.** The committed scene is a synthetic
-texture with 31 grey levels, and most patches have no net gradient: 125 of the 164
-kept keypoints of `default` get angle 0. The other 39 take 19 distinct angles.
+**The scene exercises orientation weakly, so there is a texture.** The committed scene is a
+synthetic diagonal texture with 31 grey levels, and most patches have no net gradient: 125
+of the 164 kept keypoints of `default` get angle 0. The `texture` image fixes that. It is
+built with integer arithmetic only, so a TypeScript helper can rebuild it bit for bit
+(`freak_texture()` in the generator; the fixture records `meta.params.images.texture`,
+`{ width: 320, height: 240, seed: 8001, sha256 }`, the sha256 of the 76800 row-major bytes):
+
+1. `h = ((x * 0x9E3779B1) mod 2^32) ^ ((y * 0x85EBCA6B) mod 2^32) ^ ((seed * 0xC2B2AE35) mod 2^32)`;
+2. `h ^= h >>> 15; h = (h * 0x2C1B3C6D) mod 2^32; h ^= h >>> 12; h = (h * 0x297A2D39) mod 2^32; h ^= h >>> 15`
+   (all unsigned 32 bit; in JS use `Math.imul` and `>>> 0`);
+3. `n = h & 255`;
+4. one 3x3 box blur, edges clamped (replicated): `b = floor((sum of the nine n + 4) / 9)`;
+5. contrast stretch with `min` and `max` of `b` over the whole image:
+   `v = floor((b - min) * 255 / (max - min))`.
+
+The generator gates coverage at `texture-default` and exits non-zero otherwise: at least 100
+distinct `thetaIdx` (from the returned angle, `round_half_even(float32(256 * angle) * (1 / 360.0))`
+wrapped into [0, 256)) and at least 20 negative angles. It reaches 168 and 147.
 
 ## What is not pinned against OpenCV
 
