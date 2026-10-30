@@ -59,6 +59,8 @@ const ORIGINAL_SRC = new Set([
     // the TEBLID example (#135) is written from scratch for this library, not
     // adapted from a jsfeat sample page
     "examples/sample_teblid.html",
+    // the FREAK example (#80) is written from scratch too, not adapted from a jsfeat sample page
+    "examples/sample_freak.html",
 ]);
 
 /**

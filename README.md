@@ -141,6 +141,7 @@ They share the helpers in [`examples/js/demo-utils.mjs`](examples/js/demo-utils.
 | `sample_orb.html` | ORB descriptors + matching + homography |
 | `sample_orb_pinball.html` | ORB pattern tracking on a reference image |
 | `sample_teblid.html` | TEBLID descriptors matched across a rotated, scaled view (no camera) |
+| `sample_freak.html` | FREAK descriptors with their own orientation, matched across a rotated, scaled view (no camera) |
 | `sample_warp_affine.html` / `sample_warp_perspective.html` | affine / perspective warps |
 
 ### UMD examples — global `<script>` tag
