@@ -123,6 +123,9 @@ describe("OpenCV reference version (AGENTS.md)", () => {
         expect(meta.opencv_build).toBe(pin[2]);
         expect(meta.opencv_contrib_build).toBe(pin[2]);
         expect(meta.ipp).toBe(false);
+        // Where the fixture was generated (#135): the platform and the C++ compiler of the wheel.
+        expect(meta.platform).toMatch(/^\S+ \S+$/);
+        expect(meta.compiler).not.toBe("");
     });
 
     it("AGENTS.md names the pinned build, so the rule and the pin move together", () => {

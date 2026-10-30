@@ -17,13 +17,14 @@
 
 """Regenerate the OpenCV fixtures that the Vitest suite asserts against.
 
-    python scripts/gen-opencv-fixtures.py [--only integral|gms|gms-synthetic|gms-coverage]
+    python scripts/gen-opencv-fixtures.py [--only integral|gms|gms-synthetic|gms-coverage|teblid]
 
 ``--only integral`` writes ``integral-scene.json``; ``--only gms`` writes the
 five ORB and hand-placed GMS fixtures (``gms-default``, ``gms-rotation``,
 ``gms-scale``, ``gms-rotation-scale``, ``gms-boundaries``) and
 ``--only gms-synthetic`` the four ``gms-synth-*.json`` and ``--only
-gms-coverage`` ``gms-coverage.json`` (#134). With no ``--only`` every fixture
+gms-coverage`` ``gms-coverage.json`` (#134); ``--only teblid`` writes
+``teblid-p256.json`` and ``teblid-p512.json`` (#135). With no ``--only`` every fixture
 is regenerated. Output is deterministic: the same pinned toolchain and the same
 committed scene always produce the same bytes, so ``git status`` after a re-run
 shows nothing.
@@ -44,6 +45,7 @@ import argparse
 import hashlib
 import json
 import math
+import platform
 import re
 import sys
 from collections import namedtuple
@@ -64,7 +66,7 @@ NUMPY_DIST = "numpy"
 # so the guard refuses to run (#245).
 OTHER_OPENCV_DISTS = ("opencv-python", "opencv-python-headless", "opencv-contrib-python-headless")
 
-Toolchain = namedtuple("Toolchain", "cv2 np wheel build contrib_build")
+Toolchain = namedtuple("Toolchain", "cv2 np wheel build contrib_build compiler")
 Scene = namedtuple("Scene", "name path image sha256")
 
 
@@ -161,7 +163,8 @@ def require_pinned_toolchain() -> Toolchain:
 
     build = build_version(cv2, "Version control:")
     contrib_build = build_version(cv2, "Version control (extra):")
-    return Toolchain(cv2, np, f"{OPENCV_DIST}=={wheel}", build, contrib_build)
+    compiler = build_version(cv2, "C++ Compiler:")
+    return Toolchain(cv2, np, f"{OPENCV_DIST}=={wheel}", build, contrib_build, compiler)
 
 
 def installed_version(dist: str) -> str | None:
@@ -213,6 +216,8 @@ def envelope(tc: Toolchain, algorithm: str, params: dict, payload: dict | list, 
         "opencv_build": tc.build,
         "opencv_contrib_build": tc.contrib_build,
         "ipp": False,
+        "platform": f"{platform.system()} {platform.machine()}",
+        "compiler": tc.compiler,
         "algorithm": algorithm,
         "params": params,
     }
@@ -229,7 +234,7 @@ def digest(array, dtype: str) -> str:
 
 # Fixtures written with compact_json(): the synthetic GMS ones hold thousands of
 # coordinates, which indent=1 would put one number per line.
-COMPACT_FIXTURES = ("gms-synth-", "gms-coverage")
+COMPACT_FIXTURES = ("gms-synth-", "gms-coverage", "teblid-")
 
 
 def compact_json(value, level: int = 0) -> str:
@@ -878,12 +883,280 @@ def gms_payload(
     }
 
 
+# ---------------------------------------------------------------------------
+# TEBLID (#135)
+# ---------------------------------------------------------------------------
+
+TEBLID_SEED = 1351
+TEBLID_RANDOM_INTERIOR = 60  # per scale factor
+TEBLID_RANDOM_MIXED = 80  # per scale factor
+TEBLID_RANDOM_TINY = 40  # per scale factor
+TEBLID_TINY = 24  # side of the top-left crop of the scene
+TEBLID_SCALES = (1.0, 5.0)
+TEBLID_BITS = (("teblid-p256", 256, "TEBLID_SIZE_256_BITS"), ("teblid-p512", 512, "TEBLID_SIZE_512_BITS"))
+TEBLID_ORB_SIZES = [31 * 1.2**level for level in range(8)]
+# ORB-like and FAST-like sizes, per scale factor, for the random cases.
+TEBLID_SIZES = {1.0: [7, 10, 16, 31, TEBLID_ORB_SIZES[1], TEBLID_ORB_SIZES[3], 60], 5.0: [2, 3, 5, 7, 10, 14]}
+# The largest boxRadius in teblid.p256.hpp and teblid.p512.hpp is 7, and every patch
+# coordinate lies in [1, 30] (read once from the pinned upstream tables):
+# https://github.com/opencv/opencv_contrib/blob/4.10.0/modules/xfeatures2d/src/teblid.p512.hpp
+TEBLID_MAX_BOX_RADIUS = 7
+TEBLID_PATCH = 32
+TEBLID_DEGREES_TO_RADS = 0.017453292519943295  # CV_DEGREES_TO_RADS
+
+
+def teblid_roundnum(np, v) -> int:
+    """``CV_ROUNDNUM(x) = (int)(x + 0.5f)``: a float32 add, then truncation toward zero."""
+    return int(np.float32(v + np.float32(0.5)))
+
+
+def teblid_border(np, size, scale_factor):
+    """The margin ``b`` of OpenCV's ``isKeypointInTheBorder``, in float32 and in its order."""
+    f = np.float32
+    s = f(scale_factor) * f(size) / f(2 * TEBLID_PATCH)
+    return f(TEBLID_PATCH) * s * f(1.75)
+
+
+def teblid_in_border(np, kp, width, height, scale_factor) -> bool:
+    """``isKeypointInTheBorder`` for ``kp = (x, y, size, angle)``."""
+    f = np.float32
+    x, y = f(kp[0]), f(kp[1])
+    b = teblid_border(np, kp[2], scale_factor)
+    return bool(x < b or x + b >= f(width) or y < b or y + b >= f(height))
+
+
+def teblid_fast_path_out_of_buffer(np, kp, width, height, scale_factor) -> bool:
+    """True when the fast path could read outside the integral buffer (undefined behaviour).
+
+    For a keypoint that is not in the border, ``computeBoxDiffsDescriptor`` indexes
+    ``integralPtr[(y +/- r) * (W + 1) + (x +/- r)]`` with no bounds check. This
+    replicates ``rectifyABWL`` in float32 (each operation rounded, in C++ order)
+    for the four corners (1, 1), (30, 1), (1, 30), (30, 30) of the table range, which bound every table coordinate
+    (all in [1, 30]), and widens the result by the largest boxRadius. The lowest and
+    highest flat index that can be read are compared with ``[0, (W + 1) * (H + 1))``.
+    A read that wraps to an adjacent row stays inside the buffer and is defined, so it
+    does not count. The screen is conservative: it may drop a keypoint whose real reads
+    all stay inside.
+    """
+    f = np.float32
+    x, y, size, angle = f(kp[0]), f(kp[1]), f(kp[2]), f(kp[3])
+    s = f(scale_factor) * size / (f(0.5) * f(2 * TEBLID_PATCH))
+    n = f(TEBLID_PATCH)
+    if angle == f(-1):
+        m00, m01 = s, f(0)
+        m02 = f(-0.5) * s * n + x
+        m10, m11 = f(0), s
+        m12 = -s * f(0.5) * n + y
+    else:
+        if angle >= 0:
+            rad = float(angle) * TEBLID_DEGREES_TO_RADS  # a double, as in C++
+            cosine, sine = f(math.cos(rad)), f(math.sin(rad))
+        else:
+            cosine, sine = f(1), f(0)
+        m00, m01 = s * cosine, -s * sine
+        m02 = (-s * cosine + s * sine) * n * f(0.5) + x
+        m10, m11 = s * sine, s * cosine
+        m12 = (-s * sine - s * cosine) * n * f(0.5) + y
+    radius = teblid_roundnum(np, s * f(TEBLID_MAX_BOX_RADIUS))
+    xs, ys = [], []
+    for px, py in ((1, 1), (30, 1), (1, 30), (30, 30)):
+        px, py = f(px), f(py)
+        xs.append(teblid_roundnum(np, m00 * px + m01 * py + m02))
+        ys.append(teblid_roundnum(np, m10 * px + m11 * py + m12))
+    stride = width + 1
+    lowest = (min(ys) - radius) * stride + (min(xs) - radius)
+    highest = (max(ys) + radius + 1) * stride + (max(xs) + radius + 1)
+    return lowest < 0 or highest >= stride * (height + 1)
+
+
+class TeblidCandidates:
+    """The cases of one image and scale factor, with the undefined-behaviour keypoints screened out."""
+
+    def __init__(self, np, width, height, scale_factor):
+        self.np, self.width, self.height, self.scale_factor = np, width, height, scale_factor
+        self.cases = []  # [(name, [[x, y, size, angle]])]
+        self.screened = []  # [(case name, [x, y, size, angle])]
+        self.in_border = {}  # case name -> number of keypoints on the clamped path
+
+    def add(self, name, kps):
+        np = self.np
+        kept = []
+        for raw in kps:
+            kp = [np.float32(v).item() for v in raw]
+            border = teblid_in_border(np, kp, self.width, self.height, self.scale_factor)
+            if not border and teblid_fast_path_out_of_buffer(np, kp, self.width, self.height, self.scale_factor):
+                self.screened.append((name, kp))
+                continue
+            kept.append(kp)
+            self.in_border[name] = self.in_border.get(name, 0) + int(border)
+        self.cases.append((name, kept))
+
+
+def teblid_edge_values(np, b, limit):
+    """Float32 positions around the margin ``b`` on the low side and ``limit - b`` on the high side.
+
+    Returns ``(low, high)``, each three float32 values: on the low side (x < b is
+    border) the last border value, the first non-border one (exactly at ``b``) and
+    the next; on the high side (x + b >= limit is border) the second to last
+    non-border value, the last one and the first border value.
+    """
+    f = np.float32
+    up, down = f(np.inf), f(-np.inf)
+    low = [np.nextafter(f(b), down), f(b), np.nextafter(f(b), up)]
+    last_in = f(f(limit) - b)
+    while f(last_in + b) >= f(limit):
+        last_in = np.nextafter(last_in, down)
+    while f(np.nextafter(last_in, up) + b) < f(limit):
+        last_in = np.nextafter(last_in, up)
+    high = [np.nextafter(last_in, down), last_in, np.nextafter(last_in, up)]
+    return low, high
+
+
+def teblid_build_cases(np, rng, width, height, scale_factor, tiny: bool) -> TeblidCandidates:
+    cand = TeblidCandidates(np, width, height, scale_factor)
+    sizes = TEBLID_SIZES[scale_factor]
+    cx, cy = 0.5 * width + 0.25, 0.5 * height + 0.75
+
+    def random_angle():
+        return -1.0 if rng.random() < 0.25 else float(rng.uniform(0.0, 360.0))
+
+    if tiny:
+        tiny_sizes = [7, 10, 12, 16] if scale_factor == 1.0 else [1.5, 2, 3, 4, 5]
+        kps = []
+        for _ in range(TEBLID_RANDOM_TINY):
+            size = tiny_sizes[int(rng.integers(len(tiny_sizes)))]
+            kps.append([rng.uniform(0, width), rng.uniform(0, height), size, random_angle()])
+        cand.add("tiny", kps)
+        return cand
+
+    # Anywhere in the image: border and interior mixed.
+    kps = []
+    for _ in range(TEBLID_RANDOM_MIXED):
+        size = sizes[int(rng.integers(len(sizes)))]
+        kps.append([rng.uniform(0, width), rng.uniform(0, height), size, random_angle()])
+    cand.add("random-mixed", kps)
+
+    # Inside the margin: always the fast path.
+    kps = []
+    for _ in range(TEBLID_RANDOM_INTERIOR):
+        size = sizes[int(rng.integers(len(sizes)))]
+        b = float(teblid_border(np, size, scale_factor))
+        kps.append([rng.uniform(b + 1, width - b - 1), rng.uniform(b + 1, height - b - 1), size, random_angle()])
+    cand.add("interior", kps)
+
+    # The angle edge cases, on a FAST-like and an ORB-like size.
+    angle_size = 31 if scale_factor == 1.0 else 7
+    angles = [-1, 0, 90, 359.9, 45, 180, 270, 0.1, 1, 123.456]
+    cand.add("angles", [[cx, cy, angle_size, a] for a in angles])
+
+    # ORB-like sizes 31 * 1.2^l, FAST's 7 and a large size (int-to-float rounding).
+    kps = []
+    for size in TEBLID_ORB_SIZES + [7, 150]:
+        kps.append([cx, cy, size, -1])
+        kps.append([cx, cy, size, float(rng.uniform(0.0, 360.0))])
+    cand.add("sizes", kps)
+
+    # Each border: just inside, exactly at and just beyond the margin, upright and rotated.
+    border_sizes = [7, 31, 60] if scale_factor == 1.0 else [3, 7, 15]
+    sides = {"left": [], "right": [], "top": [], "bottom": []}
+    for size in border_sizes:
+        b = teblid_border(np, size, scale_factor)
+        x_low, x_high = teblid_edge_values(np, b, width)
+        y_low, y_high = teblid_edge_values(np, b, height)
+        for angle in (-1, 90, 37.5):
+            sides["left"] += [[x, cy, size, angle] for x in x_low]
+            sides["right"] += [[x, cy, size, angle] for x in x_high]
+            sides["top"] += [[cx, y, size, angle] for y in y_low]
+            sides["bottom"] += [[cx, y, size, angle] for y in y_high]
+    for side, kps in sides.items():
+        cand.add(f"border-{side}", kps)
+
+    # The four corners, a small and a large keypoint, upright and rotated.
+    corners = [(0, 0), (width - 1, 0), (0, height - 1), (width - 1, height - 1), (0.5, 0.5), (width - 0.5, height - 0.5)]
+    kps = []
+    for size in (31, 150):
+        for x, y in corners:
+            kps.append([x, y, size, -1])
+            kps.append([x, y, size, 213.7])
+    cand.add("corners", kps)
+    return cand
+
+
+def gen_teblid(tc: Toolchain, scene: Scene) -> dict:
+    """``cv2.xfeatures2d.TEBLID_create(scale_factor, n_bits).compute`` at 256 and 512 bits.
+
+    The keypoints are fixed float32 inputs, shared by both fixtures. Keypoints whose
+    fast path would read outside OpenCV's integral buffer are screened out before
+    ``compute`` is called (see ``teblid_fast_path_out_of_buffer``); nothing else is
+    ever dropped.
+    """
+    np, cv2 = tc.np, tc.cv2
+    tiny = np.ascontiguousarray(scene.image[:TEBLID_TINY, :TEBLID_TINY])
+    tiny_sha = hashlib.sha256(tiny.tobytes()).hexdigest()
+    images = {"scene": scene.image, "tiny": tiny}
+
+    rng = np.random.default_rng(TEBLID_SEED)
+    plan = []  # (image key, scale factor, TeblidCandidates)
+    for scale_factor in TEBLID_SCALES:
+        for key in ("scene", "tiny"):
+            h, w = images[key].shape
+            plan.append((key, scale_factor, teblid_build_cases(np, rng, w, h, scale_factor, key == "tiny")))
+
+    screened = sum(len(c.screened) for _, _, c in plan)
+    kept = sum(len(kps) for _, _, c in plan for _, kps in c.cases)
+    print(f"teblid: {kept + screened} candidate keypoints, {screened} screened out (undefined fast-path reads)")
+    for key, scale_factor, c in plan:
+        for name, kp in c.screened:
+            print(f"  screened {key} sf={scale_factor} {name}: {kp}")
+        for name, kps in c.cases:
+            print(f"  {key} sf={scale_factor} {name}: {len(kps)} keypoints, {c.in_border.get(name, 0)} on the border path")
+
+    out = {}
+    for name, n_bits, enum_name in TEBLID_BITS:
+        cases = []
+        for key, scale_factor, c in plan:
+            detector = cv2.xfeatures2d.TEBLID_create(scale_factor, getattr(cv2.xfeatures2d, enum_name))
+            for case_name, kps in c.cases:
+                if not kps:
+                    sys.exit(f"error: teblid case {case_name} is empty after screening")
+                given = [cv2.KeyPoint(*kp) for kp in kps]
+                returned, descriptors = detector.compute(images[key], given)
+                if len(returned) != len(given) or any(
+                    (a.pt, a.size, a.angle) != (b.pt, b.size, b.angle) for a, b in zip(returned, given)
+                ):
+                    sys.exit(f"error: TEBLID compute changed the keypoints of {case_name} ({key}, {scale_factor})")
+                if descriptors.shape != (len(kps), n_bits // 8) or descriptors.dtype != np.uint8:
+                    sys.exit(f"error: unexpected descriptor array {descriptors.shape} {descriptors.dtype}")
+                cases.append(
+                    {
+                        "name": case_name,
+                        "image": key,
+                        "scale_factor": scale_factor,
+                        "keypoints": kps,
+                        "descriptors": [row.tobytes().hex() for row in descriptors],
+                    }
+                )
+        params = {
+            "bits": n_bits,
+            "opencv_call": "cv2.xfeatures2d.TEBLID_create(scale_factor, n_bits).compute(image, keypoints)",
+            "seed": TEBLID_SEED,
+            "tiny": f"top-left {TEBLID_TINY}x{TEBLID_TINY} crop of the scene",
+            "tiny_sha256": tiny_sha,
+            "screened_out": screened,
+            "screened_candidates": kept + screened,
+            "screen_max_box_radius": TEBLID_MAX_BOX_RADIUS,
+        }
+        out[name] = envelope(tc, "teblid", params, {"cases": cases}, scene)
+    return out
+
+
 # `--only <key>` selects one entry; no `--only` runs them all.
 GENERATORS = {
     "integral": gen_integral,
     "gms": gen_gms,
     "gms-synthetic": gen_gms_synthetic,
     "gms-coverage": gen_gms_coverage,
+    "teblid": gen_teblid,
 }
 
 

@@ -96,6 +96,7 @@ const ADDITIONS: Record<string, string> = {
     bfmatcher: "brute-force Hamming matcher; jsfeat had no matcher (#133)",
     match_t: "cv::DMatch-style correspondence produced by bfmatcher (#133)",
     gms: "GMS match filter ported from OpenCV xfeatures2d; jsfeat had none (#134)",
+    teblid: "TEBLID binary descriptor ported from OpenCV xfeatures2d; jsfeat had none (#135)",
     pose_estimator: "planar pose from a homography and intrinsics (#83)",
     pose_t: "pose_estimator's output struct (#83)",
     affine2d:

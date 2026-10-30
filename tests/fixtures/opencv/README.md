@@ -80,6 +80,7 @@ python3 -m venv .venv
 .venv/bin/python scripts/gen-opencv-fixtures.py --only gms # the four ORB gms-*.json + gms-boundaries
 .venv/bin/python scripts/gen-opencv-fixtures.py --only gms-synthetic # the four gms-synth-*.json
 .venv/bin/python scripts/gen-opencv-fixtures.py --only gms-coverage # gms-coverage.json
+.venv/bin/python scripts/gen-opencv-fixtures.py --only teblid # teblid-p256.json + teblid-p512.json
 ```
 
 **Windows (PowerShell)**
@@ -92,6 +93,7 @@ python -m venv .venv
 .venv\Scripts\python scripts\gen-opencv-fixtures.py --only gms # the four ORB gms-*.json + gms-boundaries
 .venv\Scripts\python scripts\gen-opencv-fixtures.py --only gms-synthetic # the four gms-synth-*.json
 .venv\Scripts\python scripts\gen-opencv-fixtures.py --only gms-coverage # gms-coverage.json
+.venv\Scripts\python scripts\gen-opencv-fixtures.py --only teblid # teblid-p256.json + teblid-p512.json
 ```
 
 (Git Bash on Windows: the bash commands above, with `.venv/Scripts/python`.)
@@ -136,7 +138,7 @@ them), so **regenerate all of them** afterwards.
 
 One JSON file per fixture, `<algorithm>-<variant>.json`, keys sorted and
 indented by one space so the diffs read well. The synthetic GMS fixtures
-(`gms-synth-*`, `gms-coverage`), which hold thousands of coordinates, write
+(`gms-synth-*`, `gms-coverage`) and the TEBLID ones (`teblid-*`), which hold thousands of coordinates, write
 each array of numbers (or of number pairs and triples) on one line instead of
 one number per line. Every file is an envelope: a common `meta` block plus an
 algorithm-specific `payload`.
@@ -149,6 +151,8 @@ algorithm-specific `payload`.
   "opencv_build": "A.B.C",           // "Version control:" line of getBuildInformation()
   "opencv_contrib_build": "A.B.C",   // "Version control (extra):" line
   "ipp": false,                      // Intel IPP disabled: the generic CPU path
+  "platform": "Windows AMD64",       // platform.system() + platform.machine() of the run
+  "compiler": "…",                   // "C++ Compiler:" line of getBuildInformation()
   "algorithm": "integral",           // which algorithm it pins
   "params": { "sdepth": "CV_32S" },  // the parameters of that run
   "image": "scene-640x480.pgm",      // present only when an image is involved
@@ -157,6 +161,9 @@ algorithm-specific `payload`.
  "payload": { /* algorithm-specific */ }
 }
 ```
+
+`compiler` is the wheel's own build-machine path and version, identical for every
+install of the pinned wheel.
 
 The envelope is generic on purpose. `compute_integral_image` outputs an integer
 array, and GMS ([#134](https://github.com/webarkit/jsfeatNext/issues/134))
@@ -189,6 +196,7 @@ mismatch indicts the algorithm and not the detector in front of it.
 | `gms-boundaries.json` | the same, both flags off, on hand-placed points | the same | the same |
 | `gms-synth-default.json`, `gms-synth-rotation.json`, `gms-synth-scale.json`, `gms-synth-rotation-scale.json` | the same, one per search path, on synthetic geometry | the same | the same |
 | `gms-coverage.json` | the same, 33 small cases with their own flags and `thresholdFactor` | the same, per case | the same |
+| `teblid-p256.json`, `teblid-p512.json` | `cv2.xfeatures2d.TEBLID_create(scale_factor, n_bits).compute(image, keypoints)`, 256 and 512 bits | one hex string per keypoint, the descriptor bytes | the TEBLID parity test (#135) |
 
 `integral` is the first fixture on purpose. It is pure integer arithmetic that
 must match bit-for-bit, so a mismatch indicts the harness (image dump, encoding,
@@ -339,6 +347,67 @@ fixture in place, each of these deliberately wrong ports fails at least one
 fixture: two entries swapped in any one of the eight rotation patterns (one
 or two swaps tried per pattern), any of the five right grid sizes moved by one
 either way, `>=` for the best pass, and rotation-outer loop order.
+
+### TEBLID fixtures
+
+`teblid-p256.json` and `teblid-p512.json` ([#135](https://github.com/webarkit/jsfeatNext/issues/135))
+are the ground truth that the TEBLID port must match **byte for byte**: no
+tolerance, and no keypoint dropped from a test because it mismatches.
+
+**Payload.** `payload.cases` is an array of
+`{ name, image, scale_factor, keypoints, descriptors }`. `image` is `"scene"`
+(the committed 640x480 image) or `"tiny"`, its top-left 24x24 crop
+(`meta.params.tiny_sha256` is the sha256 of those 576 bytes). `keypoints` is a
+list of `[x, y, size, angle_deg]`, every value float32-exact (written as
+`numpy.float32(v).item()`), fed to jsfeatNext unchanged. `descriptors` holds one
+lowercase hex string per keypoint, in the same order: 64 characters for p256 and
+128 for p512, the bytes exactly as OpenCV returns them (bit `7 - (i mod 8)` of
+byte `i / 8`). Both fixtures share the same keypoints. The generator asserts
+that `compute` returned the same keypoints, unchanged and in order: BEBLID does
+not filter, and the fixture would be wrong if it did. In Python `n_bits` is the
+enum `cv2.xfeatures2d.TEBLID_SIZE_256_BITS` / `_512_BITS`; `meta.params.opencv_call`
+keeps the 256/512 spelling.
+
+**Coverage.** Each case is generated for `scale_factor` 1.0 (ORB) and 5.0 (FAST),
+and the keypoints come from `numpy.random.default_rng(1351)` plus hand-placed
+values:
+
+| case | what it pins |
+| --- | --- |
+| `random-mixed` | random positions over the whole image, ORB-like and FAST-like sizes, a quarter of them upright (`-1`), so border and interior mix |
+| `interior` | random positions inside the margin: the fast path only |
+| `angles` | `-1`, `0`, `90`, `359.9`, `45`, `180`, `270`, `0.1`, `1`, `123.456` at a fixed, non-integer position |
+| `sizes` | `31 * 1.2^l` for `l = 0..7`, `7` and `150`, each upright and at a random angle |
+| `border-left/right/top/bottom` | the margin `b`, three sizes, angles `-1`, `90` and `37.5`: the last float32 value on one side of the margin, the one exactly at it and the next, so every border has a keypoint inside, at and beyond the margin |
+| `corners` | the four pixel corners and two half-pixel ones, sizes `31` and `150`, angles `-1` and `213.7` |
+| `tiny` | random keypoints on the 24x24 crop: nearly all on the clamped path, a few on the fast path |
+
+In OpenCV 4.10.0 a keypoint is "in the border" when `x < b` or `x + b >= W` (same for
+`y`, `H`), with `b = 32 * (scale_factor * size / 64) * 1.75f` in float32, that is
+`0.875 * scale_factor * size`. The border cases are placed relative to that `b`, per
+size and scale factor, with float32 neighbours (`numpy.nextafter`).
+
+**Undefined behaviour is screened out.** For a keypoint not in the border,
+OpenCV's fast path reads `integralPtr[(y +/- r) * (W + 1) + (x +/- r)]` with no
+bounds check. For a small keypoint at the margin with a rotation, that index can fall
+outside the integral buffer `[0, (W + 1) * (H + 1))`: undefined behaviour, which
+cannot be a ground truth. The generator replicates `rectifyABWL` in float32 (each
+operation rounded, in C++ order, `CV_ROUNDNUM(x) = int(x + 0.5f)`), takes the four
+corners of the table range, (1, 1), (30, 1), (1, 30), (30, 30), widens them by the largest `boxRadius` (7 in both tables,
+patch coordinates all in [1, 30]) and drops, **before calling OpenCV**, any keypoint
+whose lowest or highest flat index leaves the buffer. A read that wraps to an adjacent
+row stays inside the buffer and is defined, so it is kept. The screen is
+**conservative** (a bounding box, not the exact learners): it can drop a keypoint
+whose real reads all stay inside, never the reverse. It never removes a keypoint
+because of a later mismatch. The count is recorded in `meta.params`
+(`screened_out` of `screened_candidates`) and printed by the generator. Three of 684 candidates are screened out, in both fixtures: the `border-bottom` keypoints of size 7 at `scale_factor` 1.0, angle 37.5, y = 473.87494 and 473.87497 (the two values just inside the margin), and one random `tiny` keypoint at `scale_factor` 5.0 (17.198456, 16.034943, size 1.5, angle 46.39571). Every other border, angle and size keypoint is kept.
+
+**Ground truth (T5).** The fixtures are generated on the platform PureCV
+measures on, a Windows x86-64 machine (`meta.platform`, `meta.compiler`), with
+the pinned wheel and IPP off. If a PureCV `cpp_ref` measurement and a fixture
+ever disagree, `cpp_ref` wins and the disagreement is reported with its exact
+input. A mismatch traced to FMA contraction or to the platform's `cos`/`sin` at a
+float32 rounding boundary is reported, never absorbed by a tolerance.
 
 ## What is not pinned against OpenCV
 

@@ -124,6 +124,7 @@ const namespace = /* @__PURE__ */ Object.assign(jsfeatNext, core, {
     optical_flow_lk: singletons.optical_flow_lk,
     bfmatcher: singletons.bfmatcher,
     gms: singletons.gms,
+    teblid: singletons.teblid,
 });
 
 export default namespace;

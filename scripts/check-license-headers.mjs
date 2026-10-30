@@ -56,6 +56,9 @@ const ORIGINAL_SRC = new Set([
     // pose_estimator is a new module: jsfeat has no pose/homography-
     // decomposition code, so nothing here is derived from it.
     "src/pose_estimator/pose_estimator.ts",
+    // the TEBLID example (#135) is written from scratch for this library, not
+    // adapted from a jsfeat sample page
+    "examples/sample_teblid.html",
 ]);
 
 /**
@@ -68,7 +71,10 @@ const ORIGINAL_SRC = new Set([
  * licence that applies. Only src/ is mapped: OpenCV-derived code is not
  * expected in tests/ or examples/.
  */
-const OPENCV_SRC = new Map([["src/gms/", "ATTRIBUTION-opencv-gms.txt"]]);
+const OPENCV_SRC = new Map([
+    ["src/gms/", "ATTRIBUTION-opencv-gms.txt"],
+    ["src/teblid/", "ATTRIBUTION-opencv-teblid.txt"],
+]);
 
 /**
  * Third-party or foreign-provenance files. Never stamp these — they either

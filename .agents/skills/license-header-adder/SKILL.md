@@ -45,6 +45,7 @@ licence text, so the wording cannot drift between variants:
 | `resources/HEADER.txt` | the LGPL notice, with `{{FILENAME}}` and `{{ATTRIBUTION}}` slots |
 | `resources/ATTRIBUTION-jsfeat.txt` | the upstream jsfeat MIT attribution block |
 | `resources/ATTRIBUTION-opencv-gms.txt` | the OpenCV (Apache-2.0) attribution for `gms.cpp`, used under `src/gms/` |
+| `resources/ATTRIBUTION-opencv-teblid.txt` | the OpenCV (Apache-2.0) attribution for `beblid.cpp`, `teblid.p256.hpp` and `teblid.p512.hpp`, used under `src/teblid/` |
 
 The script composes them:
 
@@ -53,6 +54,7 @@ The script composes them:
 | **derived** | the jsfeat MIT block | code ported/derived from jsfeat |
 | **original** | empty | code original to jsfeatNext |
 | **opencv-gms** | the OpenCV Apache-2.0 block | code ported from OpenCV's `gms.cpp` (`src/gms/`) |
+| **opencv-teblid** | the OpenCV Apache-2.0 block | code ported from OpenCV's `beblid.cpp` and the `teblid.p*.hpp` tables (`src/teblid/`) |
 
 Applying the derived variant to genuinely original files is a false credit —
 and licence scanners read these notices, so it would report MIT content in
@@ -68,7 +70,7 @@ not `src/imgproc/imgproc.ts`).
 
 - `src/**/*.ts` — derived template, except the files listed as original in the
   script (`src/types.ts`, `src/index.ts`, which contain no ported code) and the
-  OpenCV-derived prefixes (`src/gms/`, see the next section)
+  OpenCV-derived prefixes (`src/gms/`, `src/teblid/`, see the next section)
 - `tests/**/*.ts` — original template (our own test code)
 - `examples/*.html` — derived template, rendered as an HTML comment placed
   **after** `<!DOCTYPE html>` (a comment before the doctype can trigger quirks
@@ -96,11 +98,12 @@ files.
 How it is wired:
 
 - The script's `OPENCV_SRC` map is **path prefix -> snippet in `resources/`**.
-  Today it holds one entry, `src/gms/` -> `ATTRIBUTION-opencv-gms.txt`. Any file
+  Today it holds two entries, `src/gms/` -> `ATTRIBUTION-opencv-gms.txt` and
+  `src/teblid/` -> `ATTRIBUTION-opencv-teblid.txt`. Any file
   under a prefix is stamped with `HEADER.txt` whose `{{ATTRIBUTION}}` is that
   snippet (never the jsfeat one), and the check verifies it byte-for-byte like
   the other variants. An explicit `ORIGINAL_SRC` entry still wins over a prefix,
-  for a file under `src/gms/` that is genuinely original.
+  for a file under one of those prefixes that is genuinely original.
 - **One snippet per upstream file.** The snippet names the upstream source file,
   its repository, the licence, that this is a modified version, and the paper if
   there is one. Port a second OpenCV file and you add a second snippet and a

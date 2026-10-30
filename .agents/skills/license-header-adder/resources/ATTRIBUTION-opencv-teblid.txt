@@ -1,0 +1,12 @@
+ *  Portions of this file are ported to TypeScript from OpenCV,
+ *  opencv_contrib/modules/xfeatures2d/src/beblid.cpp, teblid.p256.hpp and
+ *  teblid.p512.hpp at tag 4.10.0
+ *  (https://github.com/opencv/opencv_contrib/blob/4.10.0/modules/xfeatures2d/src/beblid.cpp,
+ *  https://github.com/opencv/opencv_contrib/blob/4.10.0/modules/xfeatures2d/src/teblid.p256.hpp,
+ *  https://github.com/opencv/opencv_contrib/blob/4.10.0/modules/xfeatures2d/src/teblid.p512.hpp),
+ *  Copyright (c) OpenCV contributors, licensed under the Apache License,
+ *  Version 2.0; a copy is included in LICENSES/Apache-2.0.txt. This file is a
+ *  modified version of that source. TEBLID: I. Suárez, J. M. Buenaposada and
+ *  L. Baumela, "Revisiting Binary Local Image Description for Resource Limited
+ *  Devices", IEEE Robotics and Automation Letters 6(4), 8317-8324, 2021.
+ *
