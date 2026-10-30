@@ -21,7 +21,8 @@ const banner = `/*!
  *
  * Portions ported from OpenCV (https://github.com/opencv/opencv_contrib),
  * Copyright (c) OpenCV contributors, licensed under the Apache License 2.0;
- * see LICENSES/Apache-2.0.txt in this package.
+ * see LICENSES/Apache-2.0.txt in this package. The FREAK descriptor is ported
+ * from freak.cpp under the BSD 3-Clause terms in LICENSES/BSD-3-Clause-FREAK.txt.
  *
  * This library is distributed WITHOUT ANY WARRANTY, without even the implied
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
