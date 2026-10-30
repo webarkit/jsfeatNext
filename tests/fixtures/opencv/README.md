@@ -199,7 +199,7 @@ mismatch indicts the algorithm and not the detector in front of it.
 | `gms-synth-default.json`, `gms-synth-rotation.json`, `gms-synth-scale.json`, `gms-synth-rotation-scale.json` | the same, one per search path, on synthetic geometry | the same | the same |
 | `gms-coverage.json` | the same, 33 small cases with their own flags and `thresholdFactor` | the same, per case | the same |
 | `teblid-p256.json`, `teblid-p512.json` | `cv2.xfeatures2d.TEBLID_create(scale_factor, n_bits).compute(image, keypoints)`, 256 and 512 bits | one hex string per keypoint, the descriptor bytes | the TEBLID parity test (#135) |
-| `freak.json` | `cv2.xfeatures2d.FREAK_create(orientationNormalized, scaleNormalized, patternScale, nOctaves).compute(image, keypoints)`, eight cases | per kept keypoint: its input index, angle and the 64 descriptor bytes as hex; plus the 90 degree rotation pairs | the FREAK parity test (#80) |
+| `freak.json` | `cv2.xfeatures2d.FREAK_create(orientationNormalized, scaleNormalized, patternScale, nOctaves).compute(image, keypoints)`, eleven cases | per kept keypoint: its input index, angle and the 64 descriptor bytes as hex; plus the 90 degree rotation pairs | the FREAK parity test (#80) |
 
 `integral` is the first fixture on purpose. It is pure integer arithmetic that
 must match bit-for-bit, so a mismatch indicts the harness (image dump, encoding,
@@ -425,7 +425,7 @@ the fixture records which inputs OpenCV kept.
 
 - `image` is `"scene"` (the committed 640x480 image), `"scene_rot90"`
   (`numpy.rot90(scene)`, counter-clockwise, 480 x 640; its sha256 is
-  `meta.params.scene_rot90_sha256`) `"flat"` (96 x 96, every pixel 100), `"texture"` (320 x 240, procedural, below) or
+  `meta.params.scene_rot90_sha256`), `"flat"` (96 x 96, every pixel 100), `"texture"` (320 x 240, procedural, below) or
   `"texture_rot90"` (`numpy.rot90(texture)`, 240 x 320).
 - `options` is `{ orientation_normalized, scale_normalized, pattern_scale, n_octaves }`,
   the arguments of `FREAK_create`.
@@ -441,7 +441,7 @@ the fixture records which inputs OpenCV kept.
 - `descriptors` is one lowercase hex string per kept keypoint, 128 characters, the 64
   bytes exactly as OpenCV returns them.
 
-**Cases**, all with the same input list on `scene` (308 keypoints, seed 80):
+**Cases.** The first six share one input list on `scene` (308 keypoints, seed 80); the rotated and texture cases use their own lists:
 
 | case | options that differ from the defaults | what it pins |
 | --- | --- | --- |
@@ -470,7 +470,9 @@ bottom): OpenCV drops `x <= ps`, `y <= ps`, `x >= cols - ps` and `y >= rows - ps
 value exactly at the threshold is dropped on every side. Corners combine the three values
 on each axis. The generator also replicates the scale-index and border tests for every
 case and exits non-zero if its expected `kept` is not OpenCV's, so the thresholds are
-asserted, not assumed.
+asserted, not assumed. The border and corner keypoints sit at the thresholds for the
+default `patternSizes` only; in the cases with another `pattern_scale` or `n_octaves`
+the thresholds differ, so there they are ordinary keypoints near the border.
 
 **Rotation.** `payload.rotation = { case_a, case_b, pairs_index, pairs, max_hamming }`.
 `case_a` is `texture-default` and `case_b` is `texture-rot90-default`, whose keypoints are
