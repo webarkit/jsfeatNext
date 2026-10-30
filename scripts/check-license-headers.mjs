@@ -59,10 +59,12 @@ const ORIGINAL_SRC = new Set([
     // the TEBLID example (#135) is written from scratch for this library, not
     // adapted from a jsfeat sample page
     "examples/sample_teblid.html",
+    // the FREAK example (#80) is written from scratch too, not adapted from a jsfeat sample page
+    "examples/sample_freak.html",
 ]);
 
 /**
- * Files ported from OpenCV (Apache-2.0) rather than from jsfeat (MIT): path
+ * Files ported from OpenCV (Apache-2.0, or BSD-3-Clause for FREAK) rather than from jsfeat (MIT): path
  * prefix -> attribution snippet in the skill's resources/ folder. Anything
  * under a prefix gets the same LGPL template as everything else, but with
  * that snippet in the `{{ATTRIBUTION}}` slot INSTEAD of the jsfeat MIT block,
@@ -74,6 +76,7 @@ const ORIGINAL_SRC = new Set([
 const OPENCV_SRC = new Map([
     ["src/gms/", "ATTRIBUTION-opencv-gms.txt"],
     ["src/teblid/", "ATTRIBUTION-opencv-teblid.txt"],
+    ["src/freak/", "ATTRIBUTION-opencv-freak.txt"],
 ]);
 
 /**
@@ -92,7 +95,7 @@ const EXCLUDED = new Set([
  * to retain it) and must be ABSENT from code original to jsfeatNext, where it
  * would be a false credit — and would make licence scanners report MIT content
  * in files that have none. For code ported from OpenCV the slot instead carries
- * that file's Apache-2.0 attribution (OPENCV_SRC above), and not the jsfeat one.
+ * that file's OpenCV attribution (OPENCV_SRC above), and not the jsfeat one.
  *
  * Kept as one base plus snippets rather than near-identical files, so the
  * licence text itself cannot drift between variants.

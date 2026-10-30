@@ -125,6 +125,7 @@ const namespace = /* @__PURE__ */ Object.assign(jsfeatNext, core, {
     bfmatcher: singletons.bfmatcher,
     gms: singletons.gms,
     teblid: singletons.teblid,
+    freak: singletons.freak,
 });
 
 export default namespace;

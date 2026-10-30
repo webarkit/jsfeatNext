@@ -64,6 +64,7 @@ import type { bfmatcher } from "../bfmatcher/bfmatcher";
 import type { match_t } from "../bfmatcher/match_t";
 import type { gms } from "../gms/gms";
 import type { teblid } from "../teblid/teblid";
+import type { freak } from "../freak/freak";
 import type { data_t } from "../node_utils/data_t";
 import type { pose_estimator, pose_t } from "../pose_estimator/pose_estimator";
 
@@ -118,6 +119,7 @@ export default class jsfeatNext {
     static match_t: typeof match_t;
     static gms: gms;
     static teblid: teblid;
+    static freak: freak;
     /** Raw aligned byte storage with typed views; `matrix_t.buffer` is one (jsfeat parity, #45). */
     static data_t: typeof data_t;
     static pose_estimator: typeof pose_estimator;

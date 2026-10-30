@@ -93,6 +93,7 @@ describe("named exports (#137)", () => {
             "orb",
             "gms",
             "teblid",
+            "freak",
             "bfmatcher",
             "fast_corners",
             "matrix_t",

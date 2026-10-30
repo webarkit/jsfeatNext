@@ -1,0 +1,232 @@
+<!doctype html>
+<!--
+   sample_freak.html
+   jsfeatNext
+
+   This file is part of jsfeatNext - WebARKit.
+
+   SPDX-License-Identifier: LGPL-3.0-or-later
+
+   jsfeatNext is free software: you can redistribute it and/or modify
+   it under the terms of the GNU Lesser General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   jsfeatNext is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Lesser General Public License for more details.
+
+   You should have received a copy of the GNU Lesser General Public License
+   along with jsfeatNext.  If not, see <http://www.gnu.org/licenses/>.
+
+   As a special exception, the copyright holders of this library give you
+   permission to link this library with independent modules to produce an
+   executable, regardless of the license terms of these independent modules, and to
+   copy and distribute the resulting executable under terms of your choice,
+   provided that you also meet, for each linked independent module, the terms and
+   conditions of the license of that module. An independent module is a module
+   which is neither derived from nor based on this library. If you modify this
+   library, you may extend this exception to your version of the library, but you
+   are not obligated to do so. If you do not wish to do so, delete this exception
+   statement from your version.
+
+   Copyright 2026 WebARKit.
+
+   Author(s): Walter Perdan @kalwalt https://github.com/kalwalt
+
+-->
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>jsfeatNext - FREAK matching</title>
+    <style>
+        body { font-family: sans-serif; margin: 10px auto; max-width: 1100px; padding: 0 10px; }
+        canvas { max-width: 100%; border: 1px solid #d3d3d3; }
+        #stats { font-family: monospace; white-space: pre; margin: 10px 0; }
+        #error { display: none; padding: 10px; border: 1px solid #c00; background: #fee; color: #900; }
+    </style>
+</head>
+
+<body>
+    <h3>FREAK: a descriptor that finds its own orientation</h3>
+    <p>
+        Left: <code>img/pinball.jpg</code>. Right: the same picture rotated by 30 degrees and scaled by 0.8.
+        Each view gets FAST corners and <code>size = 31</code>, then <code>freak.describe</code>. There is no
+        <code>orb.ic_angle</code> call: FREAK estimates the orientation itself and writes it to
+        <code>keypoint.angle</code>. The short yellow tick on each keypoint points along that angle.
+        <code>describe</code> drops keypoints too close to the border, so the page uses the count it returns,
+        not the number of corners it detected. A line joins the matches that pass the ratio test
+        (<code>bfmatcher.knnMatch</code> with k = 2, ratio 0.75). Green lines agree with the known
+        transform within 3 px, red lines do not.
+    </p>
+    <div id="error"></div>
+    <canvas id="canvas" width="10" height="10"></canvas>
+    <div id="stats">Loading...</div>
+
+    <!-- ES module example: serve over http:// (e.g. `npx serve .`), not file:// -->
+    <script type="module">
+        import jsfeatNext from '../dist/jsfeatNext.mjs';
+
+        const ANGLE_DEG = 30;
+        const SCALE = 0.8;
+        const MAX_KEYPOINTS = 500;
+        const BORDER = 24;
+        const RATIO = 0.75;
+        const TOLERANCE = 3; // px, for the green/red colouring
+        const TICK = 10; // px, length of the orientation tick
+
+        const $ = (id) => document.getElementById(id);
+        const canvas = $('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+        function showError(err) {
+            const box = $('error');
+            box.textContent = 'The demo failed: ' + (err && err.message ? err.message : err);
+            box.style.display = 'block';
+            $('stats').textContent = '';
+        }
+
+        function loadImage(src) {
+            // The load event, not image.decode(): decode() can stay pending in a background tab.
+            return new Promise((resolve, reject) => {
+                const image = new Image();
+                image.onload = () => resolve(image);
+                image.onerror = () => reject(new Error('could not load ' + src));
+                image.src = src;
+            });
+        }
+
+        // Grayscale + blur + FAST + strongest 500 + size, on one view. No orientation step.
+        function detect(view) {
+            const { width: w, height: h } = view.canvas;
+            const rgba = view.ctx.getImageData(0, 0, w, h).data;
+            const gray = new jsfeatNext.matrix_t(w, h, jsfeatNext.U8C1_t);
+            const smooth = new jsfeatNext.matrix_t(w, h, jsfeatNext.U8C1_t);
+            jsfeatNext.imgproc.grayscale(rgba, w, h, gray);
+            jsfeatNext.imgproc.gaussian_blur(gray, smooth, 5);
+
+            const corners = [];
+            for (let i = 0; i < w * h; i++) corners[i] = new jsfeatNext.keypoint_t(0, 0, 0, 0, -1);
+            jsfeatNext.fast_corners.set_threshold(20);
+            let count = jsfeatNext.fast_corners.detect(smooth, corners, BORDER);
+            if (count > MAX_KEYPOINTS) {
+                jsfeatNext.math.qsort(corners, 0, count - 1, (a, b) => b.score < a.score);
+                count = MAX_KEYPOINTS;
+            }
+            for (let i = 0; i < count; i++) {
+                corners[i].size = 31; // required by freak.describe; one level, so pixels of this image
+            }
+            return { smooth, corners, count, detected: count };
+        }
+
+        // Describes one view in place. freak.describe compacts view.corners and returns how many it kept.
+        function describeView(view) {
+            const descriptors = new jsfeatNext.matrix_t(64, 1, jsfeatNext.U8C1_t);
+            view.count = jsfeatNext.freak.describe(view.smooth, view.corners, view.count, descriptors);
+            view.descriptors = descriptors;
+        }
+
+        function drawTicks(view, dx) {
+            ctx.strokeStyle = 'rgba(255,220,0,0.9)';
+            ctx.fillStyle = 'rgba(255,220,0,0.9)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < view.count; i++) {
+                const k = view.corners[i];
+                const x = dx + k.x, y = k.y;
+                ctx.fillRect(x - 1, y - 1, 3, 3);
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(x + TICK * Math.cos(k.angle), y + TICK * Math.sin(k.angle));
+                ctx.stroke();
+            }
+        }
+
+        try {
+            const image = await loadImage('img/pinball.jpg');
+            const w = image.width, h = image.height;
+
+            // second view: rotate by 30 degrees and scale by 0.8 around the centre,
+            // on a canvas just big enough for the result
+            const rad = (ANGLE_DEG * Math.PI) / 180;
+            const cos = Math.cos(rad), sin = Math.sin(rad);
+            const w2 = Math.ceil(SCALE * (w * Math.abs(cos) + h * Math.abs(sin)));
+            const h2 = Math.ceil(SCALE * (w * Math.abs(sin) + h * Math.abs(cos)));
+            const forward = (x, y) => {
+                const dx = x - w / 2, dy = y - h / 2;
+                return {
+                    x: w2 / 2 + SCALE * (cos * dx - sin * dy),
+                    y: h2 / 2 + SCALE * (sin * dx + cos * dy),
+                };
+            };
+
+            const mk = (cw, ch) => {
+                const c = document.createElement('canvas');
+                c.width = cw;
+                c.height = ch;
+                return { canvas: c, ctx: c.getContext('2d', { willReadFrequently: true }) };
+            };
+            const viewA = mk(w, h);
+            viewA.ctx.drawImage(image, 0, 0);
+            const viewB = mk(w2, h2);
+            viewB.ctx.fillStyle = 'rgb(128,128,128)'; // neutral, so the border of the rotated image makes few corners
+            viewB.ctx.fillRect(0, 0, w2, h2);
+            viewB.ctx.translate(w2 / 2, h2 / 2);
+            viewB.ctx.rotate(rad);
+            viewB.ctx.scale(SCALE, SCALE);
+            viewB.ctx.drawImage(image, -w / 2, -h / 2);
+
+            const offsetX = w;
+            canvas.width = w + w2;
+            canvas.height = Math.max(h, h2);
+
+            const a = { ...viewA, ...detect(viewA) };
+            const b = { ...viewB, ...detect(viewB) };
+
+            // describe once per view: it compacts the corner array, so a second call would see the survivors
+            const t0 = performance.now();
+            describeView(a);
+            describeView(b);
+            const ms = performance.now() - t0;
+
+            // indices below refer to the compacted arrays, which is what the descriptor rows follow
+            const knn = jsfeatNext.bfmatcher.knnMatch(a.descriptors, b.descriptors, 2);
+            const matches = jsfeatNext.bfmatcher.ratio_test(knn, RATIO);
+
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(a.canvas, 0, 0);
+            ctx.drawImage(b.canvas, offsetX, 0);
+
+            let consistent = 0;
+            ctx.lineWidth = 1;
+            for (const m of matches) {
+                const p = a.corners[m.queryIdx];
+                const q = b.corners[m.trainIdx];
+                const e = forward(p.x, p.y);
+                const ok = Math.hypot(e.x - q.x, e.y - q.y) <= TOLERANCE;
+                if (ok) consistent++;
+                ctx.strokeStyle = ok ? 'rgba(0,255,0,0.8)' : 'rgba(255,0,0,0.6)';
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(offsetX + q.x, q.y);
+                ctx.stroke();
+            }
+            drawTicks(a, 0);
+            drawTicks(b, offsetX);
+
+            $('stats').textContent =
+                'detected: ' + a.detected + ' (left), ' + b.detected + ' (right)\n' +
+                'kept by freak.describe: ' + a.count + ' (left), ' + b.count + ' (right)\n' +
+                'matches: ' + matches.length + ' (' + consistent + ' agree with the transform)\n' +
+                'describe ' + ms.toFixed(1) + ' ms for both views';
+        } catch (err) {
+            showError(err);
+            console.error(err);
+        }
+    </script>
+</body>
+
+</html>

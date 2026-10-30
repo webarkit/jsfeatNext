@@ -81,6 +81,7 @@ python3 -m venv .venv
 .venv/bin/python scripts/gen-opencv-fixtures.py --only gms-synthetic # the four gms-synth-*.json
 .venv/bin/python scripts/gen-opencv-fixtures.py --only gms-coverage # gms-coverage.json
 .venv/bin/python scripts/gen-opencv-fixtures.py --only teblid # teblid-p256.json + teblid-p512.json
+.venv/bin/python scripts/gen-opencv-fixtures.py --only freak # freak.json
 ```
 
 **Windows (PowerShell)**
@@ -94,6 +95,7 @@ python -m venv .venv
 .venv\Scripts\python scripts\gen-opencv-fixtures.py --only gms-synthetic # the four gms-synth-*.json
 .venv\Scripts\python scripts\gen-opencv-fixtures.py --only gms-coverage # gms-coverage.json
 .venv\Scripts\python scripts\gen-opencv-fixtures.py --only teblid # teblid-p256.json + teblid-p512.json
+.venv\Scripts\python scripts\gen-opencv-fixtures.py --only freak # freak.json
 ```
 
 (Git Bash on Windows: the bash commands above, with `.venv/Scripts/python`.)
@@ -138,7 +140,7 @@ them), so **regenerate all of them** afterwards.
 
 One JSON file per fixture, `<algorithm>-<variant>.json`, keys sorted and
 indented by one space so the diffs read well. The synthetic GMS fixtures
-(`gms-synth-*`, `gms-coverage`) and the TEBLID ones (`teblid-*`), which hold thousands of coordinates, write
+(`gms-synth-*`, `gms-coverage`), the TEBLID ones (`teblid-*`) and `freak.json`, which hold thousands of coordinates, write
 each array of numbers (or of number pairs and triples) on one line instead of
 one number per line. Every file is an envelope: a common `meta` block plus an
 algorithm-specific `payload`.
@@ -197,6 +199,7 @@ mismatch indicts the algorithm and not the detector in front of it.
 | `gms-synth-default.json`, `gms-synth-rotation.json`, `gms-synth-scale.json`, `gms-synth-rotation-scale.json` | the same, one per search path, on synthetic geometry | the same | the same |
 | `gms-coverage.json` | the same, 33 small cases with their own flags and `thresholdFactor` | the same, per case | the same |
 | `teblid-p256.json`, `teblid-p512.json` | `cv2.xfeatures2d.TEBLID_create(scale_factor, n_bits).compute(image, keypoints)`, 256 and 512 bits | one hex string per keypoint, the descriptor bytes | the TEBLID parity test (#135) |
+| `freak.json` | `cv2.xfeatures2d.FREAK_create(orientationNormalized, scaleNormalized, patternScale, nOctaves).compute(image, keypoints)`, eleven cases | per kept keypoint: its input index, angle and the 64 descriptor bytes as hex; plus the 90 degree rotation pairs | the FREAK parity test (#80) |
 
 `integral` is the first fixture on purpose. It is pure integer arithmetic that
 must match bit-for-bit, so a mismatch indicts the harness (image dump, encoding,
@@ -408,6 +411,104 @@ the pinned wheel and IPP off. If a PureCV `cpp_ref` measurement and a fixture
 ever disagree, `cpp_ref` wins and the disagreement is reported with its exact
 input. A mismatch traced to FMA contraction or to the platform's `cos`/`sin` at a
 float32 rounding boundary is reported, never absorbed by a tolerance.
+
+### FREAK fixture
+
+`freak.json` ([#80](https://github.com/webarkit/jsfeatNext/issues/80)) is the
+ground truth that the FREAK port must match **byte for byte**: no tolerance, and
+no keypoint dropped from a test because it mismatches. FREAK, unlike TEBLID,
+**drops** keypoints too close to the border and writes the orientation back, so
+the fixture records which inputs OpenCV kept.
+
+**Payload.** `payload.cases` is an array of
+`{ name, image, options, keypoints, kept, angles_deg, descriptors }`:
+
+- `image` is `"scene"` (the committed 640x480 image), `"scene_rot90"`
+  (`numpy.rot90(scene)`, counter-clockwise, 480 x 640; its sha256 is
+  `meta.params.scene_rot90_sha256`), `"flat"` (96 x 96, every pixel 100), `"texture"` (320 x 240, procedural, below) or
+  `"texture_rot90"` (`numpy.rot90(texture)`, 240 x 320).
+- `options` is `{ orientation_normalized, scale_normalized, pattern_scale, n_octaves }`,
+  the arguments of `FREAK_create`.
+- `keypoints` is the input, `[x, y, size][]`, every value float32-exact (written as
+  `numpy.float32(v).item()`), fed to jsfeatNext with angle `-1`. The generator
+  asserts that no two inputs share `(x, y, size)`.
+- `kept` lists the **input indices** OpenCV kept, in its output order. The generator
+  recovers them by matching each returned keypoint's `(pt.x, pt.y, size)` to a unique
+  input and exits non-zero if a match is not unique.
+- `angles_deg` is one float32 angle per kept keypoint, the `angle` OpenCV wrote back
+  (the input `-1` is left alone when `orientation_normalized` is false; OpenCV
+  returns 0 in that case, which is what is recorded).
+- `descriptors` is one lowercase hex string per kept keypoint, 128 characters, the 64
+  bytes exactly as OpenCV returns them.
+
+**Cases.** The first six share one input list on `scene` (308 keypoints, seed 80); the rotated and texture cases use their own lists:
+
+| case | options that differ from the defaults | what it pins |
+| --- | --- | --- |
+| `default` | none (`true`, `true`, 22, 4) | everything |
+| `no-orientation` | `orientation_normalized = false` | descriptors at orientation 0, angles untouched |
+| `no-scale-normalization` | `scale_normalized = false` | the constant scale index `cvRound(1.0986122886681 * sizeCst)` |
+| `pattern-scale-8` | `pattern_scale = 8` | the **bilinear** branch of `meanIntensity` (box radius < 0.5), whose OpenCV bug the port copies |
+| `octaves-3`, `octaves-8` | `n_octaves = 3`, `8` | `sizeCst`, `scaleStep`, and scale 63 kept at 3 octaves |
+| `rot90-default` | defaults, image `scene_rot90` | a rotated image and its rotated keypoints |
+| `flat-default` | defaults, image `flat` | `atan2(0, 0)` on three interior keypoints of a constant image |
+| `texture-default` | defaults, image `texture` | the orientation path: 308 keypoints, 168 distinct `thetaIdx`, 147 negative angles |
+| `texture-pattern-scale-8` | `pattern_scale = 8`, image `texture` | the bilinear branch on a textured image |
+| `texture-rot90-default` | defaults, image `texture_rot90` | the rotation payload (below) |
+
+The input list has: 60 random `interior` keypoints (quarter-pixel positions, 150 px from
+every border, sizes 5..30); 80 random `mixed` ones anywhere with sizes 5..150, at
+non-integer positions; sizes 5 and 7 and then the middle of every scale bin 1..63, 112
+and 150; five fractional offsets at one size; and the border and corner cases below.
+
+**Border cases.** `patternSizes[s]` is computed in the generator in double, with
+OpenCV's `buildPattern` expression (`meta.params.pattern_sizes_default` holds the 64 values
+for the defaults). For the scale-0 size (7) and a scale-40 size (`meta.params.border_scale_sizes`)
+there is a keypoint at `ps - 0.5`, exactly `ps` and `ps + 0.5` from each of the left and
+top borders, and at `cols - ps - 0.5`, `cols - ps` and `cols - ps + 0.5` (`rows` for the
+bottom): OpenCV drops `x <= ps`, `y <= ps`, `x >= cols - ps` and `y >= rows - ps`, so the
+value exactly at the threshold is dropped on every side. Corners combine the three values
+on each axis. The generator also replicates the scale-index and border tests for every
+case and exits non-zero if its expected `kept` is not OpenCV's, so the thresholds are
+asserted, not assumed. The border and corner keypoints sit at the thresholds for the
+default `patternSizes` only; in the cases with another `pattern_scale` or `n_octaves`
+the thresholds differ, so there they are ordinary keypoints near the border.
+
+**Rotation.** `payload.rotation = { case_a, case_b, pairs_index, pairs, max_hamming }`.
+`case_a` is `texture-default` and `case_b` is `texture-rot90-default`, whose keypoints are
+the 300 `interior` texture ones (quarter-pixel positions, 75 px from every border, sizes
+5..22) mapped by `(x, y) -> (y, W - 1 - x)`, `W = 320`. (`rot90-default` on the scene is a
+plain case.) `pairs` are `[row in case_a, row in
+case_b]` pairs of **descriptor rows**, that is positions in each case's `kept` (not input
+indices; `pairs_index` says so), and `max_hamming` is OpenCV's largest Hamming distance
+between the two descriptors of a pair (333 of 512, median 61.5, 300 pairs). FREAK is not
+exactly rotation invariant, so the test pins that the port reproduces OpenCV's number, not
+that it is small.
+
+**Coverage**, printed by the generator (it exits non-zero if any is zero): the bilinear
+branch (kept keypoints at `pattern-scale-8` with a box radius < 0.5), scale 63 kept
+(`pattern-scale-8` and `octaves-3`; at the defaults the pattern is wider than the image at
+scale 63, so everything there is dropped), and a drop caused by each of the four sides
+alone.
+
+**The scene exercises orientation weakly, so there is a texture.** The committed scene is a
+synthetic diagonal texture with 31 grey levels, and most patches have no net gradient: 125
+of the 164 kept keypoints of `default` get angle 0. The `texture` image fixes that. It is
+built with integer arithmetic only, so a TypeScript helper can rebuild it bit for bit
+(`freak_texture()` in the generator; the fixture records `meta.params.images.texture`,
+`{ width: 320, height: 240, seed: 8001, sha256 }`, the sha256 of the 76800 row-major bytes):
+
+1. `h = ((x * 0x9E3779B1) mod 2^32) ^ ((y * 0x85EBCA6B) mod 2^32) ^ ((seed * 0xC2B2AE35) mod 2^32)`;
+2. `h ^= h >>> 15; h = (h * 0x2C1B3C6D) mod 2^32; h ^= h >>> 12; h = (h * 0x297A2D39) mod 2^32; h ^= h >>> 15`
+   (all unsigned 32 bit; in JS use `Math.imul` and `>>> 0`);
+3. `n = h & 255`;
+4. one 3x3 box blur, edges clamped (replicated): `b = floor((sum of the nine n + 4) / 9)`;
+5. contrast stretch with `min` and `max` of `b` over the whole image:
+   `v = floor((b - min) * 255 / (max - min))`.
+
+The generator gates coverage at `texture-default` and exits non-zero otherwise: at least 100
+distinct `thetaIdx` (from the returned angle, `round_half_even(float32(256 * angle) * (1 / 360.0))`
+wrapped into [0, 256)) and at least 20 negative angles. It reaches 168 and 147.
 
 ## What is not pinned against OpenCV
 
