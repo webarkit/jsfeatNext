@@ -169,6 +169,25 @@ describe("teblid.describe: validation", () => {
         expect(() => engine.describe(f32, kp, 1, out)).toThrow(TypeError);
         expect(() => engine.describe(rgba, kp, 1, out)).toThrow(TypeError);
     });
+
+    it("descriptors sharing src's data throws a TypeError, leaving src, corners and the pool unchanged", () => {
+        const src = new matrix_t(img.cols, img.rows, jsfeatNext.U8C1_t);
+        src.data.set(img.data.subarray(0, img.cols * img.rows));
+        const view = new matrix_t(img.cols, img.rows, jsfeatNext.U8C1_t, src.buffer);
+        const pixels = Array.from(src.data);
+        const before = freeCount();
+        for (const out of [src, view]) {
+            const kps = [new keypoint_t(300, 200, 0, 0, -1, 31), interior()];
+            const objs = [...kps];
+            expect(() => engine.describe(src, kps, 2, out)).toThrow(TypeError);
+            expect(() => engine.describe(src, kps, 2, out)).toThrow(/must not share its data with src/);
+            expect(kps).toEqual(objs);
+            expect(kps[0]).toBe(objs[0]);
+        }
+        expect(Array.from(src.data)).toEqual(pixels);
+        expect(src.cols).toBe(img.cols);
+        expect(freeCount()).toBe(before);
+    });
 });
 
 describe("teblid.describe: behaviour", () => {
