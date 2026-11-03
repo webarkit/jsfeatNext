@@ -54,7 +54,8 @@
     <h3>FREAK: a descriptor that finds its own orientation</h3>
     <p>
         Left: <code>img/pinball.jpg</code>. Right: the same picture rotated by 30 degrees and scaled by 0.8.
-        Each view gets FAST corners and <code>size = 31</code>, then <code>freak.describe</code>. There is no
+        Each view gets FAST corners and a feature size (<code>31</code> on the left, <code>31 × 0.8</code> on
+        the scaled view, so both describe the same patch), then <code>freak.describe</code>. There is no
         <code>orb.ic_angle</code> call: FREAK estimates the orientation itself and writes it to
         <code>keypoint.angle</code>. The short yellow tick on each keypoint points along that angle.
         <code>describe</code> drops keypoints too close to the border, so the page uses the count it returns,
@@ -73,6 +74,7 @@
         const ANGLE_DEG = 30;
         const SCALE = 0.8;
         const MAX_KEYPOINTS = 500;
+        const SIZE = 31; // feature diameter on the original view; the scaled view uses SIZE * SCALE
         const BORDER = 24;
         const RATIO = 0.75;
         const TOLERANCE = 3; // px, for the green/red colouring
@@ -100,7 +102,8 @@
         }
 
         // Grayscale + blur + FAST + strongest 500 + size, on one view. No orientation step.
-        function detect(view) {
+        // size is the feature diameter in this view's pixels: 31 on the original, 31 * SCALE on the scaled view.
+        function detect(view, size) {
             const { width: w, height: h } = view.canvas;
             const rgba = view.ctx.getImageData(0, 0, w, h).data;
             const gray = new jsfeatNext.matrix_t(w, h, jsfeatNext.U8C1_t);
@@ -111,15 +114,15 @@
             const corners = [];
             for (let i = 0; i < w * h; i++) corners[i] = new jsfeatNext.keypoint_t(0, 0, 0, 0, -1);
             jsfeatNext.fast_corners.set_threshold(20);
-            let count = jsfeatNext.fast_corners.detect(smooth, corners, BORDER);
-            if (count > MAX_KEYPOINTS) {
-                jsfeatNext.math.qsort(corners, 0, count - 1, (a, b) => b.score < a.score);
-                count = MAX_KEYPOINTS;
+            const detected = jsfeatNext.fast_corners.detect(smooth, corners, BORDER);
+            if (detected > MAX_KEYPOINTS) {
+                jsfeatNext.math.qsort(corners, 0, detected - 1, (a, b) => b.score < a.score);
             }
+            const count = Math.min(detected, MAX_KEYPOINTS);
             for (let i = 0; i < count; i++) {
-                corners[i].size = 31; // required by freak.describe; one level, so pixels of this image
+                corners[i].size = size; // required by freak.describe; one level, so pixels of this image
             }
-            return { smooth, corners, count, detected: count };
+            return { smooth, corners, count, detected, selected: count };
         }
 
         // Describes one view in place. freak.describe compacts view.corners and returns how many it kept.
@@ -182,8 +185,8 @@
             canvas.width = w + w2;
             canvas.height = Math.max(h, h2);
 
-            const a = { ...viewA, ...detect(viewA) };
-            const b = { ...viewB, ...detect(viewB) };
+            const a = { ...viewA, ...detect(viewA, SIZE) };
+            const b = { ...viewB, ...detect(viewB, SIZE * SCALE) };
 
             // describe once per view: it compacts the corner array, so a second call would see the survivors
             const t0 = performance.now();
@@ -218,7 +221,8 @@
             drawTicks(b, offsetX);
 
             $('stats').textContent =
-                'detected: ' + a.detected + ' (left), ' + b.detected + ' (right)\n' +
+                'detected by FAST: ' + a.detected + ' (left), ' + b.detected + ' (right)\n' +
+                'strongest kept for describe: ' + a.selected + ' (left), ' + b.selected + ' (right)\n' +
                 'kept by freak.describe: ' + a.count + ' (left), ' + b.count + ' (right)\n' +
                 'matches: ' + matches.length + ' (' + consistent + ' agree with the transform)\n' +
                 'describe ' + ms.toFixed(1) + ' ms for both views';
