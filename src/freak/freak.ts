@@ -394,6 +394,7 @@ export class freak extends jsfeatNext {
      * @param count Number of keypoints to consider, `corners[0 .. count)`;
      *              more than `corners.length` throws a `RangeError`.
      * @param descriptors Output, resized to 64 columns by `kept` rows of `U8`.
+     *                    It must not share its data with `src` (a `TypeError`).
      * @param options See {@link FreakOptions}. A `pattern_scale` that is not
      *                finite and positive as float32, or an `n_octaves` that is
      *                not a positive integer, throws a `RangeError`.
@@ -422,6 +423,10 @@ export class freak extends jsfeatNext {
         }
         if (src.type !== JSFEAT_CONSTANTS.U8_t || src.channel !== 1) {
             throw new TypeError("freak.describe: src must be a U8C1 (8-bit, single-channel) image");
+        }
+        // descriptors is resized before src is read: sharing its memory would overwrite the image
+        if (descriptors === src || descriptors.data.buffer === src.data.buffer) {
+            throw new TypeError("freak.describe: descriptors must not share its data with src");
         }
         if (!Number.isInteger(count) || count < 0) {
             throw new RangeError(`freak.describe: count must be a non-negative integer, got ${count}`);

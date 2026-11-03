@@ -154,6 +154,24 @@ describe("freak.describe: validation", () => {
         expect(() => engine.describe(rgba, [interior(32, 32)], 1, out)).toThrow(TypeError);
     });
 
+    it("descriptors sharing src's data throws a TypeError, leaving src, corners and the pool unchanged", () => {
+        const src = new matrix_t(img.cols, img.rows, jsfeatNext.U8C1_t);
+        src.data.set(img.data.subarray(0, img.cols * img.rows));
+        const view = new matrix_t(img.cols, img.rows, jsfeatNext.U8C1_t, src.buffer);
+        const pixels = Array.from(src.data);
+        const before = freeCount();
+        for (const out of [src, view]) {
+            const kps = [interior(5, 240), interior()];
+            const objs = [...kps];
+            expect(() => engine.describe(src, kps, 2, out)).toThrow(/must not share its data with src/);
+            expect(kps).toEqual(objs);
+            expect(kps[0]).toBe(objs[0]);
+        }
+        expect(Array.from(src.data)).toEqual(pixels);
+        expect(src.cols).toBe(img.cols);
+        expect(freeCount()).toBe(before);
+    });
+
     it("a throw on a keypoint mid-list leaves the shared pool balanced", () => {
         const before = freeCount();
         const kps = [interior(), new keypoint_t(100, 100, 0, 0, -1, 0), interior(300, 200)];
