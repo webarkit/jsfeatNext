@@ -474,6 +474,26 @@ describe("detector invariants", () => {
             // Distinct 256-bit descriptors sit far apart (observed min 47).
             expect(minDistance).toBeGreaterThan(20);
         });
+
+        it("descriptors sharing src's data throws a TypeError, leaving src, corners and the pool unchanged", () => {
+            const freeCount = (): number => (jsfeatNext.cache as unknown as { _pool_size: number })._pool_size;
+            const src = cornerScene(W, H);
+            const view = new jsfeatNext.matrix_t(W, H, U8C1, src.buffer);
+            const pixels = Array.from(src.data);
+            const before = freeCount();
+            for (const out of [src, view]) {
+                const kps = [new jsfeatNext.keypoint_t(40, 36, 0, 0, 0), new jsfeatNext.keypoint_t(48, 30, 0, 0, 1)];
+                const objs = [...kps];
+                expect(() => orb.describe(src, kps, 2, out)).toThrow(TypeError);
+                expect(() => orb.describe(src, kps, 2, out)).toThrow(/must not share its data with src/);
+                expect(kps).toEqual(objs);
+                expect(kps[0]).toBe(objs[0]);
+            }
+            expect(Array.from(src.data)).toEqual(pixels);
+            expect(src.cols).toBe(W);
+            expect(src.rows).toBe(H);
+            expect(freeCount()).toBe(before);
+        });
     });
 });
 
