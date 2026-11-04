@@ -23,8 +23,8 @@ export default defineConfig({
             // all. That bookkeeping lands inside the timed region and only on
             // the jsfeatNext side (the vendored jsfeat oracle is CommonJS, so
             // its exports are plain properties and never instrumented): on
-            // the 100 ns `cache` steady-state case it turned a 1.01x ratio
-            // into 2.5x. The residual cost of the plain getters is the
+            // the 100 ns `cache` steady-state case it turned a 1.07x ratio
+            // into 2.49x. The residual cost of the plain getters is the
             // module-runner artefact documented in bench/README.md (#169).
             suppressExportGetterWarnings: true,
         },

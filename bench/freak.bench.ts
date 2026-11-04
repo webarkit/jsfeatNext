@@ -152,6 +152,6 @@ function workload(title: string, border: number, size: number, expectKept: numbe
 
 // The tracker's workload (bench/teblid.bench.ts's): border 20, size 31. FREAK's
 // pattern at that size does not fit around 168 of the 300, so it drops them.
-workload("freak.describe vs orb.describe (300 keypoints, size 31, 132 kept)", 20, 31, 132);
+workload("freak.describe vs orb.describe (300 keypoints, size 31, 132 kept, intra-library)", 20, 31, 132);
 // Every keypoint described by all three: the like-for-like per-keypoint cost.
-workload("freak.describe vs orb.describe (300 keypoints, size 7, all kept)", 30, 7, KEEP);
+workload("freak.describe vs orb.describe (300 keypoints, size 7, all kept, intra-library)", 30, 7, KEEP);
