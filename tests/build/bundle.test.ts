@@ -72,6 +72,8 @@ const UNUSED_BY_GRAYSCALE: Record<string, RegExp> = {
     gms: /GMS|gms\.filter/,
     /** The first learner of the p256 table, as a minifier writes it. */
     teblid: /25,\s*14,\s*13,\s*15,\s*6/,
+    /** The first five entries of the FREAK pair table, as a minifier writes them. */
+    freak: /404,\s*431,\s*818,\s*511,\s*181/,
 };
 
 /** Bundles `code` (which imports "LIB") against the published ESM, minified. */

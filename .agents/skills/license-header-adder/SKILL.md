@@ -46,6 +46,7 @@ licence text, so the wording cannot drift between variants:
 | `resources/ATTRIBUTION-jsfeat.txt` | the upstream jsfeat MIT attribution block |
 | `resources/ATTRIBUTION-opencv-gms.txt` | the OpenCV (Apache-2.0) attribution for `gms.cpp`, used under `src/gms/` |
 | `resources/ATTRIBUTION-opencv-teblid.txt` | the OpenCV (Apache-2.0) attribution for `beblid.cpp`, `teblid.p256.hpp` and `teblid.p512.hpp`, used under `src/teblid/` |
+| `resources/ATTRIBUTION-opencv-freak.txt` | the opencv_contrib (BSD-3-Clause, © EPFL) attribution for `freak.cpp`, used under `src/freak/` |
 
 The script composes them:
 
@@ -55,6 +56,7 @@ The script composes them:
 | **original** | empty | code original to jsfeatNext |
 | **opencv-gms** | the OpenCV Apache-2.0 block | code ported from OpenCV's `gms.cpp` (`src/gms/`) |
 | **opencv-teblid** | the OpenCV Apache-2.0 block | code ported from OpenCV's `beblid.cpp` and the `teblid.p*.hpp` tables (`src/teblid/`) |
+| **opencv-freak** | the opencv_contrib BSD-3-Clause (EPFL) block | code ported from opencv_contrib's `freak.cpp` (`src/freak/`) |
 
 Applying the derived variant to genuinely original files is a false credit —
 and licence scanners read these notices, so it would report MIT content in
@@ -70,7 +72,7 @@ not `src/imgproc/imgproc.ts`).
 
 - `src/**/*.ts` — derived template, except the files listed as original in the
   script (`src/types.ts`, `src/index.ts`, which contain no ported code) and the
-  OpenCV-derived prefixes (`src/gms/`, `src/teblid/`, see the next section)
+  OpenCV-derived prefixes (`src/gms/`, `src/teblid/`, `src/freak/`, see the next section)
 - `tests/**/*.ts` — original template (our own test code)
 - `examples/*.html` — derived template, rendered as an HTML comment placed
   **after** `<!DOCTYPE html>` (a comment before the doctype can trigger quirks
@@ -91,15 +93,19 @@ not `src/imgproc/imgproc.ts`).
 Code ported from OpenCV is **not** jsfeat-derived: stamping it with the jsfeat
 MIT credit would be a false credit (the same reasoning as the original variant),
 and dropping OpenCV's own notice would break its licence. OpenCV and
-opencv_contrib are **Apache-2.0**, which requires that we keep the copyright and
+opencv_contrib are mostly **Apache-2.0**, which requires that we keep the copyright and
 licence notices, ship a copy of the licence, and state that we changed the
-files.
+files. Not every file is Apache-2.0, though: `freak.cpp` carries its own
+**BSD-3-Clause** notice (© 2011-2012 Signal processing laboratory 2, EPFL),
+shipped verbatim as `LICENSES/BSD-3-Clause-FREAK.txt` (spec F6). The licence is
+verified per upstream file, never assumed to be Apache.
 
 How it is wired:
 
 - The script's `OPENCV_SRC` map is **path prefix -> snippet in `resources/`**.
-  Today it holds two entries, `src/gms/` -> `ATTRIBUTION-opencv-gms.txt` and
-  `src/teblid/` -> `ATTRIBUTION-opencv-teblid.txt`. Any file
+  Today it holds three entries, `src/gms/` -> `ATTRIBUTION-opencv-gms.txt`,
+  `src/teblid/` -> `ATTRIBUTION-opencv-teblid.txt` and `src/freak/` ->
+  `ATTRIBUTION-opencv-freak.txt`. Any file
   under a prefix is stamped with `HEADER.txt` whose `{{ATTRIBUTION}}` is that
   snippet (never the jsfeat one), and the check verifies it byte-for-byte like
   the other variants. An explicit `ORIGINAL_SRC` entry still wins over a prefix,
@@ -113,11 +119,12 @@ How it is wired:
   which release's licence applies. OpenCV and opencv_contrib moved from their
   old BSD-style licence to Apache-2.0 with **4.5.0** (verified: opencv_contrib's
   `LICENSE` at 4.4.0 is the old text, at 4.5.0 it is Apache-2.0). Port from the
-  reference release in `AGENTS.md` (OpenCV 4.10.0, under Apache-2.0) and check
-  the file has no stricter notice of its own.
-- The licence text itself ships as `LICENSES/Apache-2.0.txt` (copied verbatim
-  from opencv_contrib's `LICENSE`, listed in `package.json` `files` so it is in
-  the npm tarball), and the bundle banner in `vite.config.mts` names it.
+  reference release in `AGENTS.md` (OpenCV 4.10.0, mostly Apache-2.0) and check
+  the file has no notice of its own that differs: `freak.cpp` does, and is BSD-3-Clause.
+- The licence texts ship as `LICENSES/Apache-2.0.txt` (copied verbatim from
+  opencv_contrib's `LICENSE`) and `LICENSES/BSD-3-Clause-FREAK.txt` (verbatim from
+  `freak.cpp`), both listed in `package.json` `files` so they are in the npm
+  tarball, and the bundle banner in `vite.config.mts` names them.
 
 ## What the check actually verifies
 
@@ -154,8 +161,9 @@ these additions must survive:
 ## The built bundles
 
 `dist/jsfeatNext.js` and `.mjs` get a condensed banner from
-`licenseBannerPlugin()` in `vite.config.mts` (the jsfeat MIT credit plus the
-OpenCV Apache-2.0 line that points at `LICENSES/Apache-2.0.txt`). It runs in
+`licenseBannerPlugin()` in `vite.config.mts` (the jsfeat MIT credit, the
+OpenCV Apache-2.0 line that points at `LICENSES/Apache-2.0.txt`, and a FREAK
+sentence naming freak.cpp, its EPFL copyright and `LICENSES/BSD-3-Clause-FREAK.txt`). It runs in
 `generateBundle`, **after** minification, because Rolldown's Oxc minifier strips
 `output.banner` from the UMD bundle even with legal comments enabled. If the
 banner ever disappears from a release, check that plugin first.

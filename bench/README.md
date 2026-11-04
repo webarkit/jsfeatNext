@@ -36,11 +36,12 @@ config does for you**: see
 | **`imgproc.box_blur_gray`** radius 2 | 1.43 / 1.26 / 1.28 / 1.26 (jsfeat faster in all four, quiet machine; two loaded series agree) | **new, open** (#168, fix tracked in [#251](https://github.com/webarkit/jsfeatNext/issues/251)): 1.19–1.28 on the built bundle, so not the harness artefact. Suspected: the #114 rewrite (clamping ternaries and `Math.floor(sum / area)` in the inner loops). See [the rest of imgproc](#phase-2-continued-the-rest-of-imgproc-168) |
 | `gms.filter` vs the matching step, default path — **not an A/B ratio** | 0.068 / 0.069 / 0.066 / 0.068 / 0.064 | **new** (#134): costs **0.07×** the `knnMatch` + `ratio_test` step it follows. Rotation 0.47×, scale 0.32×, rotation+scale 2.3× — see [GMS](#gms-what-it-costs-next-to-the-matching-step-134) |
 | `teblid.describe` vs `orb.describe`, 300 keypoints — **not an A/B ratio** | p256 1.55 / 1.62 / 1.55 / 1.54; p512 2.74 / 2.90 / 2.73 / 2.73 | **new** (#135): p256 costs **1.6×** and p512 **2.7×** `orb.describe` on the same keypoints — see [TEBLID](#teblid-what-it-costs-next-to-orbdescribe-135) |
+| `freak.describe` vs `orb.describe`, 300 keypoints — **not an A/B ratio** | size 7 (all kept) 3.26 / 3.25 / 3.22 / 3.26; size 31 (132 kept) 1.66 / 1.66 / 1.63 / 1.65 | **new** (#80): costs **3.3×** `orb.describe` per keypoint, about 2× TEBLID p256 — see [FREAK](#freak-what-it-costs-next-to-orbdescribe-80) |
 | everything else | within ±1.12 | noise |
 
 \* = jsfeatNext faster in that run.
 
-The `gms.filter` and `teblid.describe` rows are the exceptions to everything above it: jsfeat has no GMS, so it is a cost in units of the matching step in the same process (as "`yape06` costs N× `fast_corners`"), measured on Vitest 5, not part of the four-run series above: `gms.filter` from five runs of `bench/gms.bench.ts`, `teblid.describe` from four runs of `bench/teblid.bench.ts`, each after one discarded warm-up.
+The `gms.filter`, `teblid.describe` and `freak.describe` rows are the exceptions to everything above it: jsfeat has no GMS, so it is a cost in units of the matching step in the same process (as "`yape06` costs N× `fast_corners`"), measured on Vitest 5, not part of the four-run series above: `gms.filter` from five runs of `bench/gms.bench.ts`, `teblid.describe` from four runs of `bench/teblid.bench.ts`, `freak.describe` from four runs of `bench/freak.bench.ts`, each after one discarded warm-up.
 
 **One caveat on `yape06`.** #166 measured it at 1.14–1.47 on its own branch and
 concluded the alias had *not* helped there. On merged `dev` it measures ~1.04.
@@ -862,7 +863,7 @@ per #86; the fix belongs in its own PR against `src/`.
 | --- | --- |
 | `grayscale` — RGBA to U8 | The first step of every frame |
 | `pyrdown`, `pyramid_t.build` (4 levels) | Every frame, for both the LK tracker and ORB |
-| `compute_integral_image` — sum only; sum + sqsum + tilted | TEBLID (#135) and FREAK (#80) will call the sum-only form: this is its baseline **before** they do |
+| `compute_integral_image` — sum only; sum + sqsum + tilted | TEBLID (#135) and FREAK (#80) call the sum-only form: this is its baseline from **before** they did |
 | `sobel_derivatives`, `scharr_derivatives` | Gradient maps; Scharr is what `optical_flow_lk` computes per level |
 | `warp_perspective`, `warp_affine` | The AR overlay step; `warp_affine` carries the #119 fix |
 | `canny` | Demo path; the one `imgproc` method that builds a `matrix_t` per call |
@@ -1090,6 +1091,87 @@ Reproduce:
 ```bash
 npx vitest bench --run bench/teblid.bench.ts --reporter=default --reporter=json --outputFile.json=bench-results/teblid.json
 node scripts/bench-ratios.mjs bench-results/teblid.json     # "teblid p256 costs 1.6x orb.describe ..."
+```
+
+## FREAK: what it costs next to `orb.describe` (#80)
+
+`freak.describe` has no jsfeat counterpart either, so `bench/freak.bench.ts`
+reports "`freak` costs N× `orb.describe`" for the same keypoints in one process,
+with `orb.describe (256 bits)` as the baseline (the first task) and `teblid p256`
+beside it for context.
+
+**Workload.** The same 300 strongest FAST corners (threshold 20, border 20) of
+the same seeded 640×480 noise image as the TEBLID bench. ORB and TEBLID are
+oriented with `orb.ic_angle`; FREAK gets no angle, because it estimates its own
+(that work is inside its timed call). There are two groups:
+
+- **size 31** (the plan's workload, ORB's patch diameter). FREAK's pattern does
+  not fit around 168 of the 300 keypoints, so it drops them as OpenCV does and
+  describes **132**, while ORB and TEBLID describe all 300. The ratio in this
+  group is therefore per call, not per keypoint.
+- **size 7, border 30.** All 300 keypoints are kept by all three, so this is the
+  **like-for-like** per-keypoint ratio, and the headline figure.
+
+`freak.describe` compacts `corners` and writes `angle`, so it gets its own clones
+of the keypoints and a fresh array copy before every iteration, in a
+`beforeEach` hook that tinybench keeps outside the timed region. Collection
+asserts the kept counts (132 and 300).
+
+**Result.** Four runs of `npx vitest bench --run bench/freak.bench.ts` after one
+discarded warm-up run. "N× orb.describe" is the mean latency of the case divided
+by that of `orb.describe` in the same run; the ms are the median of the four runs.
+
+| group | case | ms / call | N× orb.describe, 4 runs | median |
+| --- | --- | --- | --- | --- |
+| size 7, 300 kept | `orb.describe (256 bits)` (the baseline) | 2.49 | 1 | 1 |
+| size 7, 300 kept | `teblid p256` | 4.05 | 1.63 / 1.61 / 1.62 / 1.63 | 1.6× |
+| size 7, 300 kept | `freak (512 bits)` | 8.10 | 3.26 / 3.25 / 3.22 / 3.26 | **3.3×** |
+| size 31, FREAK keeps 132 | `orb.describe (256 bits)` (the baseline) | 2.49 | 1 | 1 |
+| size 31, FREAK keeps 132 | `teblid p256` | 4.24 | 1.71 / 1.69 / 1.71 / 1.70 | 1.7× |
+| size 31, FREAK keeps 132 | `freak (512 bits)` | 4.11 | 1.66 / 1.66 / 1.63 / 1.65 | 1.7× per call |
+
+Reading it:
+
+- **FREAK costs about 3.3× `orb.describe` per keypoint** (the size-7 group), or
+  about 2× TEBLID p256. Per keypoint it is about 27 µs at size 7 and 31 µs at
+  size 31 (4.11 ms / 132), so the size barely matters: the box means come from
+  the integral image in constant time.
+- The extra cost over TEBLID has three sources, all inside the timed call: the
+  orientation pass (43 means and 45 weighted pairs per keypoint, which ORB and
+  TEBLID get from the separate `ic_angle`), a second set of 43 means at the
+  estimated orientation, and the pattern points computed on demand (a `cos` and
+  a `sin` per point) instead of OpenCV's 8.5 MB lookup table (spec F1). FREAK is
+  also 64 bytes per keypoint, twice ORB and TEBLID p256.
+- The size-31 "1.7×" is **not** a per-keypoint figure: FREAK describes 132
+  keypoints there against 300 for the others. Per keypoint it is about 3.7×.
+- Spread: within ±1% across the four runs; read the ratios to two significant
+  figures. The ms are this machine's, the ratios are intra-process.
+
+**Resident memory.** 2266 B of module-level tables (the 512 pairs as `Int16`,
+1024 B, and as two `Uint8` point-index arrays, 1024 B; the 45 orientation pairs,
+90 B; the ring radii and sigmas, 128 B). Per call, about 2 KB of constants and
+scratch (1384 B of scaling factors, pattern sizes and weights; 688 B of scale-0
+points; the 43 means), 4 B per keypoint for its scale index, and the integral
+image, a `Float64` buffer of `(cols + 1) * (rows + 1)` entries (about 2.5 MB at
+640×480) borrowed from the shared pool and returned after the call.
+
+**Conditions.** Intel Core i7-9700 (8 cores, a desktop with no battery),
+Windows 11, Node v24.21.0, Vitest 5.0.5, under the maintainer's rule of CPU load
+under 20%, with the same sampler as the TEBLID bench: `Win32_Processor`
+`LoadPercentage` every about 2 s; a run started only after two consecutive
+readings under 20% and was kept only if every in-run sample was under 20%.
+17 attempts broke it (in-run maxima 21–35%) and were discarded and repeated; an
+earlier session on 2026-10-30 discarded 59 attempts on a busier machine and
+measured nothing. Kept in-run samples (%), 2026-11-03: warm-up 11/14/13/12,
+run 1 10/3/15/17, run 2 15/11/14/8, run 3 17/13/12/8, run 4 16/9/8/14. The bench
+process alone reads up to about 18%. Both sides of every ratio share the
+conditions.
+
+Reproduce:
+
+```bash
+npx vitest bench --run bench/freak.bench.ts --reporter=default --reporter=json --outputFile.json=bench-results/freak.json
+node scripts/bench-ratios.mjs bench-results/freak.json     # "freak (512 bits) costs 3.3x orb.describe ..."
 ```
 
 ## Notes on the inputs
