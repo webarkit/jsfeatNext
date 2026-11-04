@@ -30,8 +30,9 @@
  * The case key is the enclosing describe's name -- exactly the key the Vitest 4
  * reader derived -- so `bench/history.jsonl` stays comparable.
  *
- * INTRA-LIBRARY GROUPS (#134). A test none of whose tasks is named after either
- * implementation (no "jsfeatNext*" and no "jsfeat*") is not an A/B group and
+ * INTRA-LIBRARY GROUPS (#134). A test whose describe name contains
+ * "intra-library", and none of whose tasks is named after either
+ * implementation (no "jsfeatNext*" and no "jsfeat*"), is not an A/B group and
  * is not an error: it times several things of this library against each other
  * because there is nothing to compare them with -- `bench/gms.bench.ts`, where
  * jsfeat has no GMS. Such a group is reported on its own, as the cost of each
@@ -40,15 +41,15 @@
  * speedups, and an intra-library ratio is a different quantity. A test with
  * only ONE of the two implementation names is still an error row, and so is a
  * name that looks like a mistyped implementation name (anything starting with
- * "jsfeat", any case): only a group that visibly does not claim to be A/B
- * escapes the check.
+ * "jsfeat", any case), and so is an unmarked group with neither name: only a
+ * group that says it is not A/B escapes the check.
  *
  * HZ DEFINITION. `hz` is `1000 / period` (operations per second from the mean
- * latency), which is what Vitest 4 / tinybench 4 reported as `hz`. It is NOT the
+ * latency), which is what Vitest 4 reported as `hz`. It is NOT the
  * `throughput.mean` that Vitest 5's console table prints under the same "hz"
  * heading: that is the mean of per-sample throughputs, a different estimator
- * that diverges from `1000 / period` once a call is fast enough for the timer
- * to quantise it (the ~100 ns cache cases differ by tens of percent). The
+ * on a right-skewed latency distribution that is above the throughput of the
+ * mean latency (a 40-50% gap was measured on a 33 us case). The
  * ratio's definition -- jsfeatNext hz / jsfeat hz -- is unchanged.
  *
  * Usage:
@@ -66,7 +67,7 @@
 import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { cpus, platform, arch } from "node:os";
-import { dirname } from "node:path";
+import { dirname, relative, sep } from "node:path";
 
 /** Ignore anything below this — see bench/README.md's measured noise floor. */
 const NOISE_FLOOR = 1.15;
@@ -106,6 +107,20 @@ if (!Array.isArray(raw.testResults)) {
     process.exit(2);
 }
 
+/** A reporter's absolute file path as a repo-relative one, for error rows. */
+function repoRelative(file) {
+    return file ? relative(process.cwd(), file).split(sep).join("/") : "?";
+}
+
+/** The installed Vitest's version, for a record's `env`: its protocol can change with it. */
+function vitestVersion() {
+    try {
+        return JSON.parse(readFileSync("node_modules/vitest/package.json", "utf8")).version;
+    } catch {
+        return null;
+    }
+}
+
 /** Operations per second from the mean latency in ms: Vitest 4's `hz`. */
 function hzOf(task) {
     return task.period > 0 ? 1000 / task.period : NaN;
@@ -135,18 +150,13 @@ for (const file of raw.testResults) {
                 else if (s === "oracle") oracle = task;
             }
         }
-        // No A/B side at all and no name claiming to be one: an intra-library
-        // group, by design (see the header). It needs a usable mean for every
-        // task to be worth reporting; otherwise it falls through to the error
-        // row below like any other group that cannot produce its numbers.
-        if (
-            test.status === "passed" &&
-            !next &&
-            !oracle &&
-            tasks.length > 0 &&
-            !tasks.some((t) => /^jsfeat/i.test(t.name)) &&
-            tasks.every((t) => t.period > 0)
-        ) {
+        // No A/B side at all and no name claiming to be one.
+        const noSide = !next && !oracle && tasks.length > 0 && !tasks.some((t) => /^jsfeat/i.test(t.name));
+        // Also marked in its describe: an intra-library group, by design (see the
+        // header). It needs a usable mean for every task to be worth reporting;
+        // otherwise it falls through to the error row below, with that cause.
+        const isIntra = noSide && caseName.includes("intra-library");
+        if (test.status === "passed" && isIntra && tasks.every((t) => t.period > 0)) {
             intra.push({
                 case: caseName,
                 baseline: tasks[0].name,
@@ -168,8 +178,15 @@ for (const file of raw.testResults) {
             const why =
                 test.status !== "passed"
                     ? `test ${test.status}: ${(test.failureMessages?.[0] ?? "").split("\n")[0]}`
-                    : "missing jsfeatNext and/or jsfeat side";
-            rows.push({ case: `${file.name ?? "?"} > ${caseName}`, error: why });
+                    : isIntra
+                      ? `intra-library group: no usable mean latency for ${tasks
+                            .filter((t) => !(t.period > 0))
+                            .map((t) => `"${t.name}"`)
+                            .join(", ")}`
+                      : noSide
+                        ? 'no jsfeatNext or jsfeat side (an intra-library group must say "intra-library" in its describe)'
+                        : "missing jsfeatNext and/or jsfeat side";
+            rows.push({ case: `${repoRelative(file.name)} > ${caseName}`, error: why });
             continue;
         }
         const nextHz = hzOf(next);
@@ -271,6 +288,7 @@ if (appendTo) {
             arch: arch(),
             cpu: cpus()[0]?.model ?? null,
             cores: cpus().length,
+            vitest: vitestVersion(),
         },
         geomean: geomean(measured.map((r) => r.speedup)),
         cases: Object.fromEntries(measured.map((r) => [r.case, r.speedup])),
@@ -325,6 +343,7 @@ if (markdown) {
     }
 }
 
-// Always exit 0. This tool reports; it never gates. Benchmarks on a shared
-// runner are far too noisy to fail a build on (issue #86).
+// Exit 0 whatever the ratios say. This tool reports; it never gates: benchmarks
+// on a shared runner are far too noisy to fail a build on (issue #86). The only
+// non-zero exits are the guards above (exit 2), for input it cannot read at all.
 process.exit(0);
