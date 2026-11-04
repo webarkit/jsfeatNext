@@ -179,9 +179,10 @@ describe("teblid.describe: validation", () => {
         for (const out of [src, view]) {
             const kps = [new keypoint_t(300, 200, 0, 0, -1, 31), interior()];
             const objs = [...kps];
+            const fields = kps.map((k) => ({ ...k }));
             expect(() => engine.describe(src, kps, 2, out)).toThrow(TypeError);
             expect(() => engine.describe(src, kps, 2, out)).toThrow(/must not share its data with src/);
-            expect(kps).toEqual(objs);
+            expect(kps).toEqual(fields);
             expect(kps[0]).toBe(objs[0]);
         }
         expect(Array.from(src.data)).toEqual(pixels);

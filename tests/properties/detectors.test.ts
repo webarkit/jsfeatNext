@@ -484,9 +484,10 @@ describe("detector invariants", () => {
             for (const out of [src, view]) {
                 const kps = [new jsfeatNext.keypoint_t(40, 36, 0, 0, 0), new jsfeatNext.keypoint_t(48, 30, 0, 0, 1)];
                 const objs = [...kps];
+                const fields = kps.map((k) => ({ ...k }));
                 expect(() => orb.describe(src, kps, 2, out)).toThrow(TypeError);
                 expect(() => orb.describe(src, kps, 2, out)).toThrow(/must not share its data with src/);
-                expect(kps).toEqual(objs);
+                expect(kps).toEqual(fields);
                 expect(kps[0]).toBe(objs[0]);
             }
             expect(Array.from(src.data)).toEqual(pixels);
