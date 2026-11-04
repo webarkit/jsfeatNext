@@ -1,4 +1,49 @@
 
+## 1.2.0 - 2026-11-04
+
+### ⚡ Performance
+
+- Make the bundle tree-shakeable, additively (#253) (2e8f201)
+
+
+### 🐛 Bug Fixes
+
+- Keep the shared pool intact when a buffer cannot be grown (#252) (b8329a0)
+
+- Reject descriptors that share data with src (#259) (73fe3e5)
+
+
+### 📚 Documentation
+
+- TEBLID design and implementation plan; milestone 1.2.0 plan (#255) (3aeb249)
+
+- FREAK design and implementation plan (#80) (#257) (fd8d4b3)
+
+- Close the milestone 1.1.0 review follow-ups (#246) (#260) (9dee220)
+
+
+### 📦 Build
+
+- Bump the vitest group across 1 directory with 2 updates (#247) (c4cf434)
+
+- Bump vite from 8.3.4 to 8.3.5 (#250) (628f73e)
+
+
+### 🚀 Features
+
+- TEBLID descriptor, bit-exact with OpenCV 4.10.0 (#135) (#256) (573ae3e)
+
+- FREAK descriptor, bit-exact with OpenCV 4.10.0 (#80) (#258) (cbe8ccb)
+
+
+### 🧪 Testing
+
+- Check the exact opencv-contrib-python wheel, not only cv2.__version__ (#248) (5240f61)
+
+- Finish imgproc coverage and pyramid_t.build (#249) (7aaea59)
+
+
+
 ## 1.1.0 - 2026-10-15
 
 ### 🐛 Bug Fixes

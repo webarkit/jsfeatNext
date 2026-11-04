@@ -19,6 +19,8 @@ const dist = fileURLToPath(new URL("./dist/jsfeatNext.mjs", import.meta.url));
 
 export default mergeConfig(base, {
     resolve: {
-        alias: [{ find: /^\.\.\/src\/jsfeatNext$/, replacement: dist }],
+        // Any depth: tests/setup/pool-balance.ts imports ../../src/jsfeatNext, and
+        // must watch the pool of the bundle under test, not the source copy's (#246).
+        alias: [{ find: /^(?:\.\.\/)+src\/jsfeatNext$/, replacement: dist }],
     },
 });

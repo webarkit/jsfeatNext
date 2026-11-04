@@ -26,6 +26,23 @@ const src = new jsfeatNext.matrix_t(width, height, jsfeatNext.U8_t | jsfeatNext.
 jsfeatNext.imgproc.grayscale(rgbaPixelData, width, height, src);
 ```
 
+With a bundler, import only what you use by name, and the rest of the library is
+left out of your bundle (since 1.2.0, #137). Each name is the same object as the
+namespace member, so `imgproc === jsfeatNext.imgproc`:
+
+```js
+import { imgproc, matrix_t, U8C1_t } from "@webarkit/jsfeat-next";
+
+const src = new matrix_t(width, height, U8C1_t);
+imgproc.grayscale(rgbaPixelData, width, height, src);
+```
+
+An app that only converts to grayscale bundles to about 23 KB this way (8 KB
+gzipped) instead of about 70 KB (24 KB) through the default import, which carries
+every module. Measured with Vite 8, minified; see #137 for the method, and
+[`examples/treeshake/`](examples/treeshake/README.md) for a page you can build and
+compare yourself (`npm run example:treeshake`).
+
 In the browser (UMD build), the global is the namespace directly:
 
 ```html
@@ -51,7 +68,7 @@ In the browser (UMD build), the global is the namespace directly:
 
 These classes are attached to the `jsfeatNext` namespace (`jsfeatNext.<name>`):
 
-`cache` · `fast_corners` · `homography2d` · `affine2d` · `imgproc` · `keypoint_t` · `linalg` · `math` · `matmath` · `matrix_t` · `motion_estimator` · `ransac_params_t` · `optical_flow_lk` · `orb` · `bfmatcher` · `gms` · `match_t` · `pose_estimator` · `pose_t` · `pyramid_t` · `transform` · `yape` · `yape06`
+`cache` · `fast_corners` · `homography2d` · `affine2d` · `imgproc` · `keypoint_t` · `linalg` · `math` · `matmath` · `matrix_t` · `motion_estimator` · `ransac_params_t` · `optical_flow_lk` · `orb` · `bfmatcher` · `gms` · `teblid` · `freak` · `match_t` · `pose_estimator` · `pose_t` · `pyramid_t` · `transform` · `yape` · `yape06`
 
 `pose_estimator` is a constructor (`new jsfeatNext.pose_estimator(K)`) like the data structures, because it holds the inverted intrinsics; the other algorithm modules are singletons.
 
@@ -59,9 +76,9 @@ These classes are attached to the `jsfeatNext` namespace (`jsfeatNext.<name>`):
 
 - **Node.js** v24 (see `.nvmrc`; npm 11)
 - Build (UMD + ESM + type declarations): `npm install` then `npm run build-ts`
-  - Produces `dist/jsfeatNext.js` (UMD, browser global `jsfeatNext`), `dist/jsfeatNext.mjs` (ESM), and `types/`
-  - Built with **Vite** library mode; webpack/babel are no longer used
-- Watch mode: `npm run dev-ts`
+  - Produces `dist/jsfeatNext.js` (UMD, browser global `jsfeatNext`), `dist/jsfeatNext.mjs` (ESM, default namespace plus named exports), and `types/`
+  - Built with **Vite** library mode, in two passes: ESM from `src/index.ts`, UMD from `src/umd.ts` (namespace only); webpack/babel are no longer used
+- Watch mode: `npm run dev-ts` (ESM and types) · `npm run dev-ts:umd` (UMD)
 - Tests: `npm test` (Vitest — characterization tests against the original jsfeat)
 - API docs: `npm run docs` (TypeDoc, output to `docs/api/`, gitignored/local-only for now)
 - Benchmarks: `npm run bench` (Vitest, A/B against the vendored original jsfeat) · `npm run bench:ratios` for the ratio summary alone
@@ -123,6 +140,8 @@ They share the helpers in [`examples/js/demo-utils.mjs`](examples/js/demo-utils.
 | `sample_oflow_lk.html` | Lucas–Kanade optical flow (click to add points) |
 | `sample_orb.html` | ORB descriptors + matching + homography |
 | `sample_orb_pinball.html` | ORB pattern tracking on a reference image |
+| `sample_teblid.html` | TEBLID descriptors matched across a rotated, scaled view (no camera) |
+| `sample_freak.html` | FREAK descriptors with their own orientation, matched across a rotated, scaled view (no camera) |
 | `sample_warp_affine.html` / `sample_warp_perspective.html` | affine / perspective warps |
 
 ### UMD examples — global `<script>` tag
@@ -166,4 +185,6 @@ Releases are tagged `X.Y.Z` (never `vX.Y.Z`) and published automatically via Git
 
 ## License 📄
 
-[LGPL-3.0-or-later](LICENSE)
+[LGPL-3.0-or-later](LICENSE). The LGPL is a set of additional permissions on top of the GPL-3.0, whose text ships in [`LICENSES/GPL-3.0.txt`](LICENSES/GPL-3.0.txt).
+
+Ported OpenCV code keeps its own notice: `src/gms/` and `src/teblid/` (from opencv_contrib) are Apache-2.0, text in `LICENSES/Apache-2.0.txt`; FREAK (`src/freak/`, ported from opencv_contrib `freak.cpp`) is BSD-3-Clause (EPFL), text in `LICENSES/BSD-3-Clause-FREAK.txt`. The banner of both bundles names these notices.

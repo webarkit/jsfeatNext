@@ -108,12 +108,18 @@ export class cache implements ICache {
     get_buffer(size_in_bytes: number): _pool_node_t {
         // assume we have enough free nodes
         const node = this._pool_head;
-        this._pool_head = this._pool_head.next;
-        this._pool_size--;
 
+        // Grow the node BEFORE unlinking it (#246): if the allocation throws,
+        // the node is still in the pool, with its previous storage intact
+        // (resize swaps only once the new buffer exists), and the free count
+        // is unchanged. Unlinking first lost the node for good on every such
+        // failure, draining the pool every module shares.
         if (size_in_bytes > node.size) {
             node.resize(size_in_bytes);
         }
+
+        this._pool_head = node.next;
+        this._pool_size--;
 
         return node;
     }

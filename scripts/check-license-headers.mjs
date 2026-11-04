@@ -45,6 +45,9 @@ const EXTENDED = new Map([
 const ORIGINAL_SRC = new Set([
     "src/types.ts",
     "src/index.ts",
+    // build wiring for the named exports and the UMD entry (#137): no ported code
+    "src/singletons.ts",
+    "src/umd.ts",
     // match_t is an OpenCV-shaped value type (cv::DMatch equivalent); jsfeat
     // never shipped a matcher or any such type, so nothing here is derived.
     // (bfmatcher.ts itself IS derived — it ports the sample's popcnt32/
@@ -53,10 +56,15 @@ const ORIGINAL_SRC = new Set([
     // pose_estimator is a new module: jsfeat has no pose/homography-
     // decomposition code, so nothing here is derived from it.
     "src/pose_estimator/pose_estimator.ts",
+    // the TEBLID example (#135) is written from scratch for this library, not
+    // adapted from a jsfeat sample page
+    "examples/sample_teblid.html",
+    // the FREAK example (#80) is written from scratch too, not adapted from a jsfeat sample page
+    "examples/sample_freak.html",
 ]);
 
 /**
- * Files ported from OpenCV (Apache-2.0) rather than from jsfeat (MIT): path
+ * Files ported from OpenCV (Apache-2.0, or BSD-3-Clause for FREAK) rather than from jsfeat (MIT): path
  * prefix -> attribution snippet in the skill's resources/ folder. Anything
  * under a prefix gets the same LGPL template as everything else, but with
  * that snippet in the `{{ATTRIBUTION}}` slot INSTEAD of the jsfeat MIT block,
@@ -65,7 +73,11 @@ const ORIGINAL_SRC = new Set([
  * licence that applies. Only src/ is mapped: OpenCV-derived code is not
  * expected in tests/ or examples/.
  */
-const OPENCV_SRC = new Map([["src/gms/", "ATTRIBUTION-opencv-gms.txt"]]);
+const OPENCV_SRC = new Map([
+    ["src/gms/", "ATTRIBUTION-opencv-gms.txt"],
+    ["src/teblid/", "ATTRIBUTION-opencv-teblid.txt"],
+    ["src/freak/", "ATTRIBUTION-opencv-freak.txt"],
+]);
 
 /**
  * Third-party or foreign-provenance files. Never stamp these — they either
@@ -83,7 +95,7 @@ const EXCLUDED = new Set([
  * to retain it) and must be ABSENT from code original to jsfeatNext, where it
  * would be a false credit — and would make licence scanners report MIT content
  * in files that have none. For code ported from OpenCV the slot instead carries
- * that file's Apache-2.0 attribution (OPENCV_SRC above), and not the jsfeat one.
+ * that file's OpenCV attribution (OPENCV_SRC above), and not the jsfeat one.
  *
  * Kept as one base plus snippets rather than near-identical files, so the
  * licence text itself cannot drift between variants.
@@ -157,6 +169,9 @@ function collect() {
     // example pages descend from jsfeat's sample pages; our ESM helpers do not
     add(["examples/*.html"], "derived", "html");
     add(["examples/js/*.mjs"], "original", "js");
+    // the Vite tree-shaking demo (#137): our own code, not a jsfeat sample
+    add(["examples/treeshake/*.html"], "original", "html");
+    add(["examples/treeshake/*.{js,mjs}"], "original", "js");
     return out.filter((f) => !f.rel.startsWith("tests/vendor/"));
 }
 

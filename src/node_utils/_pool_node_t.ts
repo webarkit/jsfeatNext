@@ -91,16 +91,20 @@ export default class _pool_node_t implements IPool_Node_T {
      * borrower requests more space than the node currently holds. Previous
      * contents are NOT preserved.
      *
+     * Exception-safe (#246): the new storage is allocated first and swapped in
+     * only once it exists, so if the allocation throws the node keeps its
+     * previous storage and views, unchanged.
+     *
      * @param size_in_bytes New byte size (aligned up to a multiple of 8).
      */
     resize(size_in_bytes: number): void {
-        delete this.data;
-        this.data = new data_t(size_in_bytes);
-        this.size = this.data.size;
-        this.buffer = this.data.buffer;
-        this.u8 = this.data.u8;
-        this.i32 = this.data.i32;
-        this.f32 = this.data.f32;
-        this.f64 = this.data.f64;
+        const data = new data_t(size_in_bytes);
+        this.data = data;
+        this.size = data.size;
+        this.buffer = data.buffer;
+        this.u8 = data.u8;
+        this.i32 = data.i32;
+        this.f32 = data.f32;
+        this.f64 = data.f64;
     }
 }

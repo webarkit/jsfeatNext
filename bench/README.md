@@ -6,7 +6,8 @@ Throughput measurement for the hot paths, per [#86](https://github.com/webarkit/
 npm run bench:ratios
 ```
 
-That is one full pass followed by the A/B ratios — see
+That is one full pass followed by the A/B ratios, **and it appends a record to
+`bench/history.jsonl`** — see
 [How to take a measurement](#how-to-take-a-measurement) for the other commands
 and for what each of them prints.
 
@@ -18,7 +19,9 @@ picture; the sections below are the historical record of how each finding was
 found and diagnosed, and their numbers are deliberately not updated.** The
 suite now runs on Vitest 5 (#219). The ratio is defined exactly as before, and
 a Vitest 5 pass reproduces the same picture within the run-to-run noise
-described below — **provided Vitest's getter instrumentation is off, which the
+described below, as far as a single pass can show: `get_gaussian_kernel` size 7
+and `check_subset` were measured in one pass only, and those two can move
+further — **provided Vitest's getter instrumentation is off, which the
 config does for you**: see
 [The module-runner artefact under Vitest 5](#the-module-runner-artefact-under-vitest-5).
 
@@ -33,12 +36,15 @@ config does for you**: see
 | `yape.detect` | 1.11 / 1.02 / 1.05\* / 1.00 | **resolved** (#166) |
 | `matmath.invert_3x3` | 1.03 / 1.09 / 1.12 / 1.10 | **resolved** (#165) |
 | `linalg.svd_*`, `eigenVV` | all ≤ 1.17 | **resolved** (#159) |
+| **`imgproc.box_blur_gray`** radius 2 | 1.43 / 1.26 / 1.28 / 1.26 (jsfeat faster in all four, quiet machine; two loaded series agree) | **new, open** (#168, fix tracked in [#251](https://github.com/webarkit/jsfeatNext/issues/251)): 1.19–1.28 on the built bundle, so not the harness artefact. Suspected: the #114 rewrite (clamping ternaries and `Math.floor(sum / area)` in the inner loops). See [the rest of imgproc](#phase-2-continued-the-rest-of-imgproc-168) |
 | `gms.filter` vs the matching step, default path — **not an A/B ratio** | 0.068 / 0.069 / 0.066 / 0.068 / 0.064 | **new** (#134): costs **0.07×** the `knnMatch` + `ratio_test` step it follows. Rotation 0.47×, scale 0.32×, rotation+scale 2.3× — see [GMS](#gms-what-it-costs-next-to-the-matching-step-134) |
+| `teblid.describe` vs `orb.describe`, 300 keypoints — **not an A/B ratio** | p256 1.55 / 1.62 / 1.55 / 1.54; p512 2.74 / 2.90 / 2.73 / 2.73 | **new** (#135): p256 costs **1.6×** and p512 **2.7×** `orb.describe` on the same keypoints — see [TEBLID](#teblid-what-it-costs-next-to-orbdescribe-135) |
+| `freak.describe` vs `orb.describe`, 300 keypoints — **not an A/B ratio** | size 7 (all kept) 3.26 / 3.25 / 3.22 / 3.26; size 31 (132 kept) 1.66 / 1.66 / 1.63 / 1.65 | **new** (#80): costs **3.3×** `orb.describe` per keypoint, about 2× TEBLID p256 — see [FREAK](#freak-what-it-costs-next-to-orbdescribe-80) |
 | everything else | within ±1.12 | noise |
 
 \* = jsfeatNext faster in that run.
 
-The `gms.filter` row is the one exception to everything above it: jsfeat has no GMS, so it is a cost in units of the matching step in the same process (as "`yape06` costs N× `fast_corners`"), measured on Vitest 5 — five runs of `bench/gms.bench.ts` after one discarded warm-up, not part of the four-run series above.
+The `gms.filter`, `teblid.describe` and `freak.describe` rows are the exceptions to everything above it: jsfeat has no GMS, so it is a cost in units of the matching step in the same process (as "`yape06` costs N× `fast_corners`"), measured on Vitest 5, not part of the four-run series above: `gms.filter` from five runs of `bench/gms.bench.ts`, `teblid.describe` from four runs of `bench/teblid.bench.ts`, `freak.describe` from four runs of `bench/freak.bench.ts`, each after one discarded warm-up.
 
 **One caveat on `yape06`.** #166 measured it at 1.14–1.47 on its own branch and
 concluded the alias had *not* helped there. On merged `dev` it measures ~1.04.
@@ -114,6 +120,10 @@ knowing about because it is **silent**:
   a module boundary, and `npm run bench:dist` is the one to read as a statement
   about shipped code. It still works under Vitest 5 and shows the same
   signature as before (`linalg.lu_solve` at 1.00x on the built bundle).
+- **Re-check this on every Vitest bump.** The flag does this job only because of
+  Vitest 5.0.x internals: it also gates the getter tracker, which nothing
+  promises. After a bump, one pass must print no "Benchmark Warning" and keep
+  `cache` steady state near 1.0×.
 
 ## Read the ratio, not the absolute numbers
 
@@ -125,7 +135,7 @@ Every case but one runs **twice in the same process**: once through jsfeatNext, 
 1.51x jsfeat     * linalg.lu_solve (6x6)
 ```
 
-**The definition is unchanged from Vitest 4**: jsfeatNext's `hz` divided by jsfeat's `hz`, where `hz` is operations per second from the mean latency. On Vitest 5 that is `1000 / period` in the JSON — **not** the `hz` column of the console table, which Vitest 5 fills from `throughput.mean`, a mean of per-sample throughputs. The two diverge once a call is fast enough for the timer to quantise it (on the ~100 ns `cache` case they differ by tens of percent), so read ratios from the script, not from the table. `bench/history.jsonl` keys and values therefore keep their meaning.
+**The definition is unchanged from Vitest 4**: jsfeatNext's `hz` divided by jsfeat's `hz`, where `hz` is operations per second from the mean latency. On Vitest 5 that is `1000 / period` in the JSON — **not** the `hz` column of the console table, which Vitest 5 fills from `throughput.mean`, a mean of per-sample throughputs. The two are different averages of the same samples: the mean of the throughputs against the throughput of the mean latency. On a right-skewed latency distribution, which is what a bench produces, the first is the larger (a 40–50% gap was measured on a 33 µs case), so read ratios from the script, not from the table. `bench/history.jsonl` keys and values therefore keep their meaning.
 
 The `hz` / `mean` columns in the console table are **not** comparable across machines, and largely not comparable across runs on the same machine either.
 
@@ -231,7 +241,7 @@ What `scripts/bench-ratios.mjs` relies on:
   by prefix (`"jsfeatNext (matrix_t)"`, `"jsfeat (reference, raw array)"` and
   `` `jsfeatNext (${count} keypoints)` `` all pair up). A test that yields only
   one of the two is reported as an error row, never dropped.
-- **An intra-library group has neither name.** A test whose tasks are named after neither implementation (`bench/gms.bench.ts`: jsfeat has no GMS) is not an A/B pair and is not an error: the script prints each task's cost relative to the group's FIRST task, on its own, and never writes it to `history.jsonl`. A name starting with `jsfeat` (any case) still has to pair up, so a mistyped side keeps failing loudly.
+- **An intra-library group says so in its describe.** A test whose describe name contains `intra-library`, and whose tasks are named after neither implementation (`bench/gms.bench.ts`: jsfeat has no GMS), is not an A/B pair and is not an error: the script prints each task's cost relative to the group's FIRST task, on its own, and never writes it to `history.jsonl`. Without the marker a group with neither name is an error row, and so is a marked group with a task that has no usable mean latency, each naming its actual cause. A name starting with `jsfeat` (any case) still has to pair up, so a mistyped side keeps failing loudly.
 - **Two sequential `.run()` calls, not `bench.compare()`.** Sequential keeps the
   protocol the history was recorded with: jsfeatNext is warmed up and measured,
   then jsfeat is. `bench.compare()` warms every task up before measuring any of
@@ -433,7 +443,8 @@ module has a bench file: `imgproc`, `orb`, `fast_corners`, `yape06`, `yape`,
 `math`/`matmath`/`transform` and `motion_model`. Within `imgproc` only
 `gaussian_blur` and `resample` are benched — the other ~12 public methods
 (`grayscale`, `pyrdown`, the derivative filters, the warps, `canny`, …) are
-not yet covered.
+not yet covered. (#168 has since covered them: see
+[the rest of imgproc](#phase-2-continued-the-rest-of-imgproc-168).)
 
 ## Phase 2, continued: optical_flow_lk
 
@@ -849,6 +860,115 @@ compound: each `new matmath()` here is itself cheap, but `matmath`'s methods
 build `matrix_t` instances, which is where #159 bites. Measurement only here,
 per #86; the fix belongs in its own PR against `src/`.
 
+## Phase 2, continued: the rest of imgproc (#168)
+
+`bench/imgproc.bench.ts` now covers every public `imgproc` method but one, and
+`pyramid_t.build`. All on 640×480, with the same seeded noise on both sides
+(RGBA noise for `grayscale` and `skindetector`).
+
+| Case | Why it is here |
+| --- | --- |
+| `grayscale` — RGBA to U8 | The first step of every frame |
+| `pyrdown`, `pyramid_t.build` (4 levels) | Every frame, for both the LK tracker and ORB |
+| `compute_integral_image` — sum only; sum + sqsum + tilted | TEBLID (#135) and FREAK (#80) call the sum-only form: this is its baseline from **before** they did |
+| `sobel_derivatives`, `scharr_derivatives` | Gradient maps; Scharr is what `optical_flow_lk` computes per level |
+| `warp_perspective`, `warp_affine` | The AR overlay step; `warp_affine` carries the #119 fix |
+| `canny` | Demo path; the one `imgproc` method that builds a `matrix_t` per call |
+| `equalize_histogram`, `box_blur_gray` | Example paths; `box_blur_gray` carries the #114 fix |
+| `skindetector` | Peripheral, but a plain per-pixel loop, so cheap to include |
+
+**Not benched: `hough_transform`.** The vendored jsfeat version throws a
+`ReferenceError` (it uses `min_theta`/`max_theta` without declaring them, under
+`"use strict"`; see `tests/parity/imgproc.test.ts`), so there is no reference
+side to pair it with, and an intra-library cost would answer no question anyone
+is asking.
+
+**Identical work, checked.** Every case runs both sides once at collection time
+and throws unless their outputs agree (`assertSameWork`), so a ratio can never
+compare two workloads. All are bit-exact except two, by design:
+
+- `warp_affine`: jsfeatNext fills the one-pixel band where a source coordinate
+  falls in (-1, 0), which jsfeat extrapolates (#119). The check requires every
+  pixel outside that band to match and every pixel inside it to be the fill
+  value (437 band pixels on this input; 431 differ, the other 6 happen to
+  extrapolate to 0).
+- `box_blur_gray` runs at **radius 2**, where it is bit-exact. At radius 3,
+  3432 pixels differ, every one by exactly +1: jsfeat's `1/49` reciprocal
+  undershoots and truncates, jsfeatNext divides exactly (#114). The loop is the
+  same at either radius.
+
+**Inputs worth knowing.** `warp_perspective` receives the **inverse** of the
+`perspective_4point_transform` homography, because the warp maps destination to
+source (as `examples/sample_warp_perspective.html` does). In the combined
+`compute_integral_image` case the squared sum is a `Float64Array`: it reaches
+about 6.7e9 on this noise, and an `Int32Array` would wrap identically on both
+sides and still compare equal.
+
+**Result.** Three series, each of four runs of `npx vitest bench --run
+bench/imgproc.bench.ts` after one discarded warm-up run. **Series C is the one
+to quote**: it was taken on a quiet machine (see Conditions below). Series B,
+on a loaded one, is kept beside it as a cross-check. Series A was taken before
+the two input corrections above, so its `warp_perspective` and combined
+`compute_integral_image` numbers measured the wrong input; it is not tabled
+(its `box_blur_gray` read 1.27 / 2.31 / 1.18 / 1.84 jsfeat). "jsfeat" means
+jsfeat was faster by that factor; unmarked numbers mean jsfeatNext was.
+
+| case | series C (quiet), 4 runs | series B (loaded), 4 runs | reading |
+| --- | --- | --- | --- |
+| `grayscale` | 1.03 jsfeat / 1.04 jsfeat / 1.00 / 1.16 jsfeat | 1.09 / 1.11 jsfeat / 1.04 / 1.07 jsfeat | noise |
+| `pyrdown` | 1.03 / 1.00 / 1.02 jsfeat / 1.03 jsfeat | 1.01 / 1.37 jsfeat / 1.01 / 1.14 | noise |
+| `pyramid_t.build` | 1.01 jsfeat / 1.01 jsfeat / 1.01 / 1.05 | 1.02 jsfeat / 1.08 jsfeat / 1.03 jsfeat / 1.06 jsfeat | noise |
+| `compute_integral_image` sum only | 1.12 / 1.11 / 1.10 / 1.12 | 1.08 / 1.15 / 1.14 / 1.07 | jsfeatNext slightly faster in every run of every series, under the floor; 1.10–1.11 on the bundle |
+| `compute_integral_image` sum + sqsum + tilted | 1.11 / 1.16 / 1.02 / 1.08 | 1.07 / 1.34 / 1.03 jsfeat / 1.06 | under the floor (one sign flip in B) |
+| `sobel_derivatives` | 1.03 jsfeat / 1.02 jsfeat / 1.07 / 1.01 | 1.03 / 1.05 jsfeat / 1.04 / 1.02 jsfeat | noise |
+| `scharr_derivatives` | 1.02 / 1.02 jsfeat / 1.00 jsfeat / 1.01 jsfeat | 1.02 / 1.41 jsfeat / 1.00 / 1.02 jsfeat | noise |
+| `warp_perspective` | 1.01 / 1.01 / 1.01 jsfeat / 1.01 jsfeat | 1.00 jsfeat / 1.02 / 1.02 / 1.02 | parity |
+| `warp_affine` | 1.01 jsfeat / 1.02 jsfeat / 1.02 jsfeat / 1.23 | 1.01 jsfeat / 1.02 jsfeat / 1.02 / 1.03 | noise (one outlier) |
+| `canny` | 1.04 / 1.04 / 1.02 jsfeat / 1.00 jsfeat | 1.02 jsfeat / 1.02 / 1.04 / 1.01 | parity: the per-call `matrix_t` does not show at this size |
+| `equalize_histogram` | 1.01 jsfeat / 1.03 / 1.02 / 1.04 jsfeat | 1.01 / 1.01 jsfeat / 1.00 / 1.11 | noise |
+| **`box_blur_gray`** radius 2 | **1.43 / 1.26 / 1.28 / 1.26 jsfeat** | **1.31 / 1.15 / 1.20 / 1.23 jsfeat** | **finding**: jsfeat faster in every run of every series |
+| `skindetector` | 1.00 / 1.00 / 1.02 / 1.05 jsfeat | 1.01 / 1.01 / 1.06 / 1.03, all jsfeat | noise |
+
+Series C is markedly tighter than B: outside `box_blur_gray`, only three of its
+48 other readings pass 1.15, each by a little and each in a single run
+(`grayscale` 1.16 and `warp_affine` 1.23, both against the sign of their other
+three runs, and the combined integral image 1.16). In series B, `scharr`,
+`pyrdown`, `orb.describe` and the combined integral image each had a 1.3–1.5
+outlier. That is the load showing, and why every reading above rests on the
+direction across all runs, not on one value.
+
+**The finding: `box_blur_gray` is about 1.25× slower than jsfeat** (1.26–1.43 in
+the quiet series). It holds on the built bundle too (`npm run bench:dist`, three
+runs after a warm-up, twice: 1.25 / 1.27 / 1.21 on the loaded machine and 1.24
+/ 1.19 / 1.28 on the quiet one), so it is not the module-runner artefact. Not
+diagnosed. The suspect is the #114 rewrite, which put a clamping ternary on
+every read and `Math.floor(sum / area)` (a float division) on every write of the
+inner loops, where jsfeat primes the window once and multiplies by a reciprocal.
+Hoisting the clamps out of the interior and dividing exactly only where it
+matters would be the first thing to try, under the parity tests and the #114
+divergence tests. That is a `src/` change, tracked in its own issue per #86:
+[#251](https://github.com/webarkit/jsfeatNext/issues/251).
+
+**Conditions, honestly.** Intel Core i7-9700 (desktop, no battery), Windows 11,
+Node v24.21.0, Vitest 5.0.4. Load is the summed CPU time of every process over a
+5 s window, as a share of all 8 cores.
+
+- **Series C (quiet):** started only once two consecutive samples read under
+  20% (9.8% and 7.3%); 16.8% just before the first run and 2.9% after the last.
+  Freshly rebooted, Windows Explorer restarted (it had been holding about 25% on
+  its own) and OneDrive sync paused. The bundle re-check read 14.5% after it.
+  Not a lab-idle machine (a browser and the Claude desktop app stayed open), but
+  the quietest this file's imgproc numbers were taken on.
+- **Series B (loaded):** 13% before, 28% after.
+- **Series A (loaded):** about 18% before.
+
+Reproduce:
+
+```bash
+npx vitest bench --run bench/imgproc.bench.ts --reporter=default --reporter=json --outputFile.json=bench-results/imgproc.json
+node scripts/bench-ratios.mjs bench-results/imgproc.json
+```
+
 ## GMS: what it costs next to the matching step (#134)
 
 `gms.filter` has no jsfeat counterpart, so `bench/gms.bench.ts` has no
@@ -905,6 +1025,10 @@ Reading it:
   the five runs spread by up to about ±5% on a path, which is inside the noise floor
   above: read them to one significant figure. Cost is linear in the number of
   matches (289 here); a poorer frame has fewer.
+- **The noise scene is idealised.** The second view is an exact translation, so
+  all 289 matches are true inliers, which a real frame's are not.
+- **The rotation paths are the load-sensitive ones.** One busier run read rotation
+  0.42× and rotation+scale 2.10×.
 
 **Conditions, honestly.** Intel Core i7-9700 (8 cores, a desktop with no
 battery), Windows 11, Node v24.21.0, Vitest 5.0.4. **The machine was not
@@ -923,6 +1047,142 @@ Reproduce:
 ```bash
 npx vitest bench --run bench/gms.bench.ts --reporter=default --reporter=json --outputFile.json=bench-results/gms.json
 node scripts/bench-ratios.mjs bench-results/gms.json     # "gms: default costs 0.068x match: ..."
+```
+
+## TEBLID: what it costs next to `orb.describe` (#135)
+
+`teblid.describe` has no jsfeat counterpart either, so `bench/teblid.bench.ts`
+has no `"jsfeat (reference)"` case; it reports "`teblid pN` costs N×
+`orb.describe`" for the same keypoints in one process, three cases, the ORB
+call being the baseline (the first task).
+
+**Workload.** The 300 strongest FAST corners (threshold 20, border 20) of the
+same seeded 640×480 noise image as the other detector benches, oriented with
+`orb.ic_angle` and given `size = 31` (ORB's patch diameter, which TEBLID reads
+as the diameter of the described neighbourhood). Detection, orientation and the
+output matrices are built at collection time; collection throws if fewer than
+300 keypoints are found. Only the three `describe` calls run inside a `bench`
+callback.
+
+**Result.** Four runs of `npx vitest bench --run bench/teblid.bench.ts` after
+one discarded warm-up run. "N× orb.describe" is the mean latency of the case
+divided by that of `orb.describe` in the same run; the ms are the median of the
+four runs.
+
+| case | ms / call | N× orb.describe, 4 runs | median |
+| --- | --- | --- | --- |
+| `orb.describe (256 bits)` (the baseline) | 2.49 | 1 | 1 |
+| `teblid p256` | 3.90 | 1.55 / 1.62 / 1.55 / 1.54 | **1.6×** |
+| `teblid p512` | 6.91 | 2.74 / 2.90 / 2.73 / 2.73 | **2.7×** |
+
+Reading it:
+
+- **TEBLID p256 costs about 1.6× `orb.describe`, p512 about 2.7×.** p512 is
+  about 1.75× p256 in the same run (1.76–1.79×): it evaluates twice the weak
+  learners per keypoint.
+- p256 is the same descriptor size as ORB (32 bytes), so 1.6× is the like-for-like
+  figure; p512 is 64 bytes per keypoint.
+- Spread: p256 stays within ±2% and p512 within about ±3% across the four
+  runs; read them to one significant figure. The ms are this machine's, the
+  ratios are intra-process.
+
+**Conditions.** Intel Core i7-9700 (8 cores, a desktop with no battery),
+Windows 11, Node v24.21.0, Vitest 5.0.5, under the maintainer's rule of CPU load
+under 20%. A background sampler read `Win32_Processor` `LoadPercentage` every
+about 2 s during each run; a run started only after two consecutive readings
+under 20%, and was kept only if every in-run sample was under 20%. One attempt
+broke it (a 29% sample) and was discarded and repeated. Kept in-run samples (%):
+warm-up 18/12/16, run 1 18/7/8, run 2 9/10/5, run 3 12/6/14, run 4 15/5/9. A run
+lasts about 6 s, so that is three samples per run: the sampler is coarse, and the
+bench process alone reads up to about 18%. Both sides of every ratio share the
+conditions.
+
+Reproduce:
+
+```bash
+npx vitest bench --run bench/teblid.bench.ts --reporter=default --reporter=json --outputFile.json=bench-results/teblid.json
+node scripts/bench-ratios.mjs bench-results/teblid.json     # "teblid p256 costs 1.6x orb.describe ..."
+```
+
+## FREAK: what it costs next to `orb.describe` (#80)
+
+`freak.describe` has no jsfeat counterpart either, so `bench/freak.bench.ts`
+reports "`freak` costs N× `orb.describe`" for the same keypoints in one process,
+with `orb.describe (256 bits)` as the baseline (the first task) and `teblid p256`
+beside it for context.
+
+**Workload.** The same 300 strongest FAST corners (threshold 20, border 20) of
+the same seeded 640×480 noise image as the TEBLID bench. ORB and TEBLID are
+oriented with `orb.ic_angle`; FREAK gets no angle, because it estimates its own
+(that work is inside its timed call). There are two groups:
+
+- **size 31** (the plan's workload, ORB's patch diameter). FREAK's pattern does
+  not fit around 168 of the 300 keypoints, so it drops them as OpenCV does and
+  describes **132**, while ORB and TEBLID describe all 300. The ratio in this
+  group is therefore per call, not per keypoint.
+- **size 7, border 30.** All 300 keypoints are kept by all three, so this is the
+  **like-for-like** per-keypoint ratio, and the headline figure.
+
+`freak.describe` compacts `corners` and writes `angle`, so it gets its own clones
+of the keypoints and a fresh array copy before every iteration, in a
+`beforeEach` hook that tinybench keeps outside the timed region. Collection
+asserts the kept counts (132 and 300).
+
+**Result.** Four runs of `npx vitest bench --run bench/freak.bench.ts` after one
+discarded warm-up run. "N× orb.describe" is the mean latency of the case divided
+by that of `orb.describe` in the same run; the ms are the median of the four runs.
+
+| group | case | ms / call | N× orb.describe, 4 runs | median |
+| --- | --- | --- | --- | --- |
+| size 7, 300 kept | `orb.describe (256 bits)` (the baseline) | 2.49 | 1 | 1 |
+| size 7, 300 kept | `teblid p256` | 4.05 | 1.63 / 1.61 / 1.62 / 1.63 | 1.6× |
+| size 7, 300 kept | `freak (512 bits)` | 8.10 | 3.26 / 3.25 / 3.22 / 3.26 | **3.3×** |
+| size 31, FREAK keeps 132 | `orb.describe (256 bits)` (the baseline) | 2.49 | 1 | 1 |
+| size 31, FREAK keeps 132 | `teblid p256` | 4.24 | 1.71 / 1.69 / 1.71 / 1.70 | 1.7× |
+| size 31, FREAK keeps 132 | `freak (512 bits)` | 4.11 | 1.66 / 1.66 / 1.63 / 1.65 | 1.7× per call |
+
+Reading it:
+
+- **FREAK costs about 3.3× `orb.describe` per keypoint** (the size-7 group), or
+  about 2× TEBLID p256. Per keypoint it is about 27 µs at size 7 and 31 µs at
+  size 31 (4.11 ms / 132), so the size barely matters: the box means come from
+  the integral image in constant time.
+- The extra cost over TEBLID has three sources, all inside the timed call: the
+  orientation pass (43 means and 45 weighted pairs per keypoint, which ORB and
+  TEBLID get from the separate `ic_angle`), a second set of 43 means at the
+  estimated orientation, and the pattern points computed on demand (a `cos` and
+  a `sin` per point) instead of OpenCV's 8.5 MB lookup table (spec F1). FREAK is
+  also 64 bytes per keypoint, twice ORB and TEBLID p256.
+- The size-31 "1.7×" is **not** a per-keypoint figure: FREAK describes 132
+  keypoints there against 300 for the others. Per keypoint it is about 3.7×.
+- Spread: within ±1% across the four runs; read the ratios to two significant
+  figures. The ms are this machine's, the ratios are intra-process.
+
+**Resident memory.** 2266 B of module-level tables (the 512 pairs as `Int16`,
+1024 B, and as two `Uint8` point-index arrays, 1024 B; the 45 orientation pairs,
+90 B; the ring radii and sigmas, 128 B). Per call, about 2 KB of constants and
+scratch (1384 B of scaling factors, pattern sizes and weights; 688 B of scale-0
+points; the 43 means), 4 B per keypoint for its scale index, and the integral
+image, a `Float64` buffer of `(cols + 1) * (rows + 1)` entries (about 2.5 MB at
+640×480) borrowed from the shared pool and returned after the call.
+
+**Conditions.** Intel Core i7-9700 (8 cores, a desktop with no battery),
+Windows 11, Node v24.21.0, Vitest 5.0.5, under the maintainer's rule of CPU load
+under 20%, with the same sampler as the TEBLID bench: `Win32_Processor`
+`LoadPercentage` every about 2 s; a run started only after two consecutive
+readings under 20% and was kept only if every in-run sample was under 20%.
+17 attempts broke it (in-run maxima 21–35%) and were discarded and repeated; an
+earlier session on 2026-10-30 discarded 59 attempts on a busier machine and
+measured nothing. Kept in-run samples (%), 2026-11-03: warm-up 11/14/13/12,
+run 1 10/3/15/17, run 2 15/11/14/8, run 3 17/13/12/8, run 4 16/9/8/14. The bench
+process alone reads up to about 18%. Both sides of every ratio share the
+conditions.
+
+Reproduce:
+
+```bash
+npx vitest bench --run bench/freak.bench.ts --reporter=default --reporter=json --outputFile.json=bench-results/freak.json
+node scripts/bench-ratios.mjs bench-results/freak.json     # "freak (512 bits) costs 3.3x orb.describe ..."
 ```
 
 ## Notes on the inputs
@@ -1007,6 +1267,11 @@ and a reader cannot tell without it. OpenCV's
 [cvbenchmark](https://github.com/opencv/cvbenchmark) commits its results the
 same way, putting the CPU in the filename rather than pretending numbers
 transfer between machines.
+
+**The measurement protocol changed with Vitest 5** (#219): each case went from
+500 ms plus a 100 ms warm-up to 1000 ms plus 250 ms. Records since this note
+carry `env.vitest`; older ones do not, and their `date` tells which side of the
+change they are on.
 
 `geomean` is the geometric mean of the signed speedups — the same aggregation
 cvbenchmark uses. Geometric, not arithmetic, because these are ratios: 2x

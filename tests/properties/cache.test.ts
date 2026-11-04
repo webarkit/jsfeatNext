@@ -109,3 +109,54 @@ describe("shared buffer pool mechanics", () => {
         expect(freeCount()).toBe(before);
     });
 });
+
+/**
+ * Exception safety (#246). A borrow whose buffer cannot be grown must leave the
+ * pool exactly as it found it. Before the fix, `get_buffer` unlinked the head
+ * node and decremented the free count BEFORE resizing it, and `resize` dropped
+ * the node's storage BEFORE allocating the new one, so each failed borrow lost
+ * a node from the pool every module shares, for good.
+ *
+ * 2^31 bytes is a deterministic failure that allocates nothing: `data_t` aligns
+ * the size with `| 0`, which wraps it negative, and `new ArrayBuffer` throws a
+ * RangeError straight away.
+ */
+const UNALLOCATABLE = 2 ** 31;
+
+describe("shared buffer pool exception safety (#246)", () => {
+    it("keeps the free count when a borrow cannot grow its buffer", () => {
+        const before = freeCount();
+        for (let i = 0; i < 3; i++) {
+            expect(() => pool.get_buffer(UNALLOCATABLE)).toThrow(RangeError);
+        }
+        expect(freeCount()).toBe(before);
+    });
+
+    it("still lends a working node after a failed borrow", () => {
+        expect(() => pool.get_buffer(UNALLOCATABLE)).toThrow(RangeError);
+        const node = pool.get_buffer(256);
+        try {
+            expect(node.size).toBeGreaterThanOrEqual(256);
+            expect(node.data).toBeDefined();
+            node.u8[255] = 7;
+            expect(node.u8[255]).toBe(7);
+        } finally {
+            pool.put_buffer(node);
+        }
+    });
+
+    it("leaves a node's storage and views untouched when resize throws", () => {
+        const node = pool.get_buffer(64);
+        try {
+            const { data, size, buffer, u8, i32, f32, f64 } = node;
+            expect(() => node.resize(UNALLOCATABLE)).toThrow(RangeError);
+            expect(node.data).toBe(data);
+            expect(node.size).toBe(size);
+            expect(node.buffer).toBe(buffer);
+            expect([node.u8, node.i32, node.f32, node.f64]).toEqual([u8, i32, f32, f64]);
+            expect(node.u8.buffer).toBe(node.buffer);
+        } finally {
+            pool.put_buffer(node);
+        }
+    });
+});

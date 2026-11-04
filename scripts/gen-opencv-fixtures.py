@@ -17,13 +17,15 @@
 
 """Regenerate the OpenCV fixtures that the Vitest suite asserts against.
 
-    python scripts/gen-opencv-fixtures.py [--only integral|gms|gms-synthetic|gms-coverage]
+    python scripts/gen-opencv-fixtures.py [--only integral|gms|gms-synthetic|gms-coverage|teblid|freak]
 
 ``--only integral`` writes ``integral-scene.json``; ``--only gms`` writes the
 five ORB and hand-placed GMS fixtures (``gms-default``, ``gms-rotation``,
 ``gms-scale``, ``gms-rotation-scale``, ``gms-boundaries``) and
 ``--only gms-synthetic`` the four ``gms-synth-*.json`` and ``--only
-gms-coverage`` ``gms-coverage.json`` (#134). With no ``--only`` every fixture
+gms-coverage`` ``gms-coverage.json`` (#134); ``--only teblid`` writes
+``teblid-p256.json`` and ``teblid-p512.json`` (#135); ``--only freak`` writes
+``freak.json`` (#80). With no ``--only`` every fixture
 is regenerated. Output is deterministic: the same pinned toolchain and the same
 committed scene always produce the same bytes, so ``git status`` after a re-run
 shows nothing.
@@ -44,6 +46,7 @@ import argparse
 import hashlib
 import json
 import math
+import platform
 import re
 import sys
 from collections import namedtuple
@@ -59,7 +62,12 @@ SCENE_NAME = "scene-640x480.pgm"
 OPENCV_DIST = "opencv-contrib-python"
 NUMPY_DIST = "numpy"
 
-Toolchain = namedtuple("Toolchain", "cv2 np build contrib_build")
+# The other distributions that also install a top-level ``cv2`` package. With
+# any of them next to the pinned wheel, which ``cv2`` is imported is undefined,
+# so the guard refuses to run (#245).
+OTHER_OPENCV_DISTS = ("opencv-python", "opencv-python-headless", "opencv-contrib-python-headless")
+
+Toolchain = namedtuple("Toolchain", "cv2 np wheel build contrib_build compiler")
 Scene = namedtuple("Scene", "name path image sha256")
 
 
@@ -102,6 +110,26 @@ def require_pinned_toolchain() -> Toolchain:
     cv2_pin = parse_pin(requirements, OPENCV_DIST)
     np_pin = parse_pin(requirements, NUMPY_DIST)
 
+    # The installed wheel itself, to all four parts (#245). cv2.__version__ is
+    # only A.B.C, so another build of the same release (4.10.0.82 instead of
+    # 4.10.0.84) would pass the module check below.
+    wheel = installed_version(OPENCV_DIST)
+    if wheel != cv2_pin:
+        sys.exit(
+            f"error: OpenCV wheel mismatch: {REQUIREMENTS.name} pins {OPENCV_DIST}=={cv2_pin}, "
+            f"but the installed {OPENCV_DIST} is {wheel or 'not installed'}.\n"
+            f"Refusing to generate fixtures with the wrong ground truth. "
+            f"Reinstall: python -m pip install -r scripts/{REQUIREMENTS.name}"
+        )
+    others = [f"{dist}=={installed_version(dist)}" for dist in OTHER_OPENCV_DISTS if installed_version(dist)]
+    if others:
+        sys.exit(
+            f"error: another OpenCV distribution is installed next to {OPENCV_DIST}=={cv2_pin}: "
+            f"{', '.join(others)}.\n"
+            f"Each provides cv2, and which one is imported is undefined. "
+            f"Uninstall it: python -m pip uninstall {' '.join(d.split('==')[0] for d in others)}"
+        )
+
     try:
         import cv2
         import numpy as np
@@ -136,7 +164,18 @@ def require_pinned_toolchain() -> Toolchain:
 
     build = build_version(cv2, "Version control:")
     contrib_build = build_version(cv2, "Version control (extra):")
-    return Toolchain(cv2, np, build, contrib_build)
+    compiler = build_version(cv2, "C++ Compiler:")
+    return Toolchain(cv2, np, f"{OPENCV_DIST}=={wheel}", build, contrib_build, compiler)
+
+
+def installed_version(dist: str) -> str | None:
+    """The installed version of distribution ``dist``, or None if it is absent."""
+    from importlib.metadata import PackageNotFoundError, version
+
+    try:
+        return version(dist)
+    except PackageNotFoundError:
+        return None
 
 
 def build_version(cv2, label: str) -> str:
@@ -173,10 +212,13 @@ def load_scene(tc: Toolchain) -> Scene:
 def envelope(tc: Toolchain, algorithm: str, params: dict, payload: dict | list, scene: Scene | None = None) -> dict:
     """Wrap ``payload`` in the common ``meta`` block."""
     meta = {
+        "opencv_wheel": tc.wheel,
         "opencv_version": tc.cv2.__version__,
         "opencv_build": tc.build,
         "opencv_contrib_build": tc.contrib_build,
         "ipp": False,
+        "platform": f"{platform.system()} {platform.machine()}",
+        "compiler": tc.compiler,
         "algorithm": algorithm,
         "params": params,
     }
@@ -193,7 +235,7 @@ def digest(array, dtype: str) -> str:
 
 # Fixtures written with compact_json(): the synthetic GMS ones hold thousands of
 # coordinates, which indent=1 would put one number per line.
-COMPACT_FIXTURES = ("gms-synth-", "gms-coverage")
+COMPACT_FIXTURES = ("gms-synth-", "gms-coverage", "teblid-", "freak")
 
 
 def compact_json(value, level: int = 0) -> str:
@@ -842,12 +884,655 @@ def gms_payload(
     }
 
 
+# ---------------------------------------------------------------------------
+# TEBLID (#135)
+# ---------------------------------------------------------------------------
+
+TEBLID_SEED = 1351
+TEBLID_RANDOM_INTERIOR = 60  # per scale factor
+TEBLID_RANDOM_MIXED = 80  # per scale factor
+TEBLID_RANDOM_TINY = 40  # per scale factor
+TEBLID_TINY = 24  # side of the top-left crop of the scene
+TEBLID_SCALES = (1.0, 5.0)
+TEBLID_BITS = (("teblid-p256", 256, "TEBLID_SIZE_256_BITS"), ("teblid-p512", 512, "TEBLID_SIZE_512_BITS"))
+TEBLID_ORB_SIZES = [31 * 1.2**level for level in range(8)]
+# ORB-like and FAST-like sizes, per scale factor, for the random cases.
+TEBLID_SIZES = {1.0: [7, 10, 16, 31, TEBLID_ORB_SIZES[1], TEBLID_ORB_SIZES[3], 60], 5.0: [2, 3, 5, 7, 10, 14]}
+# The largest boxRadius in teblid.p256.hpp and teblid.p512.hpp is 7, and every patch
+# coordinate lies in [1, 30] (read once from the pinned upstream tables):
+# https://github.com/opencv/opencv_contrib/blob/4.10.0/modules/xfeatures2d/src/teblid.p512.hpp
+TEBLID_MAX_BOX_RADIUS = 7
+TEBLID_PATCH = 32
+TEBLID_DEGREES_TO_RADS = 0.017453292519943295  # CV_DEGREES_TO_RADS
+
+
+def teblid_roundnum(np, v) -> int:
+    """``CV_ROUNDNUM(x) = (int)(x + 0.5f)``: a float32 add, then truncation toward zero."""
+    return int(np.float32(v + np.float32(0.5)))
+
+
+def teblid_border(np, size, scale_factor):
+    """The margin ``b`` of OpenCV's ``isKeypointInTheBorder``, in float32 and in its order."""
+    f = np.float32
+    s = f(scale_factor) * f(size) / f(2 * TEBLID_PATCH)
+    return f(TEBLID_PATCH) * s * f(1.75)
+
+
+def teblid_in_border(np, kp, width, height, scale_factor) -> bool:
+    """``isKeypointInTheBorder`` for ``kp = (x, y, size, angle)``."""
+    f = np.float32
+    x, y = f(kp[0]), f(kp[1])
+    b = teblid_border(np, kp[2], scale_factor)
+    return bool(x < b or x + b >= f(width) or y < b or y + b >= f(height))
+
+
+def teblid_fast_path_out_of_buffer(np, kp, width, height, scale_factor) -> bool:
+    """True when the fast path could read outside the integral buffer (undefined behaviour).
+
+    For a keypoint that is not in the border, ``computeBoxDiffsDescriptor`` indexes
+    ``integralPtr[(y +/- r) * (W + 1) + (x +/- r)]`` with no bounds check. This
+    replicates ``rectifyABWL`` in float32 (each operation rounded, in C++ order)
+    for the four corners (1, 1), (30, 1), (1, 30), (30, 30) of the table range, which bound every table coordinate
+    (all in [1, 30]), and widens the result by the largest boxRadius. The lowest and
+    highest flat index that can be read are compared with ``[0, (W + 1) * (H + 1))``.
+    A read that wraps to an adjacent row stays inside the buffer and is defined, so it
+    does not count. The screen is conservative: it may drop a keypoint whose real reads
+    all stay inside.
+    """
+    f = np.float32
+    x, y, size, angle = f(kp[0]), f(kp[1]), f(kp[2]), f(kp[3])
+    s = f(scale_factor) * size / (f(0.5) * f(2 * TEBLID_PATCH))
+    n = f(TEBLID_PATCH)
+    if angle == f(-1):
+        m00, m01 = s, f(0)
+        m02 = f(-0.5) * s * n + x
+        m10, m11 = f(0), s
+        m12 = -s * f(0.5) * n + y
+    else:
+        if angle >= 0:
+            rad = float(angle) * TEBLID_DEGREES_TO_RADS  # a double, as in C++
+            cosine, sine = f(math.cos(rad)), f(math.sin(rad))
+        else:
+            cosine, sine = f(1), f(0)
+        m00, m01 = s * cosine, -s * sine
+        m02 = (-s * cosine + s * sine) * n * f(0.5) + x
+        m10, m11 = s * sine, s * cosine
+        m12 = (-s * sine - s * cosine) * n * f(0.5) + y
+    radius = teblid_roundnum(np, s * f(TEBLID_MAX_BOX_RADIUS))
+    xs, ys = [], []
+    for px, py in ((1, 1), (30, 1), (1, 30), (30, 30)):
+        px, py = f(px), f(py)
+        xs.append(teblid_roundnum(np, m00 * px + m01 * py + m02))
+        ys.append(teblid_roundnum(np, m10 * px + m11 * py + m12))
+    stride = width + 1
+    lowest = (min(ys) - radius) * stride + (min(xs) - radius)
+    highest = (max(ys) + radius + 1) * stride + (max(xs) + radius + 1)
+    return lowest < 0 or highest >= stride * (height + 1)
+
+
+class TeblidCandidates:
+    """The cases of one image and scale factor, with the undefined-behaviour keypoints screened out."""
+
+    def __init__(self, np, width, height, scale_factor):
+        self.np, self.width, self.height, self.scale_factor = np, width, height, scale_factor
+        self.cases = []  # [(name, [[x, y, size, angle]])]
+        self.screened = []  # [(case name, [x, y, size, angle])]
+        self.in_border = {}  # case name -> number of keypoints on the clamped path
+
+    def add(self, name, kps):
+        np = self.np
+        kept = []
+        for raw in kps:
+            kp = [np.float32(v).item() for v in raw]
+            border = teblid_in_border(np, kp, self.width, self.height, self.scale_factor)
+            if not border and teblid_fast_path_out_of_buffer(np, kp, self.width, self.height, self.scale_factor):
+                self.screened.append((name, kp))
+                continue
+            kept.append(kp)
+            self.in_border[name] = self.in_border.get(name, 0) + int(border)
+        self.cases.append((name, kept))
+
+
+def teblid_edge_values(np, b, limit):
+    """Float32 positions around the margin ``b`` on the low side and ``limit - b`` on the high side.
+
+    Returns ``(low, high)``, each three float32 values: on the low side (x < b is
+    border) the last border value, the first non-border one (exactly at ``b``) and
+    the next; on the high side (x + b >= limit is border) the second to last
+    non-border value, the last one and the first border value.
+    """
+    f = np.float32
+    up, down = f(np.inf), f(-np.inf)
+    low = [np.nextafter(f(b), down), f(b), np.nextafter(f(b), up)]
+    last_in = f(f(limit) - b)
+    while f(last_in + b) >= f(limit):
+        last_in = np.nextafter(last_in, down)
+    while f(np.nextafter(last_in, up) + b) < f(limit):
+        last_in = np.nextafter(last_in, up)
+    high = [np.nextafter(last_in, down), last_in, np.nextafter(last_in, up)]
+    return low, high
+
+
+def teblid_build_cases(np, rng, width, height, scale_factor, tiny: bool) -> TeblidCandidates:
+    cand = TeblidCandidates(np, width, height, scale_factor)
+    sizes = TEBLID_SIZES[scale_factor]
+    cx, cy = 0.5 * width + 0.25, 0.5 * height + 0.75
+
+    def random_angle():
+        return -1.0 if rng.random() < 0.25 else float(rng.uniform(0.0, 360.0))
+
+    if tiny:
+        tiny_sizes = [7, 10, 12, 16] if scale_factor == 1.0 else [1.5, 2, 3, 4, 5]
+        kps = []
+        for _ in range(TEBLID_RANDOM_TINY):
+            size = tiny_sizes[int(rng.integers(len(tiny_sizes)))]
+            kps.append([rng.uniform(0, width), rng.uniform(0, height), size, random_angle()])
+        cand.add("tiny", kps)
+        return cand
+
+    # Anywhere in the image: border and interior mixed.
+    kps = []
+    for _ in range(TEBLID_RANDOM_MIXED):
+        size = sizes[int(rng.integers(len(sizes)))]
+        kps.append([rng.uniform(0, width), rng.uniform(0, height), size, random_angle()])
+    cand.add("random-mixed", kps)
+
+    # Inside the margin: always the fast path.
+    kps = []
+    for _ in range(TEBLID_RANDOM_INTERIOR):
+        size = sizes[int(rng.integers(len(sizes)))]
+        b = float(teblid_border(np, size, scale_factor))
+        kps.append([rng.uniform(b + 1, width - b - 1), rng.uniform(b + 1, height - b - 1), size, random_angle()])
+    cand.add("interior", kps)
+
+    # The angle edge cases, on a FAST-like and an ORB-like size.
+    angle_size = 31 if scale_factor == 1.0 else 7
+    angles = [-1, 0, 90, 359.9, 45, 180, 270, 0.1, 1, 123.456]
+    cand.add("angles", [[cx, cy, angle_size, a] for a in angles])
+
+    # ORB-like sizes 31 * 1.2^l, FAST's 7 and a large size (int-to-float rounding).
+    kps = []
+    for size in TEBLID_ORB_SIZES + [7, 150]:
+        kps.append([cx, cy, size, -1])
+        kps.append([cx, cy, size, float(rng.uniform(0.0, 360.0))])
+    cand.add("sizes", kps)
+
+    # Each border: just inside, exactly at and just beyond the margin, upright and rotated.
+    border_sizes = [7, 31, 60] if scale_factor == 1.0 else [3, 7, 15]
+    sides = {"left": [], "right": [], "top": [], "bottom": []}
+    for size in border_sizes:
+        b = teblid_border(np, size, scale_factor)
+        x_low, x_high = teblid_edge_values(np, b, width)
+        y_low, y_high = teblid_edge_values(np, b, height)
+        for angle in (-1, 90, 37.5):
+            sides["left"] += [[x, cy, size, angle] for x in x_low]
+            sides["right"] += [[x, cy, size, angle] for x in x_high]
+            sides["top"] += [[cx, y, size, angle] for y in y_low]
+            sides["bottom"] += [[cx, y, size, angle] for y in y_high]
+    for side, kps in sides.items():
+        cand.add(f"border-{side}", kps)
+
+    # The four corners, a small and a large keypoint, upright and rotated.
+    corners = [(0, 0), (width - 1, 0), (0, height - 1), (width - 1, height - 1), (0.5, 0.5), (width - 0.5, height - 0.5)]
+    kps = []
+    for size in (31, 150):
+        for x, y in corners:
+            kps.append([x, y, size, -1])
+            kps.append([x, y, size, 213.7])
+    cand.add("corners", kps)
+    return cand
+
+
+def gen_teblid(tc: Toolchain, scene: Scene) -> dict:
+    """``cv2.xfeatures2d.TEBLID_create(scale_factor, n_bits).compute`` at 256 and 512 bits.
+
+    The keypoints are fixed float32 inputs, shared by both fixtures. Keypoints whose
+    fast path would read outside OpenCV's integral buffer are screened out before
+    ``compute`` is called (see ``teblid_fast_path_out_of_buffer``); nothing else is
+    ever dropped.
+    """
+    np, cv2 = tc.np, tc.cv2
+    tiny = np.ascontiguousarray(scene.image[:TEBLID_TINY, :TEBLID_TINY])
+    tiny_sha = hashlib.sha256(tiny.tobytes()).hexdigest()
+    images = {"scene": scene.image, "tiny": tiny}
+
+    rng = np.random.default_rng(TEBLID_SEED)
+    plan = []  # (image key, scale factor, TeblidCandidates)
+    for scale_factor in TEBLID_SCALES:
+        for key in ("scene", "tiny"):
+            h, w = images[key].shape
+            plan.append((key, scale_factor, teblid_build_cases(np, rng, w, h, scale_factor, key == "tiny")))
+
+    screened = sum(len(c.screened) for _, _, c in plan)
+    kept = sum(len(kps) for _, _, c in plan for _, kps in c.cases)
+    print(f"teblid: {kept + screened} candidate keypoints, {screened} screened out (undefined fast-path reads)")
+    for key, scale_factor, c in plan:
+        for name, kp in c.screened:
+            print(f"  screened {key} sf={scale_factor} {name}: {kp}")
+        for name, kps in c.cases:
+            print(f"  {key} sf={scale_factor} {name}: {len(kps)} keypoints, {c.in_border.get(name, 0)} on the border path")
+
+    out = {}
+    for name, n_bits, enum_name in TEBLID_BITS:
+        cases = []
+        for key, scale_factor, c in plan:
+            detector = cv2.xfeatures2d.TEBLID_create(scale_factor, getattr(cv2.xfeatures2d, enum_name))
+            for case_name, kps in c.cases:
+                if not kps:
+                    sys.exit(f"error: teblid case {case_name} is empty after screening")
+                given = [cv2.KeyPoint(*kp) for kp in kps]
+                returned, descriptors = detector.compute(images[key], given)
+                if len(returned) != len(given) or any(
+                    (a.pt, a.size, a.angle) != (b.pt, b.size, b.angle) for a, b in zip(returned, given)
+                ):
+                    sys.exit(f"error: TEBLID compute changed the keypoints of {case_name} ({key}, {scale_factor})")
+                if descriptors.shape != (len(kps), n_bits // 8) or descriptors.dtype != np.uint8:
+                    sys.exit(f"error: unexpected descriptor array {descriptors.shape} {descriptors.dtype}")
+                cases.append(
+                    {
+                        "name": case_name,
+                        "image": key,
+                        "scale_factor": scale_factor,
+                        "keypoints": kps,
+                        "descriptors": [row.tobytes().hex() for row in descriptors],
+                    }
+                )
+        params = {
+            "bits": n_bits,
+            "opencv_call": "cv2.xfeatures2d.TEBLID_create(scale_factor, n_bits).compute(image, keypoints)",
+            "seed": TEBLID_SEED,
+            "tiny": f"top-left {TEBLID_TINY}x{TEBLID_TINY} crop of the scene",
+            "tiny_sha256": tiny_sha,
+            "screened_out": screened,
+            "screened_candidates": kept + screened,
+            "screen_max_box_radius": TEBLID_MAX_BOX_RADIUS,
+        }
+        out[name] = envelope(tc, "teblid", params, {"cases": cases}, scene)
+    return out
+
+
+# FREAK (#80): cv2.xfeatures2d.FREAK_create(...).compute, one case per option set.
+# The geometry below replicates FREAK_Impl::buildPattern (patternSizes) and the
+# first loop of computeDescriptors (scale index and border drop), so the border
+# keypoints can be placed exactly at the thresholds and the result asserted.
+# https://github.com/opencv/opencv_contrib/blob/4.10.0/modules/xfeatures2d/src/freak.cpp
+FREAK_SEED = 80
+FREAK_LOG2 = 0.693147180559945  # truncated literal in freak.cpp, kept verbatim
+FREAK_NB_SCALES = 64
+FREAK_SMALLEST_KP_SIZE = 7
+FREAK_RANDOM_SAFE = 60  # interior keypoints that survive any rotation by 90 degrees
+FREAK_RANDOM_MIXED = 80  # anywhere in the image
+FREAK_DEFAULTS = {"orientation_normalized": True, "scale_normalized": True, "pattern_scale": 22.0, "n_octaves": 4}
+FREAK_CASES = (
+    ("default", {}),
+    ("no-orientation", {"orientation_normalized": False}),
+    ("no-scale-normalization", {"scale_normalized": False}),
+    ("pattern-scale-8", {"pattern_scale": 8.0}),
+    ("octaves-3", {"n_octaves": 3}),
+    ("octaves-8", {"n_octaves": 8}),
+)
+FREAK_SIDES = ("left", "right", "top", "bottom")
+# A procedural texture, built with integer arithmetic only so TypeScript can rebuild it bit for bit.
+FREAK_TEXTURE = {"width": 320, "height": 240, "seed": 8001}
+FREAK_TEXTURE_KEYPOINTS = 300
+FREAK_TEXTURE_SIZES = [5, 7, 9, 12, 16, 22]
+FREAK_TEXTURE_MARGIN = 75  # keeps size 22 (scale 26, patternSizes 69) inside, in both orientations
+FREAK_MIN_THETA_IDX = 100  # coverage gate at texture-default
+FREAK_MIN_NEGATIVE_ANGLES = 20
+
+
+def freak_texture(np, width, height, seed):
+    """The ``texture`` image, uint8, row-major. Integer arithmetic only:
+
+    1. ``h = (x * 0x9E3779B1) ^ (y * 0x85EBCA6B) ^ (seed * 0xC2B2AE35)``, every product mod 2^32;
+    2. ``h ^= h >> 15; h = h * 0x2C1B3C6D mod 2^32; h ^= h >> 12; h = h * 0x297A2D39 mod 2^32; h ^= h >> 15``;
+    3. ``n = h & 255``;
+    4. one 3x3 box blur with clamped edges: ``b = (sum of the nine n + 4) // 9``;
+    5. contrast stretch: ``v = (b - min) * 255 // (max - min)``, ``min`` and ``max`` over the image.
+    """
+    m = np.uint64(0xFFFFFFFF)
+    x = np.arange(width, dtype=np.uint64)[None, :]
+    y = np.arange(height, dtype=np.uint64)[:, None]
+    h = ((x * np.uint64(0x9E3779B1)) & m) ^ ((y * np.uint64(0x85EBCA6B)) & m) ^ ((np.uint64(seed) * np.uint64(0xC2B2AE35)) & m)
+    h = h ^ (h >> np.uint64(15))
+    h = (h * np.uint64(0x2C1B3C6D)) & m
+    h = h ^ (h >> np.uint64(12))
+    h = (h * np.uint64(0x297A2D39)) & m
+    h = h ^ (h >> np.uint64(15))
+    n = (h & np.uint64(255)).astype(np.int64)
+    pad = np.pad(n, 1, mode="edge")
+    total = sum(pad[dy : dy + height, dx : dx + width] for dy in range(3) for dx in range(3))
+    b = (total + 4) // 9
+    lo, hi = int(b.min()), int(b.max())
+    return ((b - lo) * 255 // (hi - lo)).astype(np.uint8)
+
+
+def freak_theta_idx(np, angle) -> int:
+    """thetaIdx from a returned angle, as in ``computeDescriptors``: half-even, wrapped into [0, 256)."""
+    return round(float(np.float32(256 * angle)) * (1 / 360.0)) % 256
+
+
+def freak_pattern_sizes(np, pattern_scale, n_octaves) -> list[int]:
+    """``patternSizes[64]`` of ``buildPattern``, in double and in OpenCV's expression."""
+    pattern_scale = float(np.float32(pattern_scale))  # the float ctor argument, stored as double
+    scale_step = 2.0 ** (n_octaves / FREAK_NB_SCALES)
+    big_r, small_r = 2.0 / 3.0, 2.0 / 24.0
+    unit = (big_r - small_r) / 21.0
+    radius = [big_r, big_r - 6 * unit, big_r - 11 * unit, big_r - 15 * unit, big_r - 18 * unit, big_r - 20 * unit, small_r, 0.0]
+    sigma = [r / 2.0 for r in radius[:7]] + [radius[6] / 2.0]
+    sizes = []
+    for scale_idx in range(FREAK_NB_SCALES):
+        scaling = scale_step**scale_idx
+        sizes.append(max(int(math.ceil((radius[i] + sigma[i]) * scaling * pattern_scale)) + 1 for i in range(8)))
+    return sizes
+
+
+def freak_size_cst(np, n_octaves):
+    return np.float32(FREAK_NB_SCALES / (FREAK_LOG2 * n_octaves))
+
+
+def freak_scale_idx(np, size, opts) -> int:
+    """The keypoint's scale index as in ``computeDescriptors`` (float32 steps, clamped to 63)."""
+    f = np.float32
+    cst = freak_size_cst(np, opts["n_octaves"])
+    if opts["scale_normalized"]:
+        ratio = f(size) / f(FREAK_SMALLEST_KP_SIZE)
+        idx = max(int(float(f(f(math.log(float(ratio))) * cst)) + 0.5), 0)
+    else:
+        idx = max(round(1.0986122886681 * float(cst)), 0)  # cvRound: half to even
+    return min(idx, FREAK_NB_SCALES - 1)
+
+
+def freak_dropped_sides(kp, ps, width, height) -> list[str]:
+    """The border tests OpenCV applies, by side; empty when the keypoint is kept."""
+    x, y = kp[0], kp[1]
+    sides = []
+    if x <= ps:
+        sides.append("left")
+    if x >= width - ps:
+        sides.append("right")
+    if y <= ps:
+        sides.append("top")
+    if y >= height - ps:
+        sides.append("bottom")
+    return sides
+
+
+def freak_size_for_scale(np, idx, opts) -> float:
+    """A float32 size in the middle of scale bin ``idx``."""
+    size = float(np.float32(FREAK_SMALLEST_KP_SIZE * math.exp(idx / float(freak_size_cst(np, opts["n_octaves"])))))
+    if freak_scale_idx(np, size, opts) != idx:
+        sys.exit(f"error: freak size {size} does not land in scale {idx}")
+    return size
+
+
+def freak_build_keypoints(np, rng, width, height):
+    """The shared input list as ``(keypoints, groups, ps_default, scale_sizes)``.
+
+    ``groups[name]`` are the input indices of one group.
+    """
+    f32 = lambda v: np.float32(v).item()  # noqa: E731
+    keypoints, seen, groups = [], set(), {}
+
+    def add(group, x, y, size):
+        kp = (f32(x), f32(y), f32(size))
+        if kp in seen:
+            return
+        seen.add(kp)
+        groups.setdefault(group, []).append(len(keypoints))
+        keypoints.append(list(kp))
+
+    opts = dict(FREAK_DEFAULTS)
+    ps_default = freak_pattern_sizes(np, opts["pattern_scale"], opts["n_octaves"])
+    cx, cy = 0.5 * width + 0.25, 0.5 * height + 0.75
+
+    # Interior, positions on a quarter-pixel grid so a 90 degree rotation is exact.
+    safe_sizes = [5, 7, 9, 12, 16, 22, 30]
+    for _ in range(FREAK_RANDOM_SAFE):
+        x = round(float(rng.uniform(150, width - 150)) * 4) / 4
+        y = round(float(rng.uniform(150, height - 150)) * 4) / 4
+        add("interior", x, y, safe_sizes[int(rng.integers(len(safe_sizes)))])
+
+    # Anywhere in the image, any size up to the clamp: kept and dropped mix, non-integer positions.
+    mixed_sizes = [5, 7, 10, 16, 31, 45, 60, 90, 112, 150]
+    for _ in range(FREAK_RANDOM_MIXED):
+        add("mixed", rng.uniform(0, width), rng.uniform(0, height), mixed_sizes[int(rng.integers(len(mixed_sizes)))])
+
+    # Sizes 5 and 7, then the middle of every scale bin up to 112 (scale 63 included), then 150.
+    add("sizes", cx, cy, 5)
+    add("sizes", cx, cy, 7)
+    for idx in range(1, FREAK_NB_SCALES):
+        add("sizes", cx, cy, freak_size_for_scale(np, idx, opts))
+    add("sizes", cx, cy, 112)
+    add("sizes", cx, cy, 150)
+
+    # Non-integer positions at one size.
+    for dx, dy in ((0.125, 0.375), (0.5, 0.5), (-0.3, 0.7), (1.1, -0.9), (0.01, 0.99)):
+        add("fractional", cx + dx, cy + dy, 16)
+
+    # Each border and corner at the threshold: ps - 0.5, ps, ps + 0.5, at scale 0 and about 40.
+    scale_sizes = {0: 7.0, 40: freak_size_for_scale(np, 40, opts)}
+    for s, size in scale_sizes.items():
+        ps = ps_default[s]
+        near_low = (ps - 0.5, float(ps), ps + 0.5)
+        near_x = (width - ps - 0.5, float(width - ps), width - ps + 0.5)
+        near_y = (height - ps - 0.5, float(height - ps), height - ps + 0.5)
+        for x in near_low:
+            add(f"border-left-s{s}", x, cy, size)
+        for x in near_x:
+            add(f"border-right-s{s}", x, cy, size)
+        for y in near_low:
+            add(f"border-top-s{s}", cx, y, size)
+        for y in near_y:
+            add(f"border-bottom-s{s}", cx, y, size)
+        for xs in (near_low, near_x):
+            for ys in (near_low, near_y):
+                for x in xs:
+                    for y in ys:
+                        add(f"corner-s{s}", x, y, size)
+    return keypoints, groups, ps_default, scale_sizes
+
+
+def gen_freak(tc: Toolchain, scene: Scene) -> dict:
+    """``cv2.xfeatures2d.FREAK_create(...).compute`` for six option sets and a rotated image.
+
+    The keypoints are fixed float32 inputs with angle -1. OpenCV drops those too
+    close to the border, so each case records which input indices it kept (matched
+    back by ``(x, y, size)``, which must be unique), their angles and descriptors.
+    ``rotation`` pairs the same scene points in ``scene`` and in ``scene_rot90``.
+    """
+    np, cv2 = tc.np, tc.cv2
+    height, width = scene.image.shape
+    rng = np.random.default_rng(FREAK_SEED)
+    keypoints, groups, ps_default, scale_sizes = freak_build_keypoints(np, rng, width, height)
+    if len({tuple(k) for k in keypoints}) != len(keypoints):
+        sys.exit("error: freak input keypoints contain a duplicate (x, y, size)")
+
+    # The texture and its keypoints come after the scene's, so the scene cases do not change.
+    tw, th = FREAK_TEXTURE["width"], FREAK_TEXTURE["height"]
+    texture = freak_texture(np, tw, th, FREAK_TEXTURE["seed"])
+    tex_sha = hashlib.sha256(texture.tobytes()).hexdigest()
+    tex_rot = np.ascontiguousarray(np.rot90(texture))
+    tex_keypoints, tex_seen, tex_interior = [], set(), []
+    lo, hi = FREAK_TEXTURE_MARGIN, (tw - FREAK_TEXTURE_MARGIN, th - FREAK_TEXTURE_MARGIN)
+    for i in range(FREAK_TEXTURE_KEYPOINTS + 8):
+        size = float(FREAK_TEXTURE_SIZES[int(rng.integers(len(FREAK_TEXTURE_SIZES)))])
+        if i < FREAK_TEXTURE_KEYPOINTS:  # quarter-pixel grid: exact under a 90 degree rotation
+            x = round(float(rng.uniform(lo, hi[0])) * 4) / 4
+            y = round(float(rng.uniform(lo, hi[1])) * 4) / 4
+        else:  # a few arbitrary float32 positions
+            x, y = float(rng.uniform(lo, hi[0])), float(rng.uniform(lo, hi[1]))
+        kp = [np.float32(x).item(), np.float32(y).item(), np.float32(size).item()]
+        if tuple(kp) in tex_seen:
+            continue
+        tex_seen.add(tuple(kp))
+        if i < FREAK_TEXTURE_KEYPOINTS:
+            tex_interior.append(len(tex_keypoints))
+        tex_keypoints.append(kp)
+    tex_rot_keypoints = [
+        [np.float32(tex_keypoints[i][1]).item(), np.float32(tw - 1 - tex_keypoints[i][0]).item(), tex_keypoints[i][2]]
+        for i in tex_interior
+    ]
+
+    rot_image = np.ascontiguousarray(np.rot90(scene.image))
+    rot_sha = hashlib.sha256(rot_image.tobytes()).hexdigest()
+    flat_image = np.full((96, 96), 100, dtype=np.uint8)
+    images = {
+        "scene": scene.image,
+        "scene_rot90": rot_image,
+        "flat": flat_image,
+        "texture": texture,
+        "texture_rot90": tex_rot,
+    }
+    f32 = lambda v: np.float32(v).item()  # noqa: E731
+
+    rot_input = groups["interior"]
+    rot_keypoints = [[f32(keypoints[i][1]), f32(width - 1 - keypoints[i][0]), keypoints[i][2]] for i in rot_input]
+    flat_keypoints = [[48.0, 48.0, 7.0], [40.5, 50.25, 7.0], [55.5, 44.75, 7.0]]
+
+    plan = []  # (name, image key, options, keypoints)
+    for name, over in FREAK_CASES:
+        plan.append((name, "scene", {**FREAK_DEFAULTS, **over}, keypoints))
+    plan.append(("rot90-default", "scene_rot90", dict(FREAK_DEFAULTS), rot_keypoints))
+    plan.append(("flat-default", "flat", dict(FREAK_DEFAULTS), flat_keypoints))
+    plan.append(("texture-default", "texture", dict(FREAK_DEFAULTS), tex_keypoints))
+    plan.append(("texture-pattern-scale-8", "texture", {**FREAK_DEFAULTS, "pattern_scale": 8.0}, tex_keypoints))
+    plan.append(("texture-rot90-default", "texture_rot90", dict(FREAK_DEFAULTS), tex_rot_keypoints))
+
+    cases, kept_by_case = [], {}
+    drop_trips = {side: 0 for side in FREAK_SIDES}  # default case: dropped keypoints tripping the side
+    drop_only = {side: 0 for side in FREAK_SIDES}  # default case: tripping that side alone
+    scale63_kept, bilinear_kept = {}, 0
+    for name, image_key, opts, kps in plan:
+        image = images[image_key]
+        h, w = image.shape
+        index = {}
+        for i, kp in enumerate(kps):
+            index.setdefault((kp[0], kp[1], kp[2]), []).append(i)
+        if any(len(v) != 1 for v in index.values()):
+            sys.exit(f"error: freak case {name} has duplicate (x, y, size) inputs")
+        extractor = cv2.xfeatures2d.FREAK_create(
+            opts["orientation_normalized"], opts["scale_normalized"], opts["pattern_scale"], opts["n_octaves"]
+        )
+        returned, descriptors = extractor.compute(image, [cv2.KeyPoint(x, y, size, -1) for x, y, size in kps])
+        kept = []
+        for kp in returned:
+            found = index.get((kp.pt[0], kp.pt[1], kp.size))
+            if found is None or len(found) != 1:
+                sys.exit(f"error: freak case {name}: returned keypoint {kp.pt} {kp.size} does not match one input")
+            kept.append(found[0])
+        n = len(kept)
+        if n == 0 or descriptors is None or descriptors.shape != (n, 64) or descriptors.dtype != np.uint8:
+            sys.exit(f"error: freak case {name}: unexpected result, {n} kept, descriptors {getattr(descriptors, 'shape', None)}")
+
+        # Cross-check against the replicated geometry: the expected drops must be OpenCV's.
+        ps = freak_pattern_sizes(np, opts["pattern_scale"], opts["n_octaves"])
+        expected = []
+        for i, kp in enumerate(kps):
+            idx = freak_scale_idx(np, kp[2], opts)
+            sides = freak_dropped_sides(kp, ps[idx], w, h)
+            if not sides:
+                expected.append(i)
+            elif name == "default":
+                for side in sides:
+                    drop_trips[side] += 1
+                if len(sides) == 1:
+                    drop_only[sides[0]] += 1
+        if expected != kept:
+            diff = sorted(set(expected) ^ set(kept))
+            sys.exit(f"error: freak case {name}: replicated border test disagrees with OpenCV at inputs {diff[:10]}")
+
+        small_sigma = (2.0 / 24.0) / 2.0 * float(np.float32(opts["pattern_scale"]))  # sigma[6] at scale 0
+        for i in kept:
+            idx = freak_scale_idx(np, kps[i][2], opts)
+            if idx == FREAK_NB_SCALES - 1:
+                scale63_kept[name] = scale63_kept.get(name, 0) + 1
+            scaling = (2.0 ** (opts["n_octaves"] / FREAK_NB_SCALES)) ** idx
+            if name.endswith("pattern-scale-8") and small_sigma * scaling < 0.5:
+                bilinear_kept += 1
+        kept_by_case[name] = kept
+        cases.append(
+            {
+                "name": name,
+                "image": image_key,
+                "options": opts,
+                "keypoints": kps,
+                "kept": kept,
+                "angles_deg": [f32(kp.angle) for kp in returned],
+                "descriptors": [row.tobytes().hex() for row in descriptors],
+            }
+        )
+        print(f"freak {name}: {n} of {len(kps)} kept")
+
+    # Rotation: input i of the scene case and input j of scene_rot90 are the same point.
+    # `pairs` holds descriptor rows, that is positions in each case's `kept`, not input indices.
+    rot_input = tex_interior
+    kept_a, kept_b = kept_by_case["texture-default"], kept_by_case["texture-rot90-default"]
+    pairs = []
+    for j, i in enumerate(rot_input):
+        if i in kept_a and j in kept_b:
+            pairs.append([kept_a.index(i), kept_b.index(j)])
+    if len(pairs) != len(rot_input):
+        sys.exit(f"error: freak rotation: {len(pairs)} of {len(rot_input)} points survive in both images")
+    desc_a = next(c for c in cases if c["name"] == "texture-default")["descriptors"]
+    desc_b = next(c for c in cases if c["name"] == "texture-rot90-default")["descriptors"]
+    hamming = [bin(int(desc_a[a], 16) ^ int(desc_b[b], 16)).count("1") for a, b in pairs]
+    rotation = {
+        "case_a": "texture-default",
+        "case_b": "texture-rot90-default",
+        "pairs_index": "descriptor_row",  # [row in case_a, row in case_b]: positions in `kept`, not input indices
+        "pairs": pairs,
+        "max_hamming": max(hamming),
+    }
+
+    print("freak coverage:")
+    print(f"  bilinear branch (pattern-scale-8, radius < 0.5): {bilinear_kept} kept keypoints")
+    print(f"  scale 63 kept, by case: {scale63_kept}")
+    print(f"  drops in default tripping each side: {drop_trips}, that side alone: {drop_only}")
+    print(f"  rotation: {len(pairs)} pairs, max Hamming {rotation['max_hamming']} of 512")
+    tex_angles = next(c for c in cases if c["name"] == "texture-default")["angles_deg"]
+    theta_idx = {freak_theta_idx(np, a) for a in tex_angles}
+    negative = sum(1 for a in tex_angles if a < 0)
+    print(f"  texture-default: {len(theta_idx)} distinct thetaIdx, {negative} negative angles of {len(tex_angles)}")
+    problems = []
+    if len(theta_idx) < FREAK_MIN_THETA_IDX:
+        problems.append(f"only {len(theta_idx)} distinct thetaIdx at texture-default")
+    if negative < FREAK_MIN_NEGATIVE_ANGLES:
+        problems.append(f"only {negative} negative angles at texture-default")
+    if bilinear_kept == 0:
+        problems.append("bilinear branch not reached")
+    if not scale63_kept:
+        problems.append("scale 63 not reached")
+    problems += [f"no drop on the {side} side" for side in FREAK_SIDES if drop_only[side] == 0]
+    if problems:
+        sys.exit("error: freak coverage: " + "; ".join(problems))
+
+    params = {
+        "opencv_call": "cv2.xfeatures2d.FREAK_create(orientationNormalized, scaleNormalized, patternScale, nOctaves).compute(image, keypoints)",
+        "seed": FREAK_SEED,
+        "input_angle": -1,
+        "scene_rot90": "numpy.rot90(scene), counter-clockwise, 480 x 640; keypoint (x, y) maps to (y, W - 1 - x), W = 640",
+        "scene_rot90_sha256": rot_sha,
+        "flat": "96 x 96 image of constant value 100",
+        "rotation_points": "the texture 'interior' keypoints (quarter-pixel grid, 75 px from every border); scene_rot90 is a plain case",
+        "images": {
+            "texture": {**FREAK_TEXTURE, "sha256": tex_sha, "formula": "see freak_texture() and the README"},
+            "texture_rot90": "numpy.rot90(texture); keypoint (x, y) maps to (y, W - 1 - x), W = 320",
+        },
+        "border_scale_sizes": {str(s): size for s, size in scale_sizes.items()},
+        "pattern_sizes_default": ps_default,
+    }
+    return {"freak": envelope(tc, "freak", params, {"cases": cases, "rotation": rotation}, scene)}
+
+
 # `--only <key>` selects one entry; no `--only` runs them all.
 GENERATORS = {
     "integral": gen_integral,
     "gms": gen_gms,
     "gms-synthetic": gen_gms_synthetic,
     "gms-coverage": gen_gms_coverage,
+    "teblid": gen_teblid,
+    "freak": gen_freak,
 }
 
 

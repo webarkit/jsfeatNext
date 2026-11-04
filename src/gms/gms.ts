@@ -278,8 +278,10 @@ export class gms extends jsfeatNext {
         // below returns them all, in reverse order, on any exit: a normal
         // return, or a throw from anywhere past this point (a keypoint
         // accessor that throws, a `threshold_factor` that cannot be
-        // multiplied, a pool that fails to grow a buffer). A leak here would
-        // drain the pool every module shares.
+        // multiplied, a later borrow whose buffer cannot be grown). It covers
+        // the buffers already borrowed; the one whose growth failed was never
+        // lent, and the pool keeps it (cache.get_buffer, #246). A leak here
+        // would drain the pool every module shares.
         const borrowed: _pool_node_t[] = [];
         const borrow = (size_in_bytes: number): _pool_node_t => {
             const node = this.cache.get_buffer(size_in_bytes);

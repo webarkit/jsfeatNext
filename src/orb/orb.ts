@@ -55,8 +55,9 @@ import { rectify_patch } from "./rectify_patch";
  * Module scope, not an instance field: it is a read-only constant shared by
  * every call, and hoisting it out of the method keeps the hot loop free of a
  * per-call allocation (the same reason `bit_pattern_31` lives in its own file).
+ * Its pure annotation lets a bundle that never uses ORB drop it (#137).
  */
-const u_max = new Int32Array([15, 15, 15, 15, 14, 14, 14, 13, 13, 12, 11, 10, 9, 8, 6, 3, 0]);
+const u_max = /* @__PURE__ */ new Int32Array([15, 15, 15, 15, 14, 14, 14, 13, 13, 12, 11, 10, 9, 8, 6, 3, 0]);
 
 /**
  * ORB binary descriptor extractor (Oriented FAST and Rotated BRIEF): for
@@ -187,7 +188,8 @@ export class orb extends jsfeatNext {
      * @param corners     Keypoints to describe (uses `x`, `y`, `angle`).
      * @param count       Number of keypoints to process.
      * @param descriptors Destination matrix, resized to 32×`count` `U8` —
-     *                    one 32-byte descriptor per row.
+     *                    one 32-byte descriptor per row. It must not share
+     *                    its data with `src` (a `TypeError`).
      */
     describe(src: matrix_t, corners: keypoint_t[], count: number, descriptors: matrix_t): void {
         const DESCR_SIZE = 32; // bytes;
@@ -203,6 +205,11 @@ export class orb extends jsfeatNext {
         const patch_d = this.patch_img.data;
         const patch_off = 16 * 32 + 16; // center of patch
         let patt = 0;
+
+        // descriptors is resized before src is read: sharing its memory would overwrite the image
+        if (descriptors === src || descriptors.data.buffer === src.data.buffer) {
+            throw new TypeError("orb.describe: descriptors must not share its data with src");
+        }
 
         if (!(descriptors.type & JSFEAT_CONSTANTS.U8_t)) {
             // relocate to U8 type
