@@ -147,6 +147,21 @@ describe("teblid.describe: validation", () => {
         expect(freeCount()).toBe(before);
     });
 
+    // Positive as a double, exactly 0 as the float32 OpenCV's TEBLID::create takes.
+    for (const scale_factor of [1e-50, 1e-46]) {
+        it(`throws a RangeError, pool balanced, for a scale_factor that is 0 as float32 (${scale_factor})`, () => {
+            const before = freeCount();
+            const out = new matrix_t(32, 1, jsfeatNext.U8C1_t);
+            expect(() => engine.describe(img, [interior()], 1, out, { scale_factor })).toThrow(RangeError);
+            expect(freeCount()).toBe(before);
+        });
+    }
+
+    it("still accepts the smallest scale_factor that stays positive as float32 (1e-45)", () => {
+        const out = new matrix_t(32, 1, jsfeatNext.U8C1_t);
+        expect(() => engine.describe(img, [interior()], 1, out, { scale_factor: 1e-45 })).not.toThrow();
+    });
+
     it("throws a RangeError, pool balanced, when the fast path would read outside the integral image", () => {
         // On a 40x40 image, size 0.25 gives a border margin of 0.22 px, so
         // y = 39.75 takes the fast path; its boxes round to row 40 = h, and

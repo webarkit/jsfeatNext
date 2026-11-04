@@ -237,7 +237,7 @@ export class teblid extends jsfeatNext {
      *                    It must not share its data with `src` (a `TypeError`).
      * @param options `bits` (256 or 512, default 256; anything else throws a
      *                `RangeError`) and `scale_factor` (default 1.0; must be
-     *                positive and finite as float32, so 1e39 throws).
+     *                positive and finite as float32, so 1e39 and 1e-50 throw).
      */
     describe(
         src: matrix_t,
@@ -255,8 +255,11 @@ export class teblid extends jsfeatNext {
         else throw new RangeError(`teblid.describe: bits must be 256 or 512, got ${bits}`);
 
         const scale_factor = options.scale_factor === undefined ? 1.0 : options.scale_factor;
-        // checked as float32, which is what the descriptor arithmetic uses
-        if (!(scale_factor > 0) || !Number.isFinite(f(scale_factor))) {
+        // Checked as float32, which is what the descriptor arithmetic uses: 1e-50
+        // is 0 there, and 1e39 is Infinity. OpenCV 4.10.0 validates neither and
+        // returns bits for both, which is a deliberate divergence, as for 0.
+        const sf = f(scale_factor);
+        if (!(sf > 0) || !Number.isFinite(sf)) {
             throw new RangeError(`teblid.describe: scale_factor must be finite and positive, got ${scale_factor}`);
         }
         if (src.type !== JSFEAT_CONSTANTS.U8_t || src.channel !== 1) {
@@ -317,7 +320,7 @@ export class teblid extends jsfeatNext {
             const ii = sum_node.i32;
             // compute_integral_image is typed for number[]; it only indexes it
             this.ip.compute_integral_image(src, ii as unknown as number[], null, null);
-            this.describe_all(ii, w, h, corners, count, table, f(scale_factor), rect_node.i32, descriptors.data);
+            this.describe_all(ii, w, h, corners, count, table, sf, rect_node.i32, descriptors.data);
         } finally {
             if (rect_node !== null) this.cache.put_buffer(rect_node);
             this.cache.put_buffer(sum_node);
