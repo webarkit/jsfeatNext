@@ -155,4 +155,21 @@ describe("the namespace behaves as the base class did (#137)", () => {
         expect({} instanceof jsfeatNext).toBe(false);
         expect(new jsfeatNext.matrix_t(1, 1, jsfeatNext.U8C1_t) instanceof jsfeatNext).toBe(false);
     });
+
+    // The shortcut above belongs to the namespace alone (#264). A subclass that
+    // inherited it would accept every module, none of which has the subclass's
+    // own members, and a type guard written with `instanceof` would lie.
+    it("keeps the ordinary instanceof for a subclass of the namespace", () => {
+        class Custom extends jsfeatNext {}
+        class Deeper extends Custom {}
+
+        expect(jsfeatNext.imgproc instanceof Custom).toBe(false);
+        expect(new imgproc_class() instanceof Custom).toBe(false);
+        expect({} instanceof Custom).toBe(false);
+
+        expect(new Custom() instanceof Custom).toBe(true);
+        expect(new Deeper() instanceof Custom).toBe(true);
+        expect(new Custom() instanceof Deeper).toBe(false);
+        expect(new Custom() instanceof jsfeatNext).toBe(true);
+    });
 });
