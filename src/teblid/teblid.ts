@@ -233,6 +233,7 @@ export class teblid extends jsfeatNext {
      * @param count Number of keypoints to describe, `corners[0 .. count)`;
      *              more than `corners.length` throws a `RangeError`.
      * @param descriptors Output, resized to `bits / 8` columns by `count` rows of `U8`.
+     *                    It must not share its data with `src` (a `TypeError`).
      * @param options `bits` (256 or 512, default 256; anything else throws a
      *                `RangeError`) and `scale_factor` (default 1.0; must be
      *                positive and finite as float32, so 1e39 throws).
@@ -259,6 +260,10 @@ export class teblid extends jsfeatNext {
         }
         if (src.type !== JSFEAT_CONSTANTS.U8_t || src.channel !== 1) {
             throw new TypeError("teblid.describe: src must be a U8C1 (8-bit, single-channel) image");
+        }
+        // descriptors is resized before src is read: sharing its memory would overwrite the image
+        if (descriptors === src || descriptors.data.buffer === src.data.buffer) {
+            throw new TypeError("teblid.describe: descriptors must not share its data with src");
         }
         if (!Number.isInteger(count) || count < 0) {
             throw new RangeError(`teblid.describe: count must be a non-negative integer, got ${count}`);

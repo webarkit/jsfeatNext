@@ -188,7 +188,8 @@ export class orb extends jsfeatNext {
      * @param corners     Keypoints to describe (uses `x`, `y`, `angle`).
      * @param count       Number of keypoints to process.
      * @param descriptors Destination matrix, resized to 32×`count` `U8` —
-     *                    one 32-byte descriptor per row.
+     *                    one 32-byte descriptor per row. It must not share
+     *                    its data with `src` (a `TypeError`).
      */
     describe(src: matrix_t, corners: keypoint_t[], count: number, descriptors: matrix_t): void {
         const DESCR_SIZE = 32; // bytes;
@@ -204,6 +205,11 @@ export class orb extends jsfeatNext {
         const patch_d = this.patch_img.data;
         const patch_off = 16 * 32 + 16; // center of patch
         let patt = 0;
+
+        // descriptors is resized before src is read: sharing its memory would overwrite the image
+        if (descriptors === src || descriptors.data.buffer === src.data.buffer) {
+            throw new TypeError("orb.describe: descriptors must not share its data with src");
+        }
 
         if (!(descriptors.type & JSFEAT_CONSTANTS.U8_t)) {
             // relocate to U8 type
