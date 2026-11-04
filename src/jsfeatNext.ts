@@ -81,10 +81,14 @@ import * as singletons from "./singletons";
 // statics (constants, VERSION) are copied on as OWN properties, so reflection
 // such as Object.keys(jsfeatNext) still lists them, and `instanceof` defers to
 // the base, so `jsfeatNext.imgproc instanceof jsfeatNext` stays true although
-// the modules extend the base, not this subclass.
+// the modules extend the base, not this subclass. That deferral is for the
+// namespace alone: statics are inherited, so a consumer's `class Custom extends
+// jsfeatNext` receives this method too, and must get the ordinary check, or it
+// would accept every module (#264).
 class jsfeatNext extends core {
     static [Symbol.hasInstance](value: unknown): boolean {
-        return value instanceof core;
+        if (this === jsfeatNext) return value instanceof core;
+        return Function.prototype[Symbol.hasInstance].call(this, value);
     }
 }
 
@@ -127,5 +131,10 @@ const namespace = /* @__PURE__ */ Object.assign(jsfeatNext, core, {
     teblid: singletons.teblid,
     freak: singletons.freak,
 });
+
+// The name is a type as well as a value, as it was when the default export was
+// the class itself: `let m: jsfeatNext = jsfeatNext.imgproc` (#263). `export
+// default` carries both meanings, and the type adds no code to the bundle.
+type namespace = core;
 
 export default namespace;
