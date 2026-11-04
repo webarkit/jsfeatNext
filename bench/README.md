@@ -6,7 +6,8 @@ Throughput measurement for the hot paths, per [#86](https://github.com/webarkit/
 npm run bench:ratios
 ```
 
-That is one full pass followed by the A/B ratios — see
+That is one full pass followed by the A/B ratios, **and it appends a record to
+`bench/history.jsonl`** — see
 [How to take a measurement](#how-to-take-a-measurement) for the other commands
 and for what each of them prints.
 
@@ -18,7 +19,9 @@ picture; the sections below are the historical record of how each finding was
 found and diagnosed, and their numbers are deliberately not updated.** The
 suite now runs on Vitest 5 (#219). The ratio is defined exactly as before, and
 a Vitest 5 pass reproduces the same picture within the run-to-run noise
-described below — **provided Vitest's getter instrumentation is off, which the
+described below, as far as a single pass can show: `get_gaussian_kernel` size 7
+and `check_subset` were measured in one pass only, and those two can move
+further — **provided Vitest's getter instrumentation is off, which the
 config does for you**: see
 [The module-runner artefact under Vitest 5](#the-module-runner-artefact-under-vitest-5).
 
@@ -117,6 +120,10 @@ knowing about because it is **silent**:
   a module boundary, and `npm run bench:dist` is the one to read as a statement
   about shipped code. It still works under Vitest 5 and shows the same
   signature as before (`linalg.lu_solve` at 1.00x on the built bundle).
+- **Re-check this on every Vitest bump.** The flag does this job only because of
+  Vitest 5.0.x internals: it also gates the getter tracker, which nothing
+  promises. After a bump, one pass must print no "Benchmark Warning" and keep
+  `cache` steady state near 1.0×.
 
 ## Read the ratio, not the absolute numbers
 
@@ -128,7 +135,7 @@ Every case but one runs **twice in the same process**: once through jsfeatNext, 
 1.51x jsfeat     * linalg.lu_solve (6x6)
 ```
 
-**The definition is unchanged from Vitest 4**: jsfeatNext's `hz` divided by jsfeat's `hz`, where `hz` is operations per second from the mean latency. On Vitest 5 that is `1000 / period` in the JSON — **not** the `hz` column of the console table, which Vitest 5 fills from `throughput.mean`, a mean of per-sample throughputs. The two diverge once a call is fast enough for the timer to quantise it (on the ~100 ns `cache` case they differ by tens of percent), so read ratios from the script, not from the table. `bench/history.jsonl` keys and values therefore keep their meaning.
+**The definition is unchanged from Vitest 4**: jsfeatNext's `hz` divided by jsfeat's `hz`, where `hz` is operations per second from the mean latency. On Vitest 5 that is `1000 / period` in the JSON — **not** the `hz` column of the console table, which Vitest 5 fills from `throughput.mean`, a mean of per-sample throughputs. The two are different averages of the same samples: the mean of the throughputs against the throughput of the mean latency. On a right-skewed latency distribution, which is what a bench produces, the first is the larger (a 40–50% gap was measured on a 33 µs case), so read ratios from the script, not from the table. `bench/history.jsonl` keys and values therefore keep their meaning.
 
 The `hz` / `mean` columns in the console table are **not** comparable across machines, and largely not comparable across runs on the same machine either.
 
@@ -234,7 +241,7 @@ What `scripts/bench-ratios.mjs` relies on:
   by prefix (`"jsfeatNext (matrix_t)"`, `"jsfeat (reference, raw array)"` and
   `` `jsfeatNext (${count} keypoints)` `` all pair up). A test that yields only
   one of the two is reported as an error row, never dropped.
-- **An intra-library group has neither name.** A test whose tasks are named after neither implementation (`bench/gms.bench.ts`: jsfeat has no GMS) is not an A/B pair and is not an error: the script prints each task's cost relative to the group's FIRST task, on its own, and never writes it to `history.jsonl`. A name starting with `jsfeat` (any case) still has to pair up, so a mistyped side keeps failing loudly.
+- **An intra-library group says so in its describe.** A test whose describe name contains `intra-library`, and whose tasks are named after neither implementation (`bench/gms.bench.ts`: jsfeat has no GMS), is not an A/B pair and is not an error: the script prints each task's cost relative to the group's FIRST task, on its own, and never writes it to `history.jsonl`. Without the marker a group with neither name is an error row, and so is a marked group with a task that has no usable mean latency, each naming its actual cause. A name starting with `jsfeat` (any case) still has to pair up, so a mistyped side keeps failing loudly.
 - **Two sequential `.run()` calls, not `bench.compare()`.** Sequential keeps the
   protocol the history was recorded with: jsfeatNext is warmed up and measured,
   then jsfeat is. `bench.compare()` warms every task up before measuring any of
@@ -1018,6 +1025,10 @@ Reading it:
   the five runs spread by up to about ±5% on a path, which is inside the noise floor
   above: read them to one significant figure. Cost is linear in the number of
   matches (289 here); a poorer frame has fewer.
+- **The noise scene is idealised.** The second view is an exact translation, so
+  all 289 matches are true inliers, which a real frame's are not.
+- **The rotation paths are the load-sensitive ones.** One busier run read rotation
+  0.42× and rotation+scale 2.10×.
 
 **Conditions, honestly.** Intel Core i7-9700 (8 cores, a desktop with no
 battery), Windows 11, Node v24.21.0, Vitest 5.0.4. **The machine was not
@@ -1256,6 +1267,11 @@ and a reader cannot tell without it. OpenCV's
 [cvbenchmark](https://github.com/opencv/cvbenchmark) commits its results the
 same way, putting the CPU in the filename rather than pretending numbers
 transfer between machines.
+
+**The measurement protocol changed with Vitest 5** (#219): each case went from
+500 ms plus a 100 ms warm-up to 1000 ms plus 250 ms. Records since this note
+carry `env.vitest`; older ones do not, and their `date` tells which side of the
+change they are on.
 
 `geomean` is the geometric mean of the signed speedups — the same aggregation
 cvbenchmark uses. Geometric, not arithmetic, because these are ratios: 2x
