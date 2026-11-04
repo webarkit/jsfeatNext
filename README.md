@@ -185,6 +185,6 @@ Releases are tagged `X.Y.Z` (never `vX.Y.Z`) and published automatically via Git
 
 ## License 📄
 
-[LGPL-3.0-or-later](LICENSE)
+[LGPL-3.0-or-later](LICENSE). The LGPL is a set of additional permissions on top of the GPL-3.0, whose text ships in [`LICENSES/GPL-3.0.txt`](LICENSES/GPL-3.0.txt).
 
 Ported OpenCV code keeps its own notice: `src/gms/` and `src/teblid/` (from opencv_contrib) are Apache-2.0, text in `LICENSES/Apache-2.0.txt`; FREAK (`src/freak/`, ported from opencv_contrib `freak.cpp`) is BSD-3-Clause (EPFL), text in `LICENSES/BSD-3-Clause-FREAK.txt`. The banner of both bundles names these notices.
