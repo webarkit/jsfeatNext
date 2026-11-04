@@ -163,8 +163,10 @@ describe("freak.describe: validation", () => {
         for (const out of [src, view]) {
             const kps = [interior(5, 240), interior()];
             const objs = [...kps];
+            const fields = kps.map((k) => ({ ...k }));
+            expect(() => engine.describe(src, kps, 2, out)).toThrow(TypeError);
             expect(() => engine.describe(src, kps, 2, out)).toThrow(/must not share its data with src/);
-            expect(kps).toEqual(objs);
+            expect(kps).toEqual(fields);
             expect(kps[0]).toBe(objs[0]);
         }
         expect(Array.from(src.data)).toEqual(pixels);
