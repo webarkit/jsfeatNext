@@ -45,7 +45,8 @@
  * group that says it is not A/B escapes the check.
  *
  * HZ DEFINITION. `hz` is `1000 / period` (operations per second from the mean
- * latency), which is what Vitest 4 reported as `hz`. It is NOT the
+ * latency), which is what Vitest 4.1 reported as `hz`, through tinybench 2.9.
+ * It is NOT the
  * `throughput.mean` that Vitest 5's console table prints under the same "hz"
  * heading: that is the mean of per-sample throughputs, a different estimator
  * on a right-skewed latency distribution that is above the throughput of the
