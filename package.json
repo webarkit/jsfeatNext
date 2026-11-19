@@ -63,7 +63,7 @@
   "homepage": "https://github.com/webarkit/jsfeatNext#readme",
   "devDependencies": {
     "@vitest/coverage-v8": "^5.0.2",
-    "prettier": "~3.9.10",
+    "prettier": "~3.10.1",
     "typedoc": "^0.28.20",
     "typescript": "^6.0.3",
     "vite": "^8.3.4",
